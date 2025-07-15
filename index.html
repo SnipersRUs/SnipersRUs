@@ -1,73 +1,385 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>SnipersRUs | Elite Trading Community</title>
+  <title>Snipers-R-Us | The Sniper Suite</title>
+  <link href="https://fonts.googleapis.com/css?family=Montserrat:700,400&display=swap" rel="stylesheet"/>
   <style>
-    body { margin:0; background:#171723; color:#fff; font-family:sans-serif;}
-    .hero { text-align:center; padding:4rem 1rem 2rem 1rem; background:linear-gradient(120deg,#8c1aff 0%,#212121 100%);}
-    .hero h1 { font-size:2.6rem; letter-spacing:1px;}
-    .hero p { font-size:1.2rem; color:#00ff99; margin:1rem 0 2rem;}
-    .cta-btn { background:#21ce99; color:#171723; border:none; border-radius:8px; padding:1rem 2.5rem; font-size:1.1rem; font-weight:700; cursor:pointer;}
-    .cta-btn:hover { background:#29ffbd;}
-    .features { max-width:900px; margin:2.5rem auto; display:flex; flex-wrap:wrap; gap:1.5rem; justify-content:center;}
-    .feature-card { background:#23233a; border-radius:1.2rem; box-shadow:0 2px 16px #0002; padding:2rem 1.5rem; flex:1 1 260px; min-width:240px; max-width:300px; text-align:center;}
-    .feature-card h3 { color:#00ff99; margin-bottom:1rem;}
-    .feature-card p { color:#e0e0e0; font-size:1rem;}
-    .testimonials { background:#22223a; padding:3rem 1rem 2rem 1rem; text-align:center;}
-    .testimonials h2 { color:#21ce99; margin-bottom:1.5rem; font-size:1.6rem;}
-    .testimonial-list { display:flex; flex-wrap:wrap; gap:2rem; justify-content:center;}
-    .testimonial { background:#292942; border-radius:1rem; padding:1.25rem 1rem; font-style:italic; max-width:330px; color:#f5f5f5;}
-    .testimonial strong { display:block; color:#00ff99; margin-top:0.6rem; font-style:normal;}
-    footer { text-align:center; color:#b9b9b9; padding:1.5rem 1rem 2rem; font-size:1rem;}
-    @media (max-width:900px){.features{flex-direction:column;align-items:center;}.feature-card{width:90%;max-width:95vw;}}
+    :root {
+      --purple: #8c1aff;
+      --dark: #15151e;
+      --green: #21ce99;
+      --accent: #00ff99;
+      --gray: #21212b;
+      --white: #fff;
+      --text: #dadada;
+      --shadow: 0 6px 40px #0008;
+    }
+    body {
+      background: var(--dark);
+      color: var(--text);
+      font-family: 'Montserrat', Arial, sans-serif;
+      margin: 0; padding: 0;
+    }
+    header {
+      background: var(--gray);
+      padding: 2.3rem 1rem 1.5rem 1rem;
+      text-align: center;
+      box-shadow: var(--shadow);
+    }
+    .main-title {
+      color: var(--white);
+      font-size: 2.6rem;
+      font-weight: 900;
+      letter-spacing: 2px;
+      margin-bottom: 0.2rem;
+      margin-top: 0.2rem;
+      text-shadow: 0 2px 16px #0005;
+      word-spacing: 0.2em;
+    }
+    .main-title .r-green { color: var(--green);}
+    .main-title .us-purple { color: var(--purple);}
+    .subtitle {
+      color: var(--accent);
+      font-size: 1.28rem;
+      font-weight: 600;
+      margin-bottom: 1.4rem;
+      letter-spacing: 1.2px;
+    }
+    .links {
+      margin: 1.3rem 0 0.5rem 0;
+      display: flex;
+      justify-content: center;
+      gap: 1.2rem;
+      flex-wrap: wrap;
+    }
+    .links a {
+      color: var(--white);
+      background: var(--purple);
+      border-radius: 8px;
+      padding: 0.8rem 2.1rem;
+      text-decoration: none;
+      font-weight: 700;
+      font-size: 1.13rem;
+      letter-spacing: 1px;
+      transition: background 0.18s, color 0.18s;
+      border: none;
+      outline: none;
+      box-shadow: 0 2px 12px #0004;
+      display: inline-block;
+    }
+    .links a:hover {
+      background: var(--green);
+      color: var(--dark);
+    }
+    .laws-main {
+      max-width: 1020px;
+      margin: 2.8rem auto 2.2rem auto;
+      padding: 1.7rem 1.5rem;
+      background: #201c2c;
+      border-radius: 1.6rem;
+      box-shadow: var(--shadow);
+    }
+    .laws-header {
+      text-align: center;
+      margin-bottom: 2.2rem;
+    }
+    .laws-header h2 {
+      font-size: 2.1rem;
+      color: var(--purple);
+      font-weight: 900;
+      letter-spacing: 1px;
+      margin-bottom: 0.2rem;
+      margin-top: 0.3rem;
+    }
+    .laws-header p {
+      font-size: 1.22rem;
+      color: var(--green);
+      margin-top: 0.2rem;
+      margin-bottom: 0.7rem;
+      font-weight: 500;
+    }
+    .law-cards {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 2rem;
+      justify-content: center;
+      margin: 1rem 0 1.3rem 0;
+    }
+    .law-card {
+      background: #24173b;
+      border-left: 7px solid var(--purple);
+      border-radius: 1.1rem;
+      padding: 1.5rem 1.3rem 1.2rem 1.3rem;
+      box-shadow: 0 2px 14px #0003;
+      min-width: 255px;
+      max-width: 320px;
+      flex: 1 1 250px;
+      text-align: left;
+      position: relative;
+      transition: box-shadow 0.15s;
+    }
+    .law-card:hover {
+      box-shadow: 0 4px 24px #0008;
+    }
+    .law-card h3 {
+      color: var(--green);
+      font-size: 1.28rem;
+      font-weight: 800;
+      margin-bottom: 0.8rem;
+      margin-top: 0.4rem;
+      letter-spacing: 1px;
+    }
+    .law-icon {
+      position: absolute;
+      right: 20px;
+      top: 20px;
+      font-size: 2.1rem;
+      opacity: 0.22;
+      user-select: none;
+    }
+    .law-card ul {
+      margin-top: 0.2rem;
+      margin-bottom: 0.7rem;
+      padding-left: 1.1rem;
+    }
+    .law-card ul li {
+      margin-bottom: 0.3rem;
+      font-size: 1.06rem;
+    }
+    .law-card .pro-tip {
+      color: var(--accent);
+      font-size: 0.97rem;
+      font-weight: 600;
+      margin-top: 0.6rem;
+      display: block;
+    }
+    .callout {
+      background: #171723;
+      border-left: 6px solid var(--green);
+      padding: 1rem 1rem 1rem 1.6rem;
+      border-radius: 0.9rem;
+      margin: 2rem 0 1.3rem 0;
+      color: #b2ffef;
+      font-size: 1.08rem;
+      font-weight: 500;
+    }
+    .join-now {
+      text-align: center;
+      margin: 3.1rem 0 2rem 0;
+    }
+    .join-now a {
+      background: var(--green);
+      color: var(--dark);
+      font-size: 1.35rem;
+      font-weight: 900;
+      border-radius: 9px;
+      padding: 1.2rem 2.9rem;
+      text-decoration: none;
+      transition: background 0.2s;
+      box-shadow: 0 4px 20px #0005;
+      display: inline-block;
+      letter-spacing: 1.3px;
+      margin-top: 0.4rem;
+    }
+    .join-now a:hover {
+      background: var(--purple);
+      color: #fff;
+    }
+    .tiers {
+      max-width: 980px;
+      margin: 1.6rem auto 1.4rem auto;
+      background: var(--gray);
+      border-radius: 1.25rem;
+      padding: 2rem 1.25rem;
+      box-shadow: 0 2px 18px #0003;
+    }
+    .tiers h2 {
+      color: var(--accent);
+      margin-top: 0;
+      font-size: 1.5rem;
+      font-weight: 800;
+      margin-bottom: 1.2rem;
+      letter-spacing: 1px;
+    }
+    .tier-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 2rem;
+      justify-content: center;
+    }
+    .tier-card {
+      background: #1e1e28;
+      border-radius: 1rem;
+      padding: 1.3rem 1.1rem;
+      box-shadow: 0 2px 18px #0004;
+      min-width: 220px;
+      max-width: 320px;
+      flex: 1 1 240px;
+      margin-bottom: 1rem;
+      border-left: 7px solid var(--purple);
+      position: relative;
+    }
+    .tier-card h3 {
+      margin-top: 0;
+      color: var(--green);
+      font-size: 1.14rem;
+      margin-bottom: 0.6rem;
+      font-weight: 800;
+      letter-spacing: 0.6px;
+    }
+    .tier-card p {
+      margin: 0.5rem 0 0.7rem 0;
+      color: #d5fbe7;
+      font-size: 0.99rem;
+      min-height: 58px;
+    }
+    .tier-card a {
+      display: inline-block;
+      margin-top: 0.6rem;
+      color: #fff;
+      background: var(--purple);
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      text-decoration: none;
+      font-weight: 600;
+      transition: background 0.2s;
+      letter-spacing: 1px;
+    }
+    .tier-card a:hover {
+      background: var(--green);
+      color: #15151e;
+    }
+    .free-trial {
+      color: var(--accent);
+      font-weight: bold;
+      font-size: 1rem;
+    }
+    .disclaimer {
+      color: #b5b5b5;
+      font-size: 0.93rem;
+      margin: 0.7rem 0 0.2rem 0;
+      text-align: center;
+    }
+    footer {
+      text-align: center;
+      color: #b9b9b9;
+      padding: 2rem 1rem 2.2rem 1rem;
+      font-size: 1.02rem;
+      background: #171723;
+      border-top: 1px solid #22222c;
+    }
+    @media (max-width: 900px) {
+      .law-cards, .tier-list {flex-direction:column;align-items:center;}
+      .law-card, .tier-card {width:92vw;max-width:99vw;}
+      .laws-main, .tiers {padding:1.1rem 0.3rem;}
+      .main-title {font-size:2rem;}
+      .subtitle {font-size:1.02rem;}
+    }
   </style>
 </head>
 <body>
-  <section class="hero">
-    <h1>SnipersRUs</h1>
-    <p>Precision Trading. Real Results.<br>Home of the Golden Pocket Syndicate System.</p>
-    <a href="https://discord.gg/YOURINVITELINK" target="_blank">
-      <button class="cta-btn">Join the Community</button>
-    </a>
-  </section>
-  <section class="features">
-    <div class="feature-card">
-      <h3>🔥 Actionable Signals</h3>
-      <p>Sniper-level trade setups using our exclusive GPS indicator and heatmap.</p>
+  <header>
+    <div class="main-title">
+      SNIPERS-<span class="r-green">R</span>-<span class="us-purple">US</span>
     </div>
-    <div class="feature-card">
-      <h3>📈 Real Community</h3>
-      <p>Learn, trade, and win together. Live calls and strategy breakdowns—no hype.</p>
+    <div class="subtitle">
+      Precision Trading. Real Results.<br>
+      The home of the Sniper Suite.
     </div>
-    <div class="feature-card">
-      <h3>🔔 Instant Alerts</h3>
-      <p>Get notified on key reversal zones and market shifts before the crowd.</p>
+    <div class="links">
+      <a href="https://discord.gg/jnT3hHk" target="_blank">Join Discord</a>
+      <a href="https://www.youtube.com/@rickytspanish" target="_blank">YouTube</a>
+      <a href="https://x.com/Bishop_Bizzle" target="_blank">Twitter</a>
+      <a href="https://www.tradingview.com/u/rickytspanish/" target="_blank">TradingView</a>
     </div>
-  </section>
-  <section class="testimonials">
-    <h2>What Our Traders Say</h2>
-    <div class="testimonial-list">
-      <div class="testimonial">
-        "GPS made my chart 10x cleaner and my trades 10x better. No more clutter, just edge."
-        <strong>– Marcus</strong>
-      </div>
-      <div class="testimonial">
-        "Finally, a Discord that’s actually about trading, not signals spam."
-        <strong>– Nia S.</strong>
-      </div>
-      <div class="testimonial">
-        "The only community I actually trust for live setups and accountability."
-        <strong>– Ethan C.</strong>
+  </header>
+
+  <div class="laws-main">
+    <div class="laws-header">
+      <h2>THE THREE LAWS OF SNIPING</h2>
+      <p>A Precision Trading System for Crypto Markets</p>
+      <div style="font-size:1.01rem;color:#b8fae1;">
+        When all three laws align, win rate potential: <b>80%+</b> <br>
+        One law ≈ 30% | Two laws ≈ 60% | All three ≈ 80%+ <br>
+        <span style="color:#00ff99;">Trust the process. Risk only 1% per trade.</span>
       </div>
     </div>
-    <a href="https://discord.gg/YOURINVITELINK" target="_blank">
-      <button class="cta-btn">Get Started</button>
-    </a>
-  </section>
+    <div class="law-cards">
+      <div class="law-card">
+        <span class="law-icon">🕸️</span>
+        <h3>1. SPIDERLINE CONFIRMATION</h3>
+        <ul>
+          <li>Draw dynamic trendlines (Spiderlines) from significant highs/lows using the ray tool.</li>
+          <li>Look for multiple line confluence and strong price/volume reactions.</li>
+          <li>Color: Green→Yellow (up), Red→Purple (down).</li>
+        </ul>
+        <span class="pro-tip">Pro tip: More line confluence = higher probability.</span>
+      </div>
+      <div class="law-card">
+        <span class="law-icon">🔄</span>
+        <h3>2. DIVERGENCE CONFIRMATION</h3>
+        <ul>
+          <li>Spot regular and hidden divergences across timeframes (momentum, volume, structure).</li>
+          <li>Confirm with clear swing points, strong momentum shifts, and volume alignment.</li>
+        </ul>
+        <span class="pro-tip">Pro tip: Use multi-timeframe divergence for the strongest setups.</span>
+      </div>
+      <div class="law-card">
+        <span class="law-icon">📊</span>
+        <h3>3. VOLUME CONFIRMATION</h3>
+        <ul>
+          <li>Only enter on 3x average volume, clear price action, and visible institutional footprint.</li>
+          <li>Look for strong price reaction at clean technical levels.</li>
+        </ul>
+        <span class="pro-tip">Pro tip: Volume surge + confluence = sniper entry.</span>
+      </div>
+    </div>
+    <div class="callout">
+      Entry rules: All three laws must be present. Risk 1% max per trade. Use proper stops and scale profits.<br>
+      <b>For full tutorials, join the Discord or check our YouTube channel.</b>
+    </div>
+    <div class="join-now">
+      <a href="https://discord.gg/jnT3hHk" target="_blank">Join the Snipers</a>
+    </div>
+  </div>
+
+  <div class="tiers">
+    <h2>Membership Tiers</h2>
+    <div class="tier-list">
+      <div class="tier-card">
+        <h3>🔹 Headhunters<br>$20/month</h3>
+        <p>
+          <b>All indicators, full education, daily analysis & trade ideas, exclusive channels.<br>
+          Take trades at your own discretion, with our guidance.</b>
+        </p>
+        <a href="https://upgrade.chat/734621342069948446/p/ath" target="_blank">Secure Headhunters Access</a>
+      </div>
+      <div class="tier-card">
+        <h3>🔹 Bounty Seekers<br>$60/month</h3>
+        <p>
+          <b>Everything in Headhunters, PLUS:</b> Real-time access to my personal trades, exact entries & exits, full reasoning, mirror my trades, exclusive server.<br>
+          <span class="free-trial">NEW: 7-Day Free Trial!</span>
+        </p>
+        <a href="https://upgrade.chat/734621342069948446/p/e4097a76-84f4-4138-a754-f0cfaae66291" target="_blank">Start Free Trial</a>
+      </div>
+      <div class="tier-card">
+        <h3>🔹 Lifetime<br>$333 (one-time)</h3>
+        <p>
+          <b>Permanent Bounty Hunter role, full access to ALL content (current & future), never pay monthly fees again.</b>
+        </p>
+        <a href="https://upgrade.chat/734621342069948446/p/lifetime" target="_blank">Lifetime Access</a>
+      </div>
+    </div>
+    <div class="disclaimer">
+      <b>Note:</b> Prices may increase soon. Lock in your rate now.
+    </div>
+  </div>
+
   <footer>
-    &copy; 2025 SnipersRUs. All rights reserved. Not financial advice. For educational purposes only.
+    &copy; 2025 Snipers-R-Us. All rights reserved.<br>
+    <span style="color:#666;">Not financial advice. For educational purposes only. Questions? DM on Discord or Twitter.</span>
   </footer>
 </body>
 </html>
