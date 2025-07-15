@@ -73,6 +73,30 @@
       background: var(--green);
       color: var(--dark);
     }
+    .discord-callout {
+      margin: 1.5rem 0 0.4rem 0;
+      text-align: center;
+    }
+    .discord-callout a {
+      background: linear-gradient(90deg, #21ce99 0%, #00ff99 100%);
+      color: #181825;
+      font-size: 1.36rem;
+      font-weight: 900;
+      border-radius: 16px;
+      padding: 1.1rem 2.4rem;
+      text-decoration: none;
+      display: inline-block;
+      box-shadow: 0 2px 24px #1db38588, 0 2px 16px #0003;
+      transition: background 0.16s, color 0.16s, box-shadow 0.2s;
+      letter-spacing: 1.5px;
+      border: none;
+      margin-top: 0.2rem;
+    }
+    .discord-callout a:hover {
+      background: linear-gradient(90deg, #8c1aff 0%, #21ce99 100%);
+      color: #fff;
+      box-shadow: 0 4px 32px #8c1aff88;
+    }
     .laws-main {
       max-width: 1020px;
       margin: 2.8rem auto 2.2rem auto;
@@ -276,6 +300,7 @@
       .laws-main, .tiers {padding:1.1rem 0.3rem;}
       .main-title {font-size:2rem;}
       .subtitle {font-size:1.02rem;}
+      .discord-callout a {font-size:1.1rem;padding:0.85rem 1.2rem;}
     }
   </style>
 </head>
@@ -293,6 +318,11 @@
       <a href="https://www.youtube.com/@rickytspanish" target="_blank">YouTube</a>
       <a href="https://x.com/Bishop_Bizzle" target="_blank">Twitter</a>
       <a href="https://www.tradingview.com/u/rickytspanish/" target="_blank">TradingView</a>
+    </div>
+    <div class="discord-callout">
+      <a href="https://discord.gg/jnT3hHk" target="_blank">
+        🎯 <b>Join the Discord Chat for Free!</b> 🎯
+      </a>
     </div>
   </header>
 
