@@ -540,6 +540,7 @@ class BountySeekerBot:
         self.standout_coin = None
         self.top_gainers = []
         self.top_losers = []
+        self.watchlist_candidates = []
         self.trade_counter = self.state.get("trade_counter", 0)
         self.signal_counter = self.state.get("signal_counter", 0)
         self.last_status_minute = None
@@ -871,23 +872,10 @@ class BountySeekerBot:
         """Write bot status to JSON for the website"""
         try:
             open_trades = self.get_open_trades()
-            payload = {
-                "status": status,
-                "exchange": EXCHANGE_NAME,
-                "watchlist_size": len(self.watchlist),
-                "signal_count": self.signal_counter,
-                "last_scan_time": self.state.get("last_scan_time"),
-                "next_scan_time": self.get_next_scan_time_utc().isoformat(),
-                "open_trades": open_trades,
-                "signals": [],
-                "trending_coins": self.trending_coins,
-                "spotlight": self.standout_coin,
-                "top_gainers": self.top_gainers,
-                "top_losers": self.top_losers
-            }
+            last_signals = self.state.get("last_signals", [])
 
-            if signals:
-                payload["signals"] = [
+            def serialize_signals(items: List[Signal]):
+                return [
                     {
                         "symbol": s.symbol,
                         "direction": s.direction,
@@ -902,8 +890,31 @@ class BountySeekerBot:
                         "timestamp": s.timestamp.isoformat(),
                         "tradingview_link": s.tradingview_link
                     }
-                    for s in signals
+                    for s in items
                 ]
+
+            payload = {
+                "status": status,
+                "exchange": EXCHANGE_NAME,
+                "watchlist_size": len(self.watchlist),
+                "signal_count": self.signal_counter,
+                "last_scan_time": self.state.get("last_scan_time"),
+                "next_scan_time": self.get_next_scan_time_utc().isoformat(),
+                "open_trades": open_trades,
+                "signals": [],
+                "last_signals": last_signals,
+                "watchlist_candidates": self.watchlist_candidates,
+                "trending_coins": self.trending_coins,
+                "spotlight": self.standout_coin,
+                "top_gainers": self.top_gainers,
+                "top_losers": self.top_losers
+            }
+
+            if signals:
+                payload["signals"] = serialize_signals(signals)
+                payload["last_signals"] = payload["signals"]
+                self.state["last_signals"] = payload["signals"]
+                self.save_state()
 
             with open(STATUS_FILE, 'w') as f:
                 json.dump(payload, f, indent=2)
@@ -1134,6 +1145,72 @@ class BountySeekerBot:
         except Exception as e:
             logger.error(f"Error analyzing {symbol}: {e}")
             return None
+
+    def compute_watchlist_candidates(self) -> List[dict]:
+        """Build watchlist candidates near GPS/support/resistance zones"""
+        candidates = []
+        for symbol in self.watchlist:
+            try:
+                ohlcv = self.exchange.fetch_ohlcv(symbol, '15m', limit=96)
+                if len(ohlcv) < 20:
+                    continue
+                current = ohlcv[-1]
+                current_price = float(current[4])
+
+                daily_ohlcv = self.exchange.fetch_ohlcv(symbol, '1d', limit=1)
+                if daily_ohlcv:
+                    daily_high = float(daily_ohlcv[-1][2])
+                    daily_low = float(daily_ohlcv[-1][3])
+                else:
+                    daily_high = max([float(c[2]) for c in ohlcv])
+                    daily_low = min([float(c[3]) for c in ohlcv])
+
+                in_gps_long, gps_dist_long = calculate_gps_zone(daily_high, daily_low, current_price)
+                in_gps_short, gps_dist_short = calculate_upper_gps_zone(daily_high, daily_low, current_price)
+
+                lows = [float(c[3]) for c in ohlcv[-50:]]
+                highs = [float(c[2]) for c in ohlcv[-50:]]
+                support = min(lows)
+                resistance = max(highs)
+                support_dist = abs(current_price - support) / current_price * 100
+                resistance_dist = abs(resistance - current_price) / current_price * 100
+
+                price_from_low = ((current_price - daily_low) / (daily_high - daily_low)) * 100 if (daily_high - daily_low) > 0 else 50
+                price_from_high = ((daily_high - current_price) / (daily_high - daily_low)) * 100 if (daily_high - daily_low) > 0 else 50
+
+                reasons = []
+                distance = None
+
+                if in_gps_long or gps_dist_long < 1.0:
+                    reasons.append(f"Near GPS (Long) {gps_dist_long:.2f}%")
+                    distance = gps_dist_long
+                if in_gps_short or gps_dist_short < 1.0:
+                    reasons.append(f"Near GPS (Short) {gps_dist_short:.2f}%")
+                    distance = min(distance, gps_dist_short) if distance is not None else gps_dist_short
+                if support_dist < 0.8:
+                    reasons.append(f"Near Support {support_dist:.2f}%")
+                    distance = min(distance, support_dist) if distance is not None else support_dist
+                if resistance_dist < 0.8:
+                    reasons.append(f"Near Resistance {resistance_dist:.2f}%")
+                    distance = min(distance, resistance_dist) if distance is not None else resistance_dist
+                if price_from_low < 20:
+                    reasons.append(f"Lower Range {price_from_low:.1f}%")
+                if price_from_high < 20:
+                    reasons.append(f"Upper Range {price_from_high:.1f}%")
+
+                if reasons:
+                    candidates.append({
+                        "symbol": symbol,
+                        "price": current_price,
+                        "distance": distance if distance is not None else 0,
+                        "reasons": reasons[:3]
+                    })
+            except Exception as e:
+                logger.error(f"Watchlist candidate error for {symbol}: {e}")
+                continue
+
+        candidates.sort(key=lambda x: x["distance"])
+        return candidates[:12]
 
     def send_top_picks_discord(self, picks: List[Signal]):
         """Send top picks to Discord in a single card"""
@@ -1501,6 +1578,7 @@ class BountySeekerBot:
                         self.write_status("SCANNING")
                         self.update_learning()  # Update parameters based on performance
                         signals = self.scan_markets()
+                        self.watchlist_candidates = self.compute_watchlist_candidates()
                         last_scan_minute = now.minute
                         last_scan_hour = now.hour
                         self.state["last_scan_time"] = now.isoformat()

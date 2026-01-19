@@ -79,6 +79,47 @@ def _debug_log(hypothesis_id: str, location: str, message: str, data: Dict):
     except Exception:
         pass
 
+def _ensure_single_instance(pid_file: str):
+    # #region agent log
+    _debug_log(
+        "H6",
+        "short_hunter_bot.py:83",
+        "ensure_single_instance start",
+        {
+            "pid_file": pid_file,
+            "pid_exists": os.path.exists(pid_file),
+        },
+    )
+    # #endregion
+    if os.path.exists(pid_file):
+        try:
+            with open(pid_file, "r") as f:
+                pid_str = f.read().strip()
+            if pid_str.isdigit():
+                existing_pid = int(pid_str)
+                if existing_pid != os.getpid():
+                    try:
+                        os.kill(existing_pid, 0)
+                        # #region agent log
+                        _debug_log(
+                            "H6",
+                            "short_hunter_bot.py:99",
+                            "existing instance detected",
+                            {"existing_pid": existing_pid},
+                        )
+                        # #endregion
+                        logger.error(f"❌ Bot already running (PID: {existing_pid}). Exiting.")
+                        raise SystemExit(1)
+                    except OSError:
+                        pass
+        except Exception:
+            pass
+    try:
+        with open(pid_file, "w") as f:
+            f.write(str(os.getpid()))
+    except Exception:
+        pass
+
 # ==========================================
 # DATA STRUCTURES
 # ==========================================
@@ -280,7 +321,7 @@ def load_okx_perps(limit: Optional[int] = None) -> List[Dict[str, str]]:
 
 
 def tradingview_symbol(symbol: str) -> str:
-    return f"{EXCHANGE}:{symbol}.P"
+    return f"{symbol}"
 
 
 def _symbol_to_okx_inst(symbol: str) -> Optional[str]:
@@ -522,8 +563,16 @@ def send_discord_alert(signals: List[Signal], trade_tracker: TradeTracker) -> bo
         trade_lines = []
         for i, signal in enumerate(signals, 1):
             trade_num = trade_tracker.get_next_trade_number() + i - 1
-            tv_url = f"https://www.tradingview.com/chart/?symbol=EXCHANGE:{signal.symbol}"
-            trade_lines.append(f"**#{trade_num}:** `{signal.symbol}` <{tv_url}>")
+            tv_url = f"https://www.tradingview.com/chart/?symbol={tradingview_symbol(signal.symbol)}"
+            # #region agent log
+            _debug_log(
+                "H7",
+                "short_hunter_bot.py:414",
+                "tradingview url",
+                {"symbol": signal.symbol, "tv_url": tv_url},
+            )
+            # #endregion
+            trade_lines.append(f"**#{trade_num}:** [{signal.symbol}]({tv_url})")
             trade_lines.append(f"Entry: `{signal.price:.2f}` | SL: `{signal.stop_loss:.2f}` | TP: `{signal.take_profit:.2f}`")
             trade_lines.append(f"Score: {signal.score}/100 | RSI: {market_data_cache.get(signal.symbol, {}).get('rsi', 0):.1f} | Dev: {market_data_cache.get(signal.symbol, {}).get('dev', 0):.1f}")
             trade_lines.append(f"— {', '.join(signal.reasons)}")
@@ -662,7 +711,7 @@ class ShortHunterBot:
             },
         )
         # #endregion
-        if not market_data:
+        if not market_data_cache:
             logger.warning("⚠️  No market data returned from OKX. Skipping scan.")
             return
 
@@ -687,19 +736,24 @@ class ShortHunterBot:
             logger.info(f"📊 Found {len(signals)} short signal(s)!")
 
             # Add all trades first (sequential numbering)
+            added_signals = []
             for signal in signals:
                 trade_num = self.trade_tracker.get_next_trade_number()
                 if not self.trade_tracker.add_trade(signal, trade_num):
                     logger.warning(f"⚠️  Could not add trade {signal.symbol} (max active: {MAX_ACTIVE_TRADES})")
                     continue
                 self.trades_this_hour += 1
+                added_signals.append(signal)
 
             # Send single Discord alert with all trades
-            logger.info(f"📤 Sending Discord alert for {len(signals)} signal(s)")
-            if send_discord_alert(signals, self.trade_tracker):
-                logger.info(f"✅ Alert sent! Trades this hour: {self.trades_this_hour}/{MAX_TRADES_PER_HOUR}")
+            if added_signals:
+                logger.info(f"📤 Sending Discord alert for {len(added_signals)} signal(s)")
+                if send_discord_alert(added_signals, self.trade_tracker):
+                    logger.info(f"✅ Alert sent! Trades this hour: {self.trades_this_hour}/{MAX_TRADES_PER_HOUR}")
+                else:
+                    logger.error("❌ Failed to send Discord alert")
             else:
-                logger.error("❌ Failed to send Discord alert")
+                logger.info("✓ No new trades added (all signals blocked by limits).")
         else:
             logger.info(f"✓ No short signals detected (Active: {self.trade_tracker.get_active_trades_count()}/{MAX_ACTIVE_TRADES}, Trades/hour: {self.trades_this_hour}/{MAX_TRADES_PER_HOUR})")
 
@@ -760,5 +814,6 @@ class ShortHunterBot:
 # ENTRY POINT
 # ==========================================
 if __name__ == "__main__":
+    _ensure_single_instance("short_hunter_bot.pid")
     bot = ShortHunterBot()
     bot.run()
