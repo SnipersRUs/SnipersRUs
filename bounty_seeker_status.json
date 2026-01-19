@@ -2,9 +2,9 @@
   "status": "ACTIVE",
   "exchange": "okx",
   "watchlist_size": 10,
-  "signal_count": 0,
-  "last_scan_time": "2026-01-19T16:00:00.799351+00:00",
-  "next_scan_time": "2026-01-19T16:30:00+00:00",
+  "signal_count": 2,
+  "last_scan_time": "2026-01-19T20:30:00.412461+00:00",
+  "next_scan_time": "2026-01-19T21:00:00+00:00",
   "open_trades": [
     {
       "id": 189,
@@ -16,110 +16,101 @@
       "entry_time": "2026-01-19T02:45:19.746609+00:00"
     },
     {
-      "id": 195,
-      "trade_number": 7,
-      "symbol": "BIO/USDT:USDT",
-      "entry_price": 0.04407,
-      "stop_loss": 0.043629299999999996,
-      "take_profit": 0.04517175,
-      "entry_time": "2026-01-19T07:45:05.807354+00:00"
-    },
-    {
-      "id": 196,
-      "trade_number": 8,
-      "symbol": "PUMP/USDT:USDT",
-      "entry_price": 0.00249,
-      "stop_loss": 0.0024651,
-      "take_profit": 0.00255225,
-      "entry_time": "2026-01-19T07:45:30.569854+00:00"
+      "id": 199,
+      "trade_number": 11,
+      "symbol": "AXS/USDT:USDT",
+      "entry_price": 1.66,
+      "stop_loss": 1.6434,
+      "take_profit": 1.7014999999999998,
+      "entry_time": "2026-01-19T18:30:03.390555+00:00"
     }
   ],
   "signals": [],
   "trending_coins": [
     {
       "symbol": "RESOLV/USDT:USDT",
-      "change_pct": 18.18532322323609,
-      "volume": 145915451.0
+      "change_pct": 24.000507678639423,
+      "volume": 164478724.0
     },
     {
-      "symbol": "GPS/USDT:USDT",
-      "change_pct": 7.968901846452867,
-      "volume": 189055797.0
+      "symbol": "SHELL/USDT:USDT",
+      "change_pct": 10.483715552129505,
+      "volume": 17657769.0
     },
     {
       "symbol": "RIVER/USDT:USDT",
-      "change_pct": 7.6452599388379205,
-      "volume": 304973329.0
-    },
-    {
-      "symbol": "BARD/USDT:USDT",
-      "change_pct": 4.286086503387181,
-      "volume": 30860631.0
+      "change_pct": 9.619736598033759,
+      "volume": 285703565.0
     },
     {
       "symbol": "BERA/USDT:USDT",
-      "change_pct": 3.3379058070416097,
-      "volume": 1755987141.0
+      "change_pct": 5.5587524456209,
+      "volume": 1849569585.0
+    },
+    {
+      "symbol": "BARD/USDT:USDT",
+      "change_pct": 5.534574814428962,
+      "volume": 32637024.0
     }
   ],
   "spotlight": {
-    "symbol": "BEAT/USDT:USDT",
-    "change_pct": -22.821869488536155,
-    "volume": 13316535.0,
+    "symbol": "RESOLV/USDT:USDT",
+    "change_pct": 24.000507678639423,
+    "volume": 164478724.0,
     "reason": "Top 24h mover"
   },
   "top_gainers": [
     {
       "symbol": "RESOLV/USDT:USDT",
-      "change_pct": 18.18532322323609,
-      "volume": 145915451.0
+      "change_pct": 24.000507678639423,
+      "volume": 164478724.0
     },
     {
-      "symbol": "GPS/USDT:USDT",
-      "change_pct": 7.968901846452867,
-      "volume": 189055797.0
+      "symbol": "SHELL/USDT:USDT",
+      "change_pct": 10.483715552129505,
+      "volume": 17657769.0
     },
     {
       "symbol": "RIVER/USDT:USDT",
-      "change_pct": 7.6452599388379205,
-      "volume": 304973329.0
-    },
-    {
-      "symbol": "BARD/USDT:USDT",
-      "change_pct": 4.286086503387181,
-      "volume": 30860631.0
+      "change_pct": 9.619736598033759,
+      "volume": 285703565.0
     },
     {
       "symbol": "BERA/USDT:USDT",
-      "change_pct": 3.3379058070416097,
-      "volume": 1755987141.0
+      "change_pct": 5.5587524456209,
+      "volume": 1849569585.0
+    },
+    {
+      "symbol": "BARD/USDT:USDT",
+      "change_pct": 5.534574814428962,
+      "volume": 32637024.0
     }
   ],
   "top_losers": [
     {
+      "symbol": "LAB/USDT:USDT",
+      "change_pct": -22.498762988619497,
+      "volume": 11404592.0
+    },
+    {
+      "symbol": "MERL/USDT:USDT",
+      "change_pct": -21.837818048691194,
+      "volume": 177597681.0
+    },
+    {
       "symbol": "BEAT/USDT:USDT",
-      "change_pct": -22.821869488536155,
-      "volume": 13316535.0
+      "change_pct": -20.843304546873373,
+      "volume": 14526449.0
+    },
+    {
+      "symbol": "YB/USDT:USDT",
+      "change_pct": -16.98647373387858,
+      "volume": 30665070.0
     },
     {
       "symbol": "LIGHT/USDT:USDT",
-      "change_pct": -16.989697922123277,
-      "volume": 35663300.0
-    },
-    {
-      "symbol": "LIT/USDT:USDT",
-      "change_pct": -16.183816183816184,
-      "volume": 31169768.0
-    },
-    {
-      "symbol": "EIGEN/USDT:USDT",
-      "change_pct": -13.481444079777834,
-      "volume": 27601363.0
-    },
-    {
-      "symbol": "TIA/USDT:USDT",
-      "change_pct": -13.44478036635248,
-      "volume": 34258311.0
+      "change_pct": -16.666666666666668,
+      "volume": 37462810.0
     }
   ]
 }

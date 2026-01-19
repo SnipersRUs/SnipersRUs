@@ -74,6 +74,10 @@ WATCHLIST_SYMBOLS = []  # Populated dynamically
 WATCHLIST_UPDATE_INTERVAL = 3600  # Update watchlist every hour
 WATCHLIST_SIZE = 10
 
+# Signal routing
+DISCORD_SIGNAL_BIAS = "LONG"  # LONG only for Discord alerts
+SITE_SIGNAL_BIAS = "BOTH"     # BOTH for website status feed
+
 # Setup logging
 logging.basicConfig(
     level=logging.INFO,
@@ -90,6 +94,7 @@ logger = logging.getLogger(__name__)
 class Signal:
     """Trading signal data"""
     symbol: str
+    direction: str
     entry_price: float
     stop_loss: float
     take_profit: float
@@ -265,6 +270,27 @@ def calculate_gps_zone(high: float, low: float, current_price: float) -> Tuple[b
 
     return False, distance
 
+def calculate_upper_gps_zone(high: float, low: float, current_price: float) -> Tuple[bool, float]:
+    """
+    Upper Golden Pocket (for short bias) - from high down to 0.618-0.65
+    """
+    range_size = high - low
+    if range_size == 0:
+        return False, 100.0
+
+    gp_high_level = high - (range_size * GPS_LOW)
+    gp_low_level = high - (range_size * GPS_HIGH)
+
+    if gp_low_level <= current_price <= gp_high_level:
+        return True, 0.0
+
+    if current_price > gp_high_level:
+        distance = abs(current_price - gp_high_level) / current_price * 100
+    else:
+        distance = abs(current_price - gp_low_level) / current_price * 100
+
+    return False, distance
+
 def detect_sfp_reversal(ohlcv: List) -> bool:
     """
     Detect Swing Failure Pattern (SFP) - price sweeps low then reverses
@@ -290,6 +316,32 @@ def detect_sfp_reversal(ohlcv: List) -> bool:
         lower_wick = min(open_price, close) - low
         body = abs(close - open_price)
         if lower_wick > body * 0.5:  # Significant lower wick
+            return True
+
+    return False
+
+def detect_sfp_reversal_high(ohlcv: List) -> bool:
+    """
+    Detect Swing Failure Pattern (SFP) - price sweeps high then reverses
+    """
+    if len(ohlcv) < 5:
+        return False
+
+    recent = ohlcv[-3:]
+    highs = [float(c[2]) for c in recent]
+    closes = [float(c[4]) for c in recent]
+
+    # SFP: Higher high followed by lower close (reversal)
+    if highs[0] < highs[1] and closes[1] > closes[2]:
+        last_candle = ohlcv[-1]
+        low = float(last_candle[3])
+        close = float(last_candle[4])
+        open_price = float(last_candle[1])
+        high = float(last_candle[2])
+
+        upper_wick = high - max(open_price, close)
+        body = abs(close - open_price)
+        if upper_wick > body * 0.5:
             return True
 
     return False
@@ -838,6 +890,7 @@ class BountySeekerBot:
                 payload["signals"] = [
                     {
                         "symbol": s.symbol,
+                        "direction": s.direction,
                         "entry_price": s.entry_price,
                         "stop_loss": s.stop_loss,
                         "take_profit": s.take_profit,
@@ -862,137 +915,59 @@ class BountySeekerBot:
         now = datetime.now(timezone.utc)
         return now.minute == 45 and now.second < 5
 
-    def analyze_symbol(self, symbol: str) -> Optional[Signal]:
-        """Analyze a symbol for reversal signals"""
+    def analyze_symbol(self, symbol: str, bias: str = "both") -> Optional[Signal]:
+        """Analyze a symbol for reversal signals (long + short)"""
         try:
-            # Fetch 15m candles
             timeframe = '15m'
             ohlcv = self.exchange.fetch_ohlcv(symbol, timeframe, limit=200)
 
             if len(ohlcv) < 50:
                 return None
 
-            # Get current data
             current_candle = ohlcv[-1]
-            current_price = float(current_candle[4])  # Close
-            high = float(current_candle[2])
-            low = float(current_candle[3])
-            volume = float(current_candle[5])
+            current_open = float(current_candle[1])
+            current_price = float(current_candle[4])
 
-            # Get daily range for GPS
             daily_ohlcv = self.exchange.fetch_ohlcv(symbol, '1d', limit=1)
             if daily_ohlcv:
                 daily_high = float(daily_ohlcv[-1][2])
                 daily_low = float(daily_ohlcv[-1][3])
             else:
-                # Use recent candles to estimate daily range
-                daily_high = max([float(c[2]) for c in ohlcv[-96:]])  # Last 24h of 15m candles
+                daily_high = max([float(c[2]) for c in ohlcv[-96:]])
                 daily_low = min([float(c[3]) for c in ohlcv[-96:]])
 
-            # Calculate indicators
             closes = [float(c[4]) for c in ohlcv]
             rsi = calculate_rsi(closes, RSI_PERIOD)
             vwap, std_dev, deviation_sigma = calculate_vwap_and_deviation(ohlcv)
-            in_gps, gps_distance = calculate_gps_zone(daily_high, daily_low, current_price)
-            has_sfp = detect_sfp_reversal(ohlcv)
+
+            in_gps_long, gps_dist_long = calculate_gps_zone(daily_high, daily_low, current_price)
+            in_gps_short, gps_dist_short = calculate_upper_gps_zone(daily_high, daily_low, current_price)
+            has_sfp_long = detect_sfp_reversal(ohlcv)
+            has_sfp_short = detect_sfp_reversal_high(ohlcv)
 
             if vwap is None or std_dev is None or deviation_sigma is None:
                 return None
 
-            # Calculate volume spike metrics (VPSR Pro logic)
             vol_ma, vol_stddev, volume_ratio, is_abnormal_vol, is_extreme_vol, is_vol_reversal = calculate_volume_spike_metrics(ohlcv)
-
-            # Score the signal
-            score = 0
-            reasons = []
-
-            # 1. Deviation Zone (2.5σ - 3σ) - Most important
-            if deviation_sigma <= -DEVIATION_3SIGMA:
-                score += 40
-                reasons.append(f"Deviation Zone -3 Sigma (Mean Reversion)")
-            elif deviation_sigma <= -DEVIATION_2SIGMA:
-                score += 30
-                reasons.append(f"Deviation Zone -2.5 Sigma")
-            elif deviation_sigma <= -1.5:  # More lenient - catch more opportunities
-                score += 20
-                reasons.append(f"Deviation Zone -1.5 Sigma (Oversold)")
-
-            # 2. GPS Zone (Golden Pocket)
-            if in_gps:
-                gps_weight = self.adjusted_params.get('gps_weight', 1.0)
-                score += int(30 * gps_weight)
-                reasons.append(f"Price in Daily Golden Pocket (0.618-0.65)")
-            elif gps_distance < 1.0:  # More lenient - within 1%
-                score += 20
-                reasons.append(f"Near GPS Zone ({gps_distance:.2f}% away)")
-            elif gps_distance < 2.0:  # Even more lenient
-                score += 10
-                reasons.append(f"Approaching GPS Zone ({gps_distance:.2f}% away)")
-
-            # 3. RSI Divergence - More lenient
-            if rsi < 40 and rsi > 20:  # Wider range
-                score += 20
-                reasons.append(f"RSI Oversold ({rsi:.1f})")
-            elif rsi < 30:
-                score += 15
-                reasons.append(f"RSI Extreme Oversold ({rsi:.1f})")
-            elif rsi < 50:  # Even more lenient
-                score += 10
-                reasons.append(f"RSI Below Midline ({rsi:.1f})")
-
-            # 4. SFP Reversal
-            if has_sfp:
-                sfp_weight = self.adjusted_params.get('sfp_weight', 1.0)
-                score += int(15 * sfp_weight)
-                reasons.append("SFP Reversal Detected (Sweeping Lows)")
-
-            # 5. Volume Spike Detection (VPSR Pro Logic) - High Priority
-            if is_vol_reversal:
-                # Extreme volume on previous bar + bullish reversal = strong signal
-                score += 25
-                reasons.append(f"Volume Reversal Signal (Extreme Vol + Bullish Reversal)")
-            elif is_extreme_vol:
-                # Extreme volume spike (3.5x threshold)
-                score += 20
-                reasons.append(f"Extreme Volume Spike ({volume_ratio:.1f}x - {VOL_EXTREME_MULTIPLIER}x threshold)")
-            elif is_abnormal_vol:
-                # Abnormal volume spike (2.0x threshold)
-                score += 15
-                reasons.append(f"Abnormal Volume Spike ({volume_ratio:.1f}x - {VOL_MULTIPLIER}x threshold)")
-            elif volume_ratio > 1.5:
-                # Standard volume confirmation
-                score += 10
-                reasons.append(f"Volume Spike ({volume_ratio:.1f}x average)")
-            elif volume_ratio > 1.2:  # Lower threshold
-                score += 5
-                reasons.append(f"Volume Above Average ({volume_ratio:.1f}x)")
-
-            # 6. Price near daily low (additional signal)
-            price_from_low = ((current_price - daily_low) / (daily_high - daily_low)) * 100 if (daily_high - daily_low) > 0 else 50
-            if price_from_low < 20:  # Bottom 20% of daily range
-                score += 15
-                reasons.append(f"Price Near Daily Low ({price_from_low:.1f}% from low)")
-            elif price_from_low < 35:  # Bottom 35% of daily range
-                score += 10
-                reasons.append(f"Price in Lower Range ({price_from_low:.1f}% from low)")
+            is_bullish = current_price > current_open
+            is_bearish = current_price < current_open
+            vol_reversal_short = is_extreme_vol and is_bearish
 
             # Apply adjusted minimum confidence (but don't go below 45)
             min_confidence = max(45, self.adjusted_params.get('min_confidence', MIN_CONFIDENCE_SCORE))
 
-            # Debug logging for near-misses
-            if score >= min_confidence - 10 and score < min_confidence:
-                logger.debug(f"Near miss: {symbol} - Score: {score}/{min_confidence}, Deviation: {deviation_sigma:.2f}σ, RSI: {rsi:.1f}, GPS: {in_gps}")
+            def build_signal(direction: str, score: int, reasons: List[str], in_gps_zone: bool) -> Signal:
+                if direction == "LONG":
+                    stop_loss = current_price * (1 - STOP_LOSS_PCT / 100)
+                    take_profit = current_price * (1 + TARGET_PROFIT_PCT / 100)
+                else:
+                    stop_loss = current_price * (1 + STOP_LOSS_PCT / 100)
+                    take_profit = current_price * (1 - TARGET_PROFIT_PCT / 100)
 
-            if score >= min_confidence:
-                # Calculate stop loss and take profit
-                stop_loss = current_price * (1 - STOP_LOSS_PCT / 100)
-                take_profit = current_price * (1 + TARGET_PROFIT_PCT / 100)
-
-                # Generate TradingView link
                 tv_link = self.get_tradingview_link(symbol)
-
                 return Signal(
                     symbol=symbol,
+                    direction=direction,
                     entry_price=current_price,
                     stop_loss=stop_loss,
                     take_profit=take_profit,
@@ -1000,10 +975,159 @@ class BountySeekerBot:
                     reasons=reasons,
                     rsi=rsi,
                     deviation=deviation_sigma,
-                    in_gps_zone=in_gps,
+                    in_gps_zone=in_gps_zone,
                     timestamp=datetime.now(timezone.utc),
                     tradingview_link=tv_link
                 )
+
+            # Long scoring
+            long_score = 0
+            long_reasons = []
+
+            if deviation_sigma <= -DEVIATION_3SIGMA:
+                long_score += 40
+                long_reasons.append("Deviation Zone -3 Sigma (Mean Reversion)")
+            elif deviation_sigma <= -DEVIATION_2SIGMA:
+                long_score += 30
+                long_reasons.append("Deviation Zone -2.5 Sigma")
+            elif deviation_sigma <= -1.5:
+                long_score += 20
+                long_reasons.append("Deviation Zone -1.5 Sigma (Oversold)")
+
+            if in_gps_long:
+                gps_weight = self.adjusted_params.get('gps_weight', 1.0)
+                long_score += int(30 * gps_weight)
+                long_reasons.append("Price in Daily Golden Pocket (0.618-0.65)")
+            elif gps_dist_long < 1.0:
+                long_score += 20
+                long_reasons.append(f"Near GPS Zone ({gps_dist_long:.2f}% away)")
+            elif gps_dist_long < 2.0:
+                long_score += 10
+                long_reasons.append(f"Approaching GPS Zone ({gps_dist_long:.2f}% away)")
+
+            if rsi < 40 and rsi > 20:
+                long_score += 20
+                long_reasons.append(f"RSI Oversold ({rsi:.1f})")
+            elif rsi < 30:
+                long_score += 15
+                long_reasons.append(f"RSI Extreme Oversold ({rsi:.1f})")
+            elif rsi < 50:
+                long_score += 10
+                long_reasons.append(f"RSI Below Midline ({rsi:.1f})")
+
+            if has_sfp_long:
+                sfp_weight = self.adjusted_params.get('sfp_weight', 1.0)
+                long_score += int(15 * sfp_weight)
+                long_reasons.append("SFP Reversal Detected (Sweeping Lows)")
+
+            if is_vol_reversal and is_bullish:
+                long_score += 25
+                long_reasons.append("Volume Reversal (Extreme Vol + Bullish Reversal)")
+            elif is_extreme_vol:
+                long_score += 20
+                long_reasons.append(f"Extreme Volume Spike ({volume_ratio:.1f}x)")
+            elif is_abnormal_vol:
+                long_score += 15
+                long_reasons.append(f"Abnormal Volume Spike ({volume_ratio:.1f}x)")
+            elif volume_ratio > 1.5:
+                long_score += 10
+                long_reasons.append(f"Volume Spike ({volume_ratio:.1f}x avg)")
+            elif volume_ratio > 1.2:
+                long_score += 5
+                long_reasons.append(f"Volume Above Average ({volume_ratio:.1f}x)")
+
+            price_from_low = ((current_price - daily_low) / (daily_high - daily_low)) * 100 if (daily_high - daily_low) > 0 else 50
+            if price_from_low < 20:
+                long_score += 15
+                long_reasons.append(f"Price Near Daily Low ({price_from_low:.1f}% from low)")
+            elif price_from_low < 35:
+                long_score += 10
+                long_reasons.append(f"Price in Lower Range ({price_from_low:.1f}% from low)")
+
+            # Short scoring
+            short_score = 0
+            short_reasons = []
+
+            if deviation_sigma >= DEVIATION_3SIGMA:
+                short_score += 40
+                short_reasons.append("Deviation Zone +3 Sigma (Mean Reversion)")
+            elif deviation_sigma >= DEVIATION_2SIGMA:
+                short_score += 30
+                short_reasons.append("Deviation Zone +2.5 Sigma")
+            elif deviation_sigma >= 1.5:
+                short_score += 20
+                short_reasons.append("Deviation Zone +1.5 Sigma (Overbought)")
+
+            if in_gps_short:
+                gps_weight = self.adjusted_params.get('gps_weight', 1.0)
+                short_score += int(30 * gps_weight)
+                short_reasons.append("Price in Upper Golden Pocket (0.618-0.65)")
+            elif gps_dist_short < 1.0:
+                short_score += 20
+                short_reasons.append(f"Near Upper GPS Zone ({gps_dist_short:.2f}% away)")
+            elif gps_dist_short < 2.0:
+                short_score += 10
+                short_reasons.append(f"Approaching Upper GPS Zone ({gps_dist_short:.2f}% away)")
+
+            if rsi > 60 and rsi < 80:
+                short_score += 20
+                short_reasons.append(f"RSI Overbought ({rsi:.1f})")
+            elif rsi > 70:
+                short_score += 15
+                short_reasons.append(f"RSI Extreme Overbought ({rsi:.1f})")
+            elif rsi > 50:
+                short_score += 10
+                short_reasons.append(f"RSI Above Midline ({rsi:.1f})")
+
+            if has_sfp_short:
+                sfp_weight = self.adjusted_params.get('sfp_weight', 1.0)
+                short_score += int(15 * sfp_weight)
+                short_reasons.append("SFP Reversal Detected (Sweeping Highs)")
+
+            if vol_reversal_short:
+                short_score += 25
+                short_reasons.append("Volume Reversal (Extreme Vol + Bearish Reversal)")
+            elif is_extreme_vol:
+                short_score += 20
+                short_reasons.append(f"Extreme Volume Spike ({volume_ratio:.1f}x)")
+            elif is_abnormal_vol:
+                short_score += 15
+                short_reasons.append(f"Abnormal Volume Spike ({volume_ratio:.1f}x)")
+            elif volume_ratio > 1.5:
+                short_score += 10
+                short_reasons.append(f"Volume Spike ({volume_ratio:.1f}x avg)")
+            elif volume_ratio > 1.2:
+                short_score += 5
+                short_reasons.append(f"Volume Above Average ({volume_ratio:.1f}x)")
+
+            price_from_high = ((daily_high - current_price) / (daily_high - daily_low)) * 100 if (daily_high - daily_low) > 0 else 50
+            if price_from_high < 20:
+                short_score += 15
+                short_reasons.append(f"Price Near Daily High ({price_from_high:.1f}% from high)")
+            elif price_from_high < 35:
+                short_score += 10
+                short_reasons.append(f"Price in Upper Range ({price_from_high:.1f}% from high)")
+
+            long_ok = long_score >= min_confidence
+            short_ok = short_score >= min_confidence
+
+            if bias.lower() == "long":
+                if long_ok:
+                    return build_signal("LONG", long_score, long_reasons, in_gps_long)
+                return None
+            if bias.lower() == "short":
+                if short_ok:
+                    return build_signal("SHORT", short_score, short_reasons, in_gps_short)
+                return None
+
+            if long_ok and short_ok:
+                if long_score >= short_score:
+                    return build_signal("LONG", long_score, long_reasons, in_gps_long)
+                return build_signal("SHORT", short_score, short_reasons, in_gps_short)
+            if long_ok:
+                return build_signal("LONG", long_score, long_reasons, in_gps_long)
+            if short_ok:
+                return build_signal("SHORT", short_score, short_reasons, in_gps_short)
 
             return None
 
@@ -1023,8 +1147,9 @@ class BountySeekerBot:
             fields = []
             for i, signal in enumerate(picks, 1):
                 rank_emoji = ["🥇", "🥈", "🥉"][i-1] if i <= 3 else f"#{i}"
-                title = f"{rank_emoji} TRADE #{signal.trade_number} • {signal.symbol}"
+                title = f"{rank_emoji} TRADE #{signal.trade_number} • {signal.symbol} • {signal.direction}"
                 value_lines = [
+                    f"**Bias**: {signal.direction}",
                     f"**Entry**: ${signal.entry_price:.4f}",
                     f"**Stop**: ${signal.stop_loss:.4f}",
                     f"**TP**: ${signal.take_profit:.4f}",
@@ -1222,7 +1347,7 @@ class BountySeekerBot:
                     continue
 
             # Analyze symbol
-            signal = self.analyze_symbol(symbol)
+            signal = self.analyze_symbol(symbol, bias=SITE_SIGNAL_BIAS)
             if signal:
                 signals_found.append(signal)
                 logger.info(f"✅ Signal found: {signal.symbol} (Score: {signal.confidence_score}) - Reasons: {', '.join(signal.reasons[:2])}")
@@ -1240,13 +1365,19 @@ class BountySeekerBot:
         # Get top 3 picks (or all if less than 3)
         top_picks = signals_found[:3] if len(signals_found) >= 3 else signals_found
 
-        # Send picks to Discord (only if we have at least 1)
         if top_picks:
             # Assign trade numbers
             for signal in top_picks:
                 signal.trade_number = self.get_next_trade_number()
-            logger.info(f"🎯 Found {len(signals_found)} signals, sending top {len(top_picks)} picks...")
-            self.send_top_picks_discord(top_picks)
+
+            # Send picks to Discord (long-only per DISCORD_SIGNAL_BIAS)
+            discord_picks = [s for s in top_picks if s.direction == DISCORD_SIGNAL_BIAS]
+            if discord_picks:
+                logger.info(f"🎯 Found {len(signals_found)} signals, sending {len(discord_picks)} {DISCORD_SIGNAL_BIAS} picks...")
+                self.send_top_picks_discord(discord_picks)
+            else:
+                logger.info(f"ℹ️ Signals found but no {DISCORD_SIGNAL_BIAS} picks to send to Discord")
+
             self.increment_signal_counter(len(top_picks))
 
             # Save all picks to database and mark as active

@@ -367,6 +367,86 @@
             color: var(--text-primary);
         }
 
+        .signal-toggle {
+            cursor: pointer;
+            font-weight: 700;
+        }
+
+        .signal-panel {
+            margin-top: 16px;
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 16px;
+            box-shadow: var(--shadow-soft);
+            display: none;
+        }
+
+        .signal-panel.active {
+            display: block;
+        }
+
+        .signal-panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+
+        .signal-close,
+        .signal-clear {
+            background: transparent;
+            border: 1px solid var(--glass-border);
+            color: var(--text-secondary);
+            padding: 4px 8px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.75rem;
+        }
+
+        .signal-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .signal-item {
+            padding: 10px;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--glass-border);
+            font-size: 0.85rem;
+        }
+
+        .signal-item .signal-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            font-weight: 700;
+        }
+
+        .signal-item .signal-details {
+            margin-top: 6px;
+            color: var(--text-secondary);
+            font-family: monospace;
+            font-size: 0.8rem;
+        }
+
+        .signal-badge {
+            padding: 2px 8px;
+            border-radius: 999px;
+            font-size: 0.7rem;
+            border: 1px solid var(--glass-border);
+        }
+
+        .signal-badge.long { color: var(--accent-green); }
+        .signal-badge.short { color: var(--accent-purple); }
+        .signal-badge.active { color: var(--accent-white); }
+        .signal-badge.tp { color: var(--accent-green); }
+        .signal-badge.sl { color: #ff0055; }
+
         .session-pill {
             padding: 6px 10px;
             border-radius: 999px;
@@ -1151,6 +1231,19 @@
             border-radius: 16px;
         }
 
+        .breakout-bias {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            background: rgba(255,255,255,0.06);
+            border: 1px solid var(--glass-border);
+        }
+
+        .breakout-bias.long { color: var(--accent-green); }
+        .breakout-bias.short { color: var(--accent-purple); }
+
         /* Canvas */
         canvas {
             display: block;
@@ -1201,6 +1294,7 @@
             <a href="#indicators">Our Indicators</a>
             <a href="#rules">Rules</a>
             <a href="#live">Live Scanner</a>
+            <a href="#breakout-scanner">Breakout Scanner</a>
             <a href="#trades">Active Trades</a>
             <a href="#membership">Membership</a>
             <a href="#arcade">Arcade</a>
@@ -1296,8 +1390,22 @@
                     <div class="price-change" id="btcChange">--</div>
                     <div class="scan-summary">
                         <span class="summary-pill">Session: <span id="sessionStatus">--</span></span>
-                        <span class="summary-pill">Signals: <span id="signalCount">--</span></span>
+                        <span class="summary-pill">Last Session High: <span id="sessionHigh">--</span></span>
+                        <span class="summary-pill">Last Session Low: <span id="sessionLow">--</span></span>
+                        <button class="summary-pill signal-toggle" id="signalToggle" type="button">Signals: <span id="signalCount">--</span></button>
                         <span class="summary-pill">Watchlist: <span id="watchlistCount">--</span></span>
+                    </div>
+                    <div class="signal-panel" id="signalPanel" aria-hidden="true">
+                        <div class="signal-panel-header">
+                            <div>Live Signals</div>
+                            <button class="signal-close" id="signalClose" type="button">Close</button>
+                        </div>
+                        <div id="signalList" class="signal-list"></div>
+                        <div class="signal-panel-header" style="margin-top:12px;">
+                            <div>Past Signals</div>
+                            <button class="signal-clear" id="signalClear" type="button">Clear</button>
+                        </div>
+                        <div id="signalHistory" class="signal-list"></div>
                     </div>
                 </div>
 
@@ -1425,8 +1533,9 @@
                 <tr>
                     <th>Asset</th>
                     <th>Price (USD)</th>
-                    <th>24h Change</th>
-                    <th>Volume (24h)</th>
+                    <th>15m Vol Spike</th>
+                    <th>1H Support/Resistance</th>
+                    <th>Bias</th>
                     <th>Links</th>
                 </tr>
             </thead>
@@ -1477,57 +1586,80 @@
     <div class="laws-section" id="indicators">
         <div class="section-header">
             <h2>Our Core Trading Indicators</h2>
-            <p>We trade with GPS Golden Pocket zones and Piv X Pro VWAPs to map confluence and timing.</p>
+            <p>We trade with GPS Golden Pocket zones, VWAP structure, and volume‑driven reversals.</p>
         </div>
 
         <div class="laws-grid">
             <div class="law-card">
                 <div class="law-icon">🧭</div>
-                <h3>GPS Indicator (Golden Pocket Zones)</h3>
+                <h3><a href="https://www.tradingview.com/script/EzLLjhiA-Piv-X/" target="_blank" rel="noopener">GPS Indicator (Golden Pocket Zones)</a></h3>
+                <p>Maps premium/discount zones for mean reversion levels and confluence.</p>
                 <ul>
-                    <li>Tracks daily, weekly, and monthly Golden Pockets</li>
-                    <li>Major confluence levels for reversals</li>
-                    <li>Used with VWAPs to refine entry zones</li>
-                    <li>Primary map for where price wants to react</li>
+                    <li>Golden Pocket levels for daily structure</li>
+                    <li>Major reaction zones near key ranges</li>
+                    <li>Pairs with VWAPs to refine entries</li>
                 </ul>
             </div>
 
             <div class="law-card">
                 <div class="law-icon">🧠</div>
-                <h3>Piv X Pro (Price + Volume + VWAPs)</h3>
+                <h3><a href="https://www.tradingview.com/script/EzLLjhiA-Piv-X/" target="_blank" rel="noopener">Piv X Pro</a></h3>
+                <p>Multi‑layer reversal system with dynamic pivots, divergence, and VWAP anchoring.</p>
                 <ul>
-                    <li>Identifies pivots, structure shifts, and trend</li>
-                    <li>Highlights high‑quality reversal zones</li>
-                    <li>VWAP framework for bias and value</li>
-                    <li>Main structure engine for trade decisions</li>
+                    <li>ATR‑based pivot detection + confluence scoring</li>
+                    <li>Williams %R divergence + anchored VWAPs</li>
+                    <li>Mean‑reversion stretch filter (>2.5 ATR)</li>
+                </ul>
+            </div>
+
+            <div class="law-card">
+                <div class="law-icon">📈</div>
+                <h3><a href="https://www.tradingview.com/script/krDAvdXq-Sniper-Mini-VWAP/" target="_blank" rel="noopener">Sniper Mini VWAP</a></h3>
+                <p>Session‑based VWAPs to stay in trend and spot new trends at market opens.</p>
+                <ul>
+                    <li>1H / 4H / 8H / Daily VWAP stack</li>
+                    <li>Trend bias: above = bullish, below = bearish</li>
+                    <li>Clean trend pullback and reversion cues</li>
                 </ul>
             </div>
 
             <div class="law-card">
                 <div class="law-icon">📊</div>
-                <h3>VPSR (Volume Spike Reversals)</h3>
+                <h3><a href="https://www.tradingview.com/script/D19WFmKE-VPSR/" target="_blank" rel="noopener">VPSR (Volume Profile)</a></h3>
+                <p>Advanced volume profiling to spot institutional participation and reversals.</p>
                 <ul>
-                    <li>Detects abnormal volume spikes</li>
-                    <li>Flags potential reversal pressure</li>
-                    <li>Confirms liquidity events</li>
-                    <li>Pairs with GPS/VWAP for entries</li>
+                    <li>Abnormal + extreme volume detection</li>
+                    <li>Bias read: VWAP + volume + pressure</li>
+                    <li>Fake‑out warnings and reversal zones</li>
                 </ul>
             </div>
 
             <div class="law-card">
                 <div class="law-icon">🧿</div>
-                <h3>Oath Keeper (Divergence)</h3>
+                <h3><a href="https://www.tradingview.com/script/JAklR7OP-Vector-Sniper/" target="_blank" rel="noopener">Vector Sniper</a></h3>
+                <p>Highlights high‑energy vector candles and absolute reversal signals.</p>
                 <ul>
-                    <li>Momentum + money flow divergence</li>
-                    <li>Filters false breakouts</li>
-                    <li>Confirms reversal timing</li>
-                    <li>Completes the confluence stack</li>
+                    <li>Volatility + volume + structure filters</li>
+                    <li>Pre‑signal scoring for early warnings</li>
+                    <li>Top/bottom candles via wick rejection</li>
+                </ul>
+            </div>
+
+            <div class="law-card">
+                <div class="law-icon">🧲</div>
+                <h3><a href="https://www.tradingview.com/script/nIylWlQs-Liquidity-Hunter-Heatmap/" target="_blank" rel="noopener">Liquidity Hunter Heatmap</a></h3>
+                <p>Visualizes liquidation clusters, traps, and sweep zones in real time.</p>
+                <ul>
+                    <li>Liquidation cluster strength bubbles</li>
+                    <li>Pre‑liquidation warning zones</li>
+                    <li>Volume + VWAP deviation filters</li>
                 </ul>
             </div>
         </div>
 
         <div style="text-align: center; margin-top: 50px; color: var(--text-secondary);">
-            <p><strong>Trade approach:</strong> GPS zones + anchored/floating VWAPs + Piv X + VPSR + Oath Keeper = high‑probability entries.</p>
+            <p><strong>Trade approach:</strong> GPS zones + VWAP structure + Piv X + VPSR + Vector Sniper = high‑probability entries.</p>
+            <p style="margin-top: 15px;"><em>Check out all Sniper indicators on TradingView.</em> <a href="https://www.tradingview.com/u/RickyTSpanish/#published-scripts" target="_blank" rel="noopener">View indicators</a></p>
             <p style="margin-top: 15px;"><em>We never blindly follow bots. Always do your own analysis.</em></p>
         </div>
     </div>
@@ -1684,6 +1816,8 @@
             prices: [],
             volume: [],
             lastPrice: null,
+            pct24h: null,
+            priceHistory: [],
             support: null,
             resistance: null,
             trend: 'NEUTRAL',
@@ -1707,6 +1841,7 @@
         let restPollTimer = null;
         let staleCheckTimer = null;
         let pairSelectEl = null;
+        let signalHistory = [];
 
         // ============================================
         // OKX WEBSOCKET CONNECTION
@@ -1757,8 +1892,12 @@
                         }
                     } else if (channel === 'tickers') {
                         const price = parseFloat(message.last);
+                        const open24h = parseFloat(message.open24h);
                         const volume24h = parseFloat(message.volCcy24h);
                         state.volume24h = Number.isNaN(volume24h) ? state.volume24h : volume24h;
+                        if (!Number.isNaN(price) && !Number.isNaN(open24h) && open24h > 0) {
+                            state.pct24h = ((price - open24h) / open24h) * 100;
+                        }
                         if (!Number.isNaN(price)) {
                             updateMarket(price, 0);
                         }
@@ -1795,6 +1934,7 @@
             // Update price state
             state.prices.push(price);
             state.volume.push(volume);
+            state.priceHistory.push({ ts: Date.now(), price });
 
             // Keep last 200 candles
             if (state.prices.length > 200) {
@@ -1802,14 +1942,23 @@
                 state.volume.shift();
             }
 
-            // Calculate price change
-            if (state.lastPrice) {
-                const change = price - state.lastPrice;
-                const pctChange = (change / state.lastPrice * 100);
-                updatePriceDisplay(price, pctChange);
-                } else {
-                updatePriceDisplay(price, 0);
+            // Keep last 36 hours of price history
+            const cutoff = Date.now() - (36 * 60 * 60 * 1000);
+            if (state.priceHistory.length > 0 && state.priceHistory[0].ts < cutoff) {
+                state.priceHistory = state.priceHistory.filter(p => p.ts >= cutoff);
             }
+
+            // Calculate price change (prefer 24h change)
+            let pctChange = null;
+            if (typeof state.pct24h === 'number') {
+                pctChange = state.pct24h;
+            } else if (state.lastPrice) {
+                const change = price - state.lastPrice;
+                pctChange = (change / state.lastPrice * 100);
+            } else {
+                pctChange = 0;
+            }
+            updatePriceDisplay(price, pctChange);
 
             state.lastPrice = price;
 
@@ -2040,7 +2189,7 @@
             const lastScanEl = document.getElementById('lastScanAt');
             if (lastScanEl) {
                 const now = new Date();
-                lastScanEl.textContent = now.toLocaleTimeString();
+                lastScanEl.textContent = formatLocalTimestamp(now.toISOString());
             }
             const statusEl = document.getElementById('botStatus');
             if (statusEl) {
@@ -2073,13 +2222,20 @@
 
             const sessionEl = document.getElementById('sessionStatus');
             if (sessionEl) sessionEl.textContent = getSessionStatus();
+            updateLastSessionHighLow();
+
+            const lastScanEl = document.getElementById('lastScanAt');
+            if (lastScanEl && data.last_scan_time) {
+                lastScanEl.textContent = formatLocalTimestamp(data.last_scan_time);
+            }
 
             const spotlightEl = document.getElementById('spotlightTrade');
             const reasonsEl = document.getElementById('spotlightReasons');
             const topSignal = data.signals && data.signals.length ? data.signals[0] : null;
 
             if (topSignal) {
-                spotlightEl.textContent = `${topSignal.symbol} • Score ${topSignal.confidence_score}/100 • Entry ${priceFormatter.format(topSignal.entry_price)}`;
+                const bias = topSignal.direction || 'LONG';
+                spotlightEl.textContent = `${topSignal.symbol} • ${bias} • Score ${topSignal.confidence_score}/100 • Entry ${priceFormatter.format(topSignal.entry_price)}`;
                 reasonsEl.innerHTML = (topSignal.reasons || []).slice(0, 3).map(r => `<li>${r}</li>`).join('');
             } else if (data.spotlight) {
                 const spotPct = Number.parseFloat(data.spotlight.change_pct);
@@ -2101,6 +2257,7 @@
 
             renderTrendingCoins(data.trending_coins || []);
             renderTopMovers(data.top_gainers || [], data.top_losers || []);
+            updateSignalsPanel(data.signals || []);
         }
 
         function renderTrendingCoins(coins) {
@@ -2170,6 +2327,175 @@
             return 'Off-Session';
         }
 
+        function getLastClosedSessionWindow(now = new Date()) {
+            const year = now.getUTCFullYear();
+            const month = now.getUTCMonth();
+            const day = now.getUTCDate();
+            const hour = now.getUTCHours();
+
+            // Helper to build UTC date
+            const utc = (d, h) => new Date(Date.UTC(year, month, d, h, 0, 0));
+
+            if (hour >= 7 && hour < 10) {
+                // London active -> last closed Asia (00-07)
+                return { name: 'Asia', start: utc(day, 0), end: utc(day, 7) };
+            }
+            if (hour >= 13 && hour < 16) {
+                // New York active -> last closed London (07-10)
+                return { name: 'London', start: utc(day, 7), end: utc(day, 10) };
+            }
+            if (hour >= 0 && hour < 7) {
+                // Asia active -> last closed New York (13-16) previous day
+                const prevDay = day - 1;
+                return { name: 'New York', start: utc(prevDay, 13), end: utc(prevDay, 16) };
+            }
+            if (hour >= 10 && hour < 13) {
+                // Between London and NY -> last closed London
+                return { name: 'London', start: utc(day, 7), end: utc(day, 10) };
+            }
+            // After NY close -> last closed New York
+            return { name: 'New York', start: utc(day, 13), end: utc(day, 16) };
+        }
+
+        function updateLastSessionHighLow() {
+            const highEl = document.getElementById('sessionHigh');
+            const lowEl = document.getElementById('sessionLow');
+            if (!highEl || !lowEl) return;
+
+            const windowInfo = getLastClosedSessionWindow();
+            const start = windowInfo.start.getTime();
+            const end = windowInfo.end.getTime();
+            const slice = state.priceHistory.filter(p => p.ts >= start && p.ts < end);
+
+            if (!slice.length) {
+                highEl.textContent = '--';
+                lowEl.textContent = '--';
+                return;
+            }
+
+            let high = -Infinity;
+            let low = Infinity;
+            slice.forEach(p => {
+                if (p.price > high) high = p.price;
+                if (p.price < low) low = p.price;
+            });
+
+            highEl.textContent = priceFormatter.format(high);
+            lowEl.textContent = priceFormatter.format(low);
+        }
+
+        function formatLocalTimestamp(isoString) {
+            const date = new Date(isoString);
+            if (Number.isNaN(date.getTime())) return '--';
+            return date.toLocaleString(undefined, {
+                dateStyle: 'short',
+                timeStyle: 'short'
+            });
+        }
+
+        function loadSignalHistory() {
+            try {
+                const stored = localStorage.getItem('signal_history');
+                signalHistory = stored ? JSON.parse(stored) : [];
+            } catch (e) {
+                signalHistory = [];
+            }
+        }
+
+        function saveSignalHistory() {
+            try {
+                localStorage.setItem('signal_history', JSON.stringify(signalHistory.slice(0, 100)));
+            } catch (e) {
+                // ignore storage errors
+            }
+        }
+
+        function normalizeSignal(signal) {
+            return {
+                id: `${signal.symbol}-${signal.direction}-${signal.entry_price}-${signal.timestamp}`,
+                symbol: signal.symbol,
+                direction: signal.direction || 'LONG',
+                entry_price: signal.entry_price,
+                stop_loss: signal.stop_loss,
+                take_profit: signal.take_profit,
+                confidence_score: signal.confidence_score,
+                timestamp: signal.timestamp,
+                tradingview_link: signal.tradingview_link
+            };
+        }
+
+        function getSignalStatus(signal) {
+            if (!state.price) return 'ACTIVE';
+            const price = state.price;
+            const dir = signal.direction;
+            if (dir === 'LONG') {
+                if (price >= signal.take_profit) return 'HIT_TP';
+                if (price <= signal.stop_loss) return 'HIT_SL';
+                return 'ACTIVE';
+            }
+            if (dir === 'SHORT') {
+                if (price <= signal.take_profit) return 'HIT_TP';
+                if (price >= signal.stop_loss) return 'HIT_SL';
+                return 'ACTIVE';
+            }
+            return 'ACTIVE';
+        }
+
+        function updateSignalsPanel(currentSignals) {
+            const signalList = document.getElementById('signalList');
+            const historyList = document.getElementById('signalHistory');
+            if (!signalList || !historyList) return;
+
+            const normalizedCurrent = currentSignals.map(normalizeSignal);
+            const currentIds = new Set(normalizedCurrent.map(s => s.id));
+
+            normalizedCurrent.forEach(signal => {
+                if (!signalHistory.find(s => s.id === signal.id)) {
+                    signalHistory.unshift({ ...signal, status: 'ACTIVE' });
+                }
+            });
+
+            signalHistory = signalHistory.map(signal => {
+                const status = getSignalStatus(signal);
+                return { ...signal, status };
+            });
+
+            saveSignalHistory();
+
+            signalList.innerHTML = normalizedCurrent.length
+                ? normalizedCurrent.map(renderSignalItem).join('')
+                : '<div class="signal-item">No live signals yet.</div>';
+
+            historyList.innerHTML = signalHistory.length
+                ? signalHistory.map(renderSignalItem).join('')
+                : '<div class="signal-item">No past signals yet.</div>';
+        }
+
+        function renderSignalItem(signal) {
+            const status = signal.status || 'ACTIVE';
+            const dirClass = signal.direction === 'SHORT' ? 'short' : 'long';
+            const statusClass = status === 'HIT_TP' ? 'tp' : status === 'HIT_SL' ? 'sl' : 'active';
+            const statusLabel = status === 'HIT_TP' ? 'VALID' : status === 'HIT_SL' ? 'INVALID' : 'ACTIVE';
+            const timeLabel = formatLocalTimestamp(signal.timestamp);
+            const link = signal.tradingview_link || getTradingViewLink(signal.symbol);
+
+            return `
+                <div class="signal-item">
+                    <div class="signal-meta">
+                        <div>${signal.symbol}</div>
+                        <div>
+                            <span class="signal-badge ${dirClass}">${signal.direction}</span>
+                            <span class="signal-badge ${statusClass}">${statusLabel}</span>
+                        </div>
+                    </div>
+                    <div class="signal-details">
+                        Entry: ${signal.entry_price.toFixed(4)} | TP: ${signal.take_profit.toFixed(4)} | SL: ${signal.stop_loss.toFixed(4)}
+                        <br>${timeLabel} • <a href="${link}" target="_blank" rel="noopener">Chart</a>
+                    </div>
+                </div>
+            `;
+        }
+
         function updateConnectionStatus(connected) {
             const dot = document.getElementById('statusDot');
             const text = document.getElementById('connectionStatus');
@@ -2198,9 +2524,13 @@
                 if (!ticker) return;
 
                 const price = parseFloat(ticker.last);
+                const open24h = parseFloat(ticker.open24h);
                 const volume24h = parseFloat(ticker.volCcy24h);
                 if (!Number.isNaN(price)) {
                     state.volume24h = Number.isNaN(volume24h) ? state.volume24h : volume24h;
+                    if (!Number.isNaN(open24h) && open24h > 0) {
+                        state.pct24h = ((price - open24h) / open24h) * 100;
+                    }
                     updateMarket(price, 0);
                 }
             } catch (error) {
@@ -2390,7 +2720,7 @@
                 autosize: true,
                 symbol: state.tvSymbol,
                 interval: '15',
-                timezone: 'Etc/UTC',
+                timezone: 'local',
                 theme: state.theme === 'light' ? 'light' : 'dark',
                 style: '1',
                 locale: 'en',
@@ -2435,18 +2765,75 @@
             tableBody.innerHTML = '';
 
             try {
-                const response = await fetch('https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=250&page=1&sparkline=false&price_change_percentage=24h');
-                if (!response.ok) throw new Error("CoinGecko rate limit or API down");
-                const data = await response.json();
+                const tickersRes = await fetch('https://www.okx.com/api/v5/market/tickers?instType=SWAP');
+                if (!tickersRes.ok) throw new Error("OKX ticker fetch failed");
+                const tickersJson = await tickersRes.json();
+                const tickers = tickersJson.data || [];
 
-                const gainers = data
-                    .filter(coin => !['usdt', 'usdc', 'busd', 'dai', 'tusd'].includes(coin.symbol.toLowerCase()))
-                    .sort((a, b) => b.price_change_percentage_24h - a.price_change_percentage_24h)
+                const candidates = tickers
+                    .filter(t => t.instId && t.instId.endsWith('-USDT-SWAP'))
+                    .sort((a, b) => Number(b.volCcy24h || 0) - Number(a.volCcy24h || 0))
                     .slice(0, 20);
 
-                renderBreakoutTable(gainers);
+                const results = [];
+
+                for (const t of candidates) {
+                    const instId = t.instId;
+                    const last = Number(t.last);
+                    if (!instId || !last) continue;
+
+                    const [candles15Res, candles1hRes] = await Promise.all([
+                        fetch(`https://www.okx.com/api/v5/market/candles?instId=${instId}&bar=15m&limit=40`),
+                        fetch(`https://www.okx.com/api/v5/market/candles?instId=${instId}&bar=1H&limit=48`)
+                    ]);
+
+                    if (!candles15Res.ok || !candles1hRes.ok) continue;
+
+                    const candles15Json = await candles15Res.json();
+                    const candles1hJson = await candles1hRes.json();
+                    const candles15 = candles15Json.data || [];
+                    const candles1h = candles1hJson.data || [];
+
+                    if (candles15.length < 10 || candles1h.length < 10) continue;
+
+                    const latest15 = candles15[0];
+                    const latestVol = Number(latest15[5]);
+                    const avgVol = candles15.slice(1, 21).reduce((sum, c) => sum + Number(c[5]), 0) / Math.max(1, candles15.slice(1, 21).length);
+                    const volRatio = avgVol > 0 ? latestVol / avgVol : 0;
+
+                    const lows1h = candles1h.map(c => Number(c[3]));
+                    const highs1h = candles1h.map(c => Number(c[2]));
+                    const support = Math.min(...lows1h);
+                    const resistance = Math.max(...highs1h);
+
+                    const distToSupport = ((last - support) / last) * 100;
+                    const distToResistance = ((resistance - last) / last) * 100;
+
+                    const longCandidate = distToSupport <= 1.2 && volRatio >= 1.5;
+                    const shortCandidate = distToResistance <= 1.2 && volRatio >= 1.5;
+
+                    if (!longCandidate && !shortCandidate) continue;
+
+                    const bias = longCandidate ? 'LONG' : 'SHORT';
+                    const proximity = bias === 'LONG' ? distToSupport : distToResistance;
+                    const score = (volRatio * 10) + Math.max(0, (1.5 - proximity) * 10);
+
+                    results.push({
+                        instId,
+                        symbol: instId.split('-')[0],
+                        price: last,
+                        volRatio,
+                        support,
+                        resistance,
+                        bias,
+                        score
+                    });
+                }
+
+                results.sort((a, b) => b.score - a.score);
+                renderBreakoutTable(results.slice(0, 15));
             } catch (error) {
-                loading.textContent = "Signal lost. (CoinGecko API limit reached. Try again in 60s.)";
+                loading.textContent = "Signal lost. (OKX API limit reached. Try again in 60s.)";
                 console.error(error);
             }
         }
@@ -2461,33 +2848,40 @@
 
             coins.forEach(coin => {
                 const row = document.createElement('tr');
-                const isPositive = coin.price_change_percentage_24h >= 0;
+                const isPositive = coin.bias === 'LONG';
                 const changeClass = isPositive ? 'breakout-positive' : 'breakout-negative';
                 const arrow = isPositive ? '▲' : '▼';
-                const tvLink = `https://www.tradingview.com/chart/?symbol=${encodeURIComponent(coin.symbol.toUpperCase())}USDT`;
+                const tvLink = getTradingViewLink(coin.symbol);
+                const supportDist = ((coin.price - coin.support) / coin.price) * 100;
+                const resistanceDist = ((coin.resistance - coin.price) / coin.price) * 100;
+                const supportText = coin.bias === 'LONG'
+                    ? `${supportDist.toFixed(2)}% to 1H support`
+                    : `${resistanceDist.toFixed(2)}% to 1H resistance`;
 
                 row.innerHTML = `
                     <td>
                         <div class="breakout-coin">
-                            <img src="${coin.image}" alt="${coin.name}" loading="lazy">
+                            <img src="https://static.okx.com/cdn/okxweb/asset/coin_logo/${coin.symbol.toLowerCase()}.png" alt="${coin.symbol}" onerror="this.style.display='none'">
                             <div>
-                                <div style="font-weight:700">${coin.name}</div>
+                                <div style="font-weight:700">${coin.symbol}</div>
                                 <div style="color:var(--text-secondary); font-size:0.8em">
-                                    <a href="${tvLink}" target="_blank" rel="noopener" style="color:inherit; text-decoration:none;">${coin.symbol.toUpperCase()}</a>
+                                    <a href="${tvLink}" target="_blank" rel="noopener" style="color:inherit; text-decoration:none;">${coin.symbol} / USDT</a>
                                 </div>
                             </div>
                         </div>
                     </td>
-                    <td class="breakout-mono">$${coin.current_price.toLocaleString()}</td>
+                    <td class="breakout-mono">$${coin.price.toLocaleString()}</td>
                     <td class="breakout-mono ${changeClass}">
-                        ${arrow} ${Math.abs(coin.price_change_percentage_24h).toFixed(2)}%
+                        ${arrow} ${coin.volRatio.toFixed(2)}x
                     </td>
-                    <td class="breakout-mono" style="color:var(--text-secondary)">
-                        $${formatCompactNumber(coin.total_volume)}
+                    <td>
+                        <span class="breakout-mono" style="color:var(--text-secondary)">${supportText}</span>
+                    </td>
+                    <td>
+                        <span class="breakout-bias ${coin.bias.toLowerCase()}">${coin.bias}</span>
                     </td>
                     <td>
                         <a href="${tvLink}" target="_blank" rel="noopener" class="breakout-link">Chart</a>
-                        <a href="https://www.coingecko.com/en/coins/${coin.id}" target="_blank" rel="noopener" class="breakout-link">Info</a>
                     </td>
                 `;
                 tableBody.appendChild(row);
@@ -2503,9 +2897,38 @@
             setInterval(fetchBreakoutData, 60000);
         }
 
+        function initSignalPanel() {
+            const toggle = document.getElementById('signalToggle');
+            const closeBtn = document.getElementById('signalClose');
+            const clearBtn = document.getElementById('signalClear');
+            const panel = document.getElementById('signalPanel');
+
+            if (toggle && panel) {
+                toggle.addEventListener('click', () => {
+                    panel.classList.toggle('active');
+                    panel.setAttribute('aria-hidden', panel.classList.contains('active') ? 'false' : 'true');
+                });
+            }
+            if (closeBtn && panel) {
+                closeBtn.addEventListener('click', () => {
+                    panel.classList.remove('active');
+                    panel.setAttribute('aria-hidden', 'true');
+                });
+            }
+            if (clearBtn) {
+                clearBtn.addEventListener('click', () => {
+                    signalHistory = [];
+                    saveSignalHistory();
+                    updateSignalsPanel([]);
+                });
+            }
+        }
+
         // Start
         init();
         initBreakoutScanner();
+        loadSignalHistory();
+        initSignalPanel();
 
         // ====== ARCADE GAME ======
         (function initArcadeGame() {
