@@ -662,3 +662,13 @@
 2026-01-19 17:55:11,082 - INFO - ✅ Sent OPEN card for ETH
 2026-01-19 17:55:12,698 - INFO - Scan complete. Next scan in 59 minutes
 2026-01-19 17:55:12,698 - INFO - ==================================================
+2026-01-19 18:54:59,735 - INFO - ==================================================
+2026-01-19 18:54:59,738 - INFO - Starting scheduled scan...
+2026-01-19 18:54:59,738 - INFO - Scanning BTCUSDT...
+2026-01-19 18:55:01,787 - INFO - Trade BTCUSDT_short_HIGH_92364 still valid
+2026-01-19 18:55:02,789 - INFO - Scanning SOLUSDT...
+2026-01-19 18:55:04,480 - INFO - Scanning ETHUSDT...
+2026-01-19 18:55:06,722 - INFO - Trade ETHUSDT_short_HIGH_3166 still valid
+2026-01-19 18:55:08,097 - INFO - ✅ Sent hourly update card
+2026-01-19 18:55:08,479 - INFO - Scan complete. Next scan in 59 minutes
+2026-01-19 18:55:08,480 - INFO - ==================================================

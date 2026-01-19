@@ -52,7 +52,12 @@
 
         /* Navigation */
         nav {
-            background: rgba(15, 17, 25, 0.8);
+            background: linear-gradient(135deg, 
+                rgba(15, 17, 25, 0.95) 0%,
+                rgba(20, 15, 30, 0.9) 25%,
+                rgba(15, 25, 20, 0.9) 50%,
+                rgba(20, 15, 30, 0.9) 75%,
+                rgba(15, 17, 25, 0.95) 100%);
             padding: 15px 30px;
             display: flex;
             justify-content: space-between;
@@ -62,6 +67,14 @@
             top: 0;
             z-index: 1000;
             backdrop-filter: blur(16px);
+            background-size: 200% 200%;
+            animation: gradientShift 8s ease infinite;
+        }
+        
+        @keyframes gradientShift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
         }
 
         .logo {
@@ -106,11 +119,36 @@
             color: var(--text-secondary);
             text-decoration: none;
             font-weight: 500;
-            transition: color 0.2s;
+            transition: color 0.2s, text-shadow 0.3s;
+            position: relative;
+            padding: 5px 10px;
+            border-radius: 4px;
+        }
+        
+        .nav-links a:not(.clicked) {
+            animation: slowGreenGlow 3s ease-in-out infinite;
+        }
+        
+        @keyframes slowGreenGlow {
+            0%, 100% {
+                text-shadow: 0 0 5px rgba(14, 203, 129, 0.3),
+                             0 0 10px rgba(14, 203, 129, 0.2),
+                             0 0 15px rgba(14, 203, 129, 0.1);
+            }
+            50% {
+                text-shadow: 0 0 10px rgba(14, 203, 129, 0.6),
+                             0 0 20px rgba(14, 203, 129, 0.4),
+                             0 0 30px rgba(14, 203, 129, 0.2);
+            }
         }
 
         .nav-links a:hover {
             color: var(--accent-purple);
+        }
+        
+        .nav-links a.clicked {
+            animation: none;
+            text-shadow: none;
         }
 
         .btn-join {
@@ -120,10 +158,35 @@
             border-radius: 4px;
             font-weight: 700;
             text-decoration: none;
-            transition: opacity 0.2s;
+            transition: opacity 0.2s, box-shadow 0.3s;
+            position: relative;
+        }
+        
+        .btn-join:not(.clicked) {
+            animation: slowGreenGlowButton 3s ease-in-out infinite;
+        }
+        
+        @keyframes slowGreenGlowButton {
+            0%, 100% {
+                box-shadow: 0 0 8px rgba(14, 203, 129, 0.4),
+                            0 0 15px rgba(14, 203, 129, 0.3),
+                            inset 0 0 10px rgba(14, 203, 129, 0.2);
+            }
+            50% {
+                box-shadow: 0 0 15px rgba(14, 203, 129, 0.7),
+                            0 0 25px rgba(14, 203, 129, 0.5),
+                            inset 0 0 15px rgba(14, 203, 129, 0.3);
+            }
         }
 
-        .btn-join:hover { opacity: 0.9; }
+        .btn-join:hover { 
+            opacity: 0.9;
+        }
+        
+        .btn-join.clicked {
+            animation: none;
+            box-shadow: 0 0 10px rgba(156, 39, 176, 0.5);
+        }
 
         /* Theme Toggle */
         .theme-toggle {
@@ -138,12 +201,22 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            transition: background 0.2s, transform 0.2s;
+            transition: background 0.2s, transform 0.2s, box-shadow 0.3s;
+            position: relative;
+        }
+        
+        .theme-toggle:not(.clicked) {
+            animation: slowGreenGlowButton 3s ease-in-out infinite;
         }
 
         .theme-toggle:hover {
             background: var(--accent-purple);
             color: #fff;
+        }
+        
+        .theme-toggle.clicked {
+            animation: none;
+            box-shadow: 0 0 8px rgba(156, 39, 176, 0.4);
         }
 
         /* Hero Section */
@@ -2799,6 +2872,37 @@
         // ============================================
         // THEME TOGGLE
         // ============================================
+        // Track clicked nav links and buttons to stop glow animation
+        document.addEventListener('DOMContentLoaded', function() {
+            const navLinks = document.querySelectorAll('.nav-links a');
+            const btnJoin = document.querySelector('.btn-join');
+            const themeToggle = document.querySelector('.theme-toggle');
+            
+            navLinks.forEach(link => {
+                link.addEventListener('click', function() {
+                    if (!this.classList.contains('clicked')) {
+                        this.classList.add('clicked');
+                    }
+                });
+            });
+            
+            if (btnJoin) {
+                btnJoin.addEventListener('click', function() {
+                    if (!this.classList.contains('clicked')) {
+                        this.classList.add('clicked');
+                    }
+                });
+            }
+            
+            if (themeToggle) {
+                themeToggle.addEventListener('click', function() {
+                    if (!this.classList.contains('clicked')) {
+                        this.classList.add('clicked');
+                    }
+                });
+            }
+        });
+        
         function toggleTheme() {
             const body = document.body;
             const icon = document.getElementById('themeIcon');
