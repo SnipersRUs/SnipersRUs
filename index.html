@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Snipers-R-Us | The Sniper Suite</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
   <style>
         /* ===== DARK THEME (DEFAULT) ===== */
     :root {
@@ -264,6 +265,54 @@
             border: 1px solid rgba(0, 0, 0, 0.08);
         }
 
+        .pair-switch {
+            display: inline-flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .pair-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 10px;
+            border-radius: 999px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            background: rgba(255, 255, 255, 0.04);
+            color: var(--text-primary);
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform 0.15s ease, border 0.2s ease, background 0.2s ease;
+        }
+
+        .pair-pill:hover {
+            transform: translateY(-1px);
+            border-color: rgba(156, 39, 176, 0.45);
+        }
+
+        .pair-pill.active {
+            background: rgba(156, 39, 176, 0.25);
+            border-color: rgba(156, 39, 176, 0.6);
+        }
+
+        .pair-icon {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            font-weight: 800;
+            color: #0b0e11;
+            background: #eaecef;
+        }
+
+        .pair-icon.btc { background: #f7931a; color: #0b0e11; }
+        .pair-icon.eth { background: #627eea; color: #0b0e11; }
+        .pair-icon.xrp { background: #25a768; color: #0b0e11; }
+        .pair-icon.sol { background: #00ffa3; color: #0b0e11; }
+
         /* Price Panel */
         .price-panel {
             background: var(--glass);
@@ -379,6 +428,12 @@
             border: 1px solid transparent;
         }
 
+        .info-row.info-list {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 8px;
+        }
+
         .info-row .info-value {
             transition: color 0.3s ease, opacity 0.3s ease;
         }
@@ -393,6 +448,30 @@
             font-weight: 700;
             font-size: 1rem;
             color: var(--text-primary);
+        }
+
+        .mini-list {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            font-size: 0.85rem;
+        }
+
+        .mini-list li {
+            display: flex;
+            justify-content: space-between;
+            color: var(--text-primary);
+        }
+
+        .mini-list .pos {
+            color: var(--accent-green);
+        }
+
+        .mini-list .neg {
+            color: var(--accent-purple);
         }
 
         .value-up { color: var(--accent-green); }
@@ -744,6 +823,208 @@
             margin-bottom: 10px;
         }
 
+        /* ====== ARCADE GAME SECTION ====== */
+        .arcade-section {
+            max-width: 700px;
+            margin: 0 auto;
+            padding: 60px 20px;
+        }
+
+        .arcade-section .section-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .arcade-section .section-header h2 {
+            font-size: 1.8rem;
+            margin-bottom: 10px;
+        }
+
+        #game-widget {
+            width: 100%;
+            background: #050505;
+            border: 2px solid var(--accent-purple);
+            box-shadow: 0 0 20px var(--accent-purple);
+            position: relative;
+            padding: 20px;
+            box-sizing: border-box;
+            border-radius: 16px;
+        }
+
+        .game-scanlines {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            background-size: 100% 2px, 3px 100%;
+            pointer-events: none;
+            z-index: 10;
+            border-radius: 16px;
+        }
+
+        #btn-quit {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 15;
+            background: #ff0055;
+            border: 2px solid #fff;
+            color: white;
+            font-family: 'Orbitron', monospace;
+            font-size: 0.6rem;
+            padding: 8px 12px;
+            cursor: pointer;
+            box-shadow: 0 0 10px #ff0055;
+            display: none;
+            border-radius: 6px;
+        }
+        #btn-quit:hover { background: #fff; color: #ff0055; }
+
+        .game-header {
+            text-align: center;
+            margin-bottom: 15px;
+            border-bottom: 1px solid #333;
+            padding-bottom: 10px;
+        }
+
+        .game-header h3 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.2rem;
+            margin: 0;
+            text-shadow: 2px 2px #ff0055;
+            color: #fff;
+        }
+
+        .game-stats {
+            display: flex;
+            justify-content: space-between;
+            background: #111;
+            padding: 10px;
+            border: 1px solid var(--accent-green);
+            margin-bottom: 10px;
+            font-family: monospace;
+            font-size: 0.75rem;
+            border-radius: 8px;
+        }
+        .lives-val { color: #ff0055; }
+
+        #chart-area {
+            width: 100%;
+            height: 200px;
+            border: 2px solid #333;
+            background: radial-gradient(circle, #1a1a1a 0%, #000 100%);
+            position: relative;
+            margin-bottom: 15px;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        #game-status {
+            text-align: center;
+            font-size: 1.1rem;
+            margin-bottom: 15px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            min-height: 30px;
+            font-family: monospace;
+        }
+
+        .game-controls { display: flex; gap: 10px; }
+
+        .game-btn {
+            flex: 1;
+            padding: 16px;
+            font-family: monospace;
+            font-size: 0.85rem;
+            font-weight: 700;
+            border: none;
+            cursor: pointer;
+            color: #000;
+            transition: transform 0.1s, opacity 0.2s;
+            border-radius: 10px;
+        }
+        .game-btn:active { transform: scale(0.95); }
+        .game-btn:disabled { opacity: 0.3; cursor: not-allowed; filter: grayscale(1); }
+
+        .game-btn-long { background-color: var(--accent-green); box-shadow: 0 0 15px var(--accent-green); }
+        .game-btn-short { background-color: #ff0055; box-shadow: 0 0 15px #ff0055; }
+
+        .game-overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.95);
+            z-index: 20;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 20px;
+            box-sizing: border-box;
+            border-radius: 16px;
+        }
+
+        .game-overlay h2 {
+            font-family: monospace;
+            color: var(--accent-purple);
+            margin-bottom: 15px;
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+
+        .game-overlay h1 {
+            font-size: 1.8rem;
+            margin-bottom: 10px;
+            text-shadow: 0 0 20px currentColor;
+        }
+
+        .game-overlay.win { color: #ffd700; }
+        .game-overlay.lose { color: #ff0055; }
+
+        .game-overlay p {
+            font-family: monospace;
+            font-size: 0.75rem;
+            margin-bottom: 20px;
+            color: #ccc;
+            line-height: 1.5;
+        }
+
+        .menu-btn {
+            padding: 15px 30px;
+            font-family: monospace;
+            font-size: 0.9rem;
+            font-weight: 700;
+            background: var(--accent-green);
+            border: 2px solid #fff;
+            color: #000;
+            cursor: pointer;
+            text-transform: uppercase;
+            box-shadow: 0 0 15px var(--accent-green);
+            border-radius: 10px;
+        }
+        .menu-btn:hover {
+            background: #fff;
+            box-shadow: 0 0 25px #fff;
+        }
+
+        .game-win-text { color: var(--accent-green); text-shadow: 0 0 10px var(--accent-green); }
+        .game-lose-text { color: #ff0055; text-shadow: 0 0 10px #ff0055; }
+        .game-wait-text { color: var(--accent-purple); animation: gamePulse 1s infinite; }
+
+        @keyframes gamePulse { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
+
+        .prize-note {
+            margin-top: 20px;
+            padding: 16px;
+            background: rgba(156, 39, 176, 0.15);
+            border: 1px solid var(--accent-purple);
+            border-radius: 12px;
+            text-align: center;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+        .prize-note strong { color: var(--accent-green); }
+
         /* Canvas */
         canvas {
             display: block;
@@ -796,6 +1077,7 @@
             <a href="#live">Live Scanner</a>
             <a href="#trades">Active Trades</a>
             <a href="#membership">Membership</a>
+            <a href="#arcade">Arcade</a>
             <a href="https://www.tradingview.com/u/RickyTSpanish/#published-scripts" target="_blank">Indicators</a>
             <button class="theme-toggle" onclick="toggleTheme()">
                 <span id="themeIcon">🌙</span>
@@ -902,10 +1184,20 @@
                     <div class="distance-pill">Resistance distance: <span id="resistanceDistance">--</span></div>
             <div class="distance-pill">
                 Pair:
-                <select id="pairSelect" style="margin-left:6px; background: transparent; color: inherit; border: none;">
-                    <option value="BTC">BTC</option>
-                    <option value="SOL">SOL</option>
-                </select>
+                <span class="pair-switch" id="pairSwitch">
+                    <button class="pair-pill active" data-symbol="BTC" type="button">
+                        <span class="pair-icon btc">₿</span> BTC
+                    </button>
+                    <button class="pair-pill" data-symbol="ETH" type="button">
+                        <span class="pair-icon eth">Ξ</span> ETH
+                    </button>
+                    <button class="pair-pill" data-symbol="XRP" type="button">
+                        <span class="pair-icon xrp">X</span> XRP
+                    </button>
+                    <button class="pair-pill" data-symbol="SOL" type="button">
+                        <span class="pair-icon sol">S</span> SOL
+                    </button>
+                </span>
             </div>
                 </div>
 
@@ -915,14 +1207,20 @@
                         <div class="spotlight-title">Trade Spotlight</div>
                         <div id="spotlightTrade" style="color: var(--text-secondary); font-size: 0.9rem;">Waiting for next scan...</div>
                     </div>
-                    <div class="spotlight-card">
-                        <div class="spotlight-title">Why This Trade</div>
-                        <ul id="spotlightReasons" class="spotlight-list">
-                            <li>GPS zones + Piv X VWAPs</li>
-                            <li>Volume spikes with VPSR</li>
-                            <li>Divergence via Oath Keeper</li>
-                        </ul>
-                    </div>
+                <div class="spotlight-card">
+                    <div class="spotlight-title">Why This Trade</div>
+                    <ul id="spotlightReasons" class="spotlight-list">
+                        <li>GPS zones + Piv X VWAPs</li>
+                        <li>Volume spikes with VPSR</li>
+                        <li>Divergence via Oath Keeper</li>
+                    </ul>
+                </div>
+                <div class="spotlight-card">
+                    <div class="spotlight-title">Trending Coins</div>
+                    <ul id="trendingCoins" class="spotlight-list">
+                        <li>Waiting for ticker data...</li>
+                    </ul>
+                </div>
                 </div>
 
                 <!-- TradingView Chart Embed -->
@@ -960,12 +1258,24 @@
                     <span class="info-value" id="dailyGpDistance">--</span>
                 </div>
                 <div class="info-row">
-                    <span class="info-label">Liquidity Cluster</span>
+                    <span class="info-label">Liquidity Cluster Distance</span>
                     <span class="info-value" id="liquidityDistance">--</span>
                 </div>
                 <div class="info-row">
                     <span class="info-label">Divergence</span>
                     <span class="info-value" id="divergenceStatus">--</span>
+                </div>
+                <div class="info-row info-list">
+                    <span class="info-label">Top 5 Gainers</span>
+                    <ul id="topGainers" class="mini-list">
+                        <li>Waiting for ticker data...</li>
+                    </ul>
+                </div>
+                <div class="info-row info-list">
+                    <span class="info-label">Top 5 Losers</span>
+                    <ul id="topLosers" class="mini-list">
+                        <li>Waiting for ticker data...</li>
+                    </ul>
                 </div>
             </div>
         </div>
@@ -1117,6 +1427,58 @@
 
         <div class="disclaimer">
             Never blindly follow bots. Do your own research, analysis, and risk management. Not financial advice.
+        </div>
+    </div>
+
+    <!-- ARCADE GAME SECTION -->
+    <div class="arcade-section" id="arcade">
+        <div class="section-header">
+            <h2>Candle Sniper Arcade</h2>
+            <p>Test your market instincts. Reach 2000 credits to win a <strong style="color:var(--accent-green)">FREE WEEK</strong> of Bounty Seeker access!</p>
+        </div>
+
+        <div id="game-widget">
+            <div class="game-scanlines"></div>
+
+            <button id="btn-quit">QUIT</button>
+
+            <!-- MAIN MENU OVERLAY -->
+            <div id="menu-overlay" class="game-overlay" style="display:flex">
+                <h2>MISSION BRIEFING:<br><br>GOAL: REACH 2000 CREDITS<br>3 LOSSES = GAME OVER<br>PREDICT GREEN OR RED</h2>
+                <button id="btn-start" class="menu-btn">START GAME</button>
+            </div>
+
+            <!-- GAME OVER / WIN OVERLAY -->
+            <div id="end-overlay" class="game-overlay">
+                <h1 id="end-title">GAME OVER</h1>
+                <p id="end-msg">SCORE: 0</p>
+                <button id="btn-retry" class="menu-btn">RETRY</button>
+            </div>
+
+            <div class="game-header">
+                <h3>CANDLE SNIPER</h3>
+            </div>
+
+            <div class="game-stats">
+                <span>CREDITS: <span id="gameScore">1000</span>/2000</span>
+                <span>LIVES: <span id="gameLives" class="lives-val">♥♥♥</span></span>
+            </div>
+
+            <div id="chart-area">
+                <canvas id="gameCanvas"></canvas>
+            </div>
+
+            <div id="game-status" class="game-wait-text">PLACE YOUR BET</div>
+
+            <div class="game-controls">
+                <button class="game-btn game-btn-long" id="btnLong">LONG (GREEN)</button>
+                <button class="game-btn game-btn-short" id="btnShort">SHORT (RED)</button>
+            </div>
+        </div>
+
+        <div class="prize-note">
+            <strong>Win the game = 1 FREE WEEK of Bounty Seeker!</strong><br>
+            Play once per month for your chance. DM @RickySpanish on Discord with your winning screenshot.
         </div>
     </div>
 
@@ -1490,11 +1852,11 @@
             const next = new Date(now);
             next.setSeconds(0, 0);
             const minutes = next.getMinutes();
-            if (minutes < 45) {
-                next.setMinutes(45);
+            if (minutes < 30) {
+                next.setMinutes(30);
             } else {
                 next.setHours(next.getHours() + 1);
-                next.setMinutes(45);
+                next.setMinutes(0);
             }
             return next;
         }
@@ -1548,7 +1910,10 @@
         function renderEngagement(data) {
             const signalCountEl = document.getElementById('signalCount');
             const watchlistCountEl = document.getElementById('watchlistCount');
-            if (signalCountEl) signalCountEl.textContent = Array.isArray(data.signals) ? data.signals.length : 0;
+            if (signalCountEl) {
+                const total = data.signal_count !== undefined ? data.signal_count : (Array.isArray(data.signals) ? data.signals.length : 0);
+                signalCountEl.textContent = total;
+            }
             if (watchlistCountEl) watchlistCountEl.textContent = data.watchlist_size || '--';
 
             const sessionEl = document.getElementById('sessionStatus');
@@ -1561,6 +1926,15 @@
             if (topSignal) {
                 spotlightEl.textContent = `${topSignal.symbol} • Score ${topSignal.confidence_score}/100 • Entry ${priceFormatter.format(topSignal.entry_price)}`;
                 reasonsEl.innerHTML = (topSignal.reasons || []).slice(0, 3).map(r => `<li>${r}</li>`).join('');
+            } else if (data.spotlight) {
+                const spotPct = Number.parseFloat(data.spotlight.change_pct);
+                const spotPctText = Number.isFinite(spotPct) ? spotPct.toFixed(2) : '0.00';
+                spotlightEl.textContent = `${data.spotlight.symbol} • ${spotPctText}% • ${data.spotlight.reason || 'Standout'}`;
+                reasonsEl.innerHTML = `
+                    <li>Top mover outside top 10</li>
+                    <li>Volume: ${data.spotlight.volume ? priceFormatter.format(data.spotlight.volume) : 'N/A'}</li>
+                    <li>Monitoring for reversal setup</li>
+                `;
             } else {
                 spotlightEl.textContent = 'Waiting for next scan...';
                 reasonsEl.innerHTML = `
@@ -1568,6 +1942,50 @@
                     <li>Volume spikes with VPSR</li>
                     <li>Divergence via Oath Keeper</li>
                 `;
+            }
+
+            renderTrendingCoins(data.trending_coins || []);
+            renderTopMovers(data.top_gainers || [], data.top_losers || []);
+        }
+
+        function renderTrendingCoins(coins) {
+            const list = document.getElementById('trendingCoins');
+            if (!list) return;
+            if (!coins.length) {
+                list.innerHTML = '<li>Waiting for ticker data...</li>';
+                return;
+            }
+            list.innerHTML = coins.slice(0, 5).map(c => {
+                const pctVal = Number.parseFloat(c.change_pct);
+                const pct = Number.isFinite(pctVal) ? pctVal.toFixed(2) : '0.00';
+                return `<li>${c.symbol} <span style="float:right; color:${pctVal >= 0 ? 'var(--accent-green)' : 'var(--accent-purple)'}">${pct}%</span></li>`;
+            }).join('');
+        }
+
+        function renderTopMovers(gainers, losers) {
+            const gainersEl = document.getElementById('topGainers');
+            const losersEl = document.getElementById('topLosers');
+            if (gainersEl) {
+                if (!gainers.length) {
+                    gainersEl.innerHTML = '<li>Waiting for ticker data...</li>';
+                } else {
+                    gainersEl.innerHTML = gainers.slice(0, 5).map(c => {
+                        const pctVal = Number.parseFloat(c.change_pct);
+                        const pct = Number.isFinite(pctVal) ? pctVal.toFixed(2) : '0.00';
+                        return `<li>${c.symbol} <span class="pos">${pct}%</span></li>`;
+                    }).join('');
+                }
+            }
+            if (losersEl) {
+                if (!losers.length) {
+                    losersEl.innerHTML = '<li>Waiting for ticker data...</li>';
+                } else {
+                    losersEl.innerHTML = losers.slice(0, 5).map(c => {
+                        const pctVal = Number.parseFloat(c.change_pct);
+                        const pct = Number.isFinite(pctVal) ? pctVal.toFixed(2) : '0.00';
+                        return `<li>${c.symbol} <span class="neg">${pct}%</span></li>`;
+                    }).join('');
+                }
             }
         }
 
@@ -1657,6 +2075,14 @@
                 state.symbol = 'SOL';
                 state.instId = 'SOL-USDT-SWAP';
                 state.tvSymbol = 'OKX:SOLUSDT.P';
+            } else if (symbol === 'ETH') {
+                state.symbol = 'ETH';
+                state.instId = 'ETH-USDT-SWAP';
+                state.tvSymbol = 'OKX:ETHUSDT.P';
+            } else if (symbol === 'XRP') {
+                state.symbol = 'XRP';
+                state.instId = 'XRP-USDT-SWAP';
+                state.tvSymbol = 'OKX:XRPUSDT.P';
             } else {
                 state.symbol = 'BTC';
                 state.instId = 'BTC-USDT-SWAP';
@@ -1678,6 +2104,15 @@
             fetchOkxDailyCandle();
             connectOKX();
             loadTradingViewWidget();
+            updatePairUI(symbol);
+        }
+
+        function updatePairUI(symbol) {
+            const pills = document.querySelectorAll('.pair-pill');
+            pills.forEach(pill => {
+                const isActive = pill.dataset.symbol === symbol;
+                pill.classList.toggle('active', isActive);
+            });
         }
 
         // ============================================
@@ -1734,23 +2169,31 @@
             // TradingView embed
             loadTradingViewWidget();
 
-            // Pair select
-            pairSelectEl = document.getElementById('pairSelect');
-            if (pairSelectEl) {
-                pairSelectEl.value = state.symbol;
-                pairSelectEl.addEventListener('change', (e) => setPair(e.target.value));
+            // Pair switch buttons
+            const pairSwitch = document.getElementById('pairSwitch');
+            if (pairSwitch) {
+                pairSwitch.addEventListener('click', (e) => {
+                    const btn = e.target.closest('.pair-pill');
+                    if (!btn) return;
+                    const symbol = btn.dataset.symbol;
+                    if (symbol) setPair(symbol);
+                });
             }
+            updatePairUI(state.symbol);
 
             // Engagement panels
             renderEngagement({ signals: [], watchlist_size: '--' });
             fetchBotStatus();
             setInterval(fetchBotStatus, 30000);
 
-            // Free trial modal (15s delay)
-            setTimeout(() => {
-                const overlay = document.getElementById('trialOverlay');
-                if (overlay) overlay.style.display = 'flex';
-            }, 15000);
+            // Free trial modal (15s delay, only once)
+            if (!localStorage.getItem('trial_shown')) {
+                setTimeout(() => {
+                    const overlay = document.getElementById('trialOverlay');
+                    if (overlay) overlay.style.display = 'flex';
+                    localStorage.setItem('trial_shown', 'true');
+                }, 15000);
+            }
         }
 
         function closeTrialModal() {
@@ -1784,7 +2227,15 @@
                 allow_symbol_change: false,
                 details: false,
                 calendar: false,
-                studies: []
+                studies: [],
+                overrides: {
+                    "mainSeriesProperties.candleStyle.upColor": "#0ecb81",
+                    "mainSeriesProperties.candleStyle.downColor": "#9c27b0",
+                    "mainSeriesProperties.candleStyle.borderUpColor": "#0ecb81",
+                    "mainSeriesProperties.candleStyle.borderDownColor": "#9c27b0",
+                    "mainSeriesProperties.candleStyle.wickUpColor": "#0ecb81",
+                    "mainSeriesProperties.candleStyle.wickDownColor": "#9c27b0"
+                }
             });
 
             const widgetContainer = container.querySelector('.tradingview-widget-container');
@@ -1795,6 +2246,320 @@
 
         // Start
         init();
+
+        // ====== ARCADE GAME ======
+        (function initArcadeGame() {
+            const gameCanvas = document.getElementById('gameCanvas');
+            if (!gameCanvas) return;
+            const gameCtx = gameCanvas.getContext('2d');
+            const gameStatusEl = document.getElementById('game-status');
+            const gameScoreEl = document.getElementById('gameScore');
+            const gameLivesEl = document.getElementById('gameLives');
+            const btnLong = document.getElementById('btnLong');
+            const btnShort = document.getElementById('btnShort');
+            const btnQuit = document.getElementById('btn-quit');
+            const menuOverlay = document.getElementById('menu-overlay');
+            const endOverlay = document.getElementById('end-overlay');
+            const endTitle = document.getElementById('end-title');
+            const endMsg = document.getElementById('end-msg');
+            const btnStart = document.getElementById('btn-start');
+            const btnRetry = document.getElementById('btn-retry');
+
+            gameCanvas.width = 560;
+            gameCanvas.height = 200;
+
+            let gameCredits = 1000;
+            let gameLives = 3;
+            let gameStreak = 0;
+            let gameCandles = [];
+
+            const MAX_VISIBLE_CANDLES = 24;
+            const CANDLE_WIDTH = 20;
+            const CANDLE_SPACING = 2;
+
+            let gameState = 'MENU';
+            let currentRoundCandle = null;
+            let roundTimer = 0;
+            const ROUND_LENGTH = 5;
+            const WINNING_SCORE = 2000;
+
+            let gamePrice = 2500;
+            for (let i = 0; i < MAX_VISIBLE_CANDLES; i++) {
+                generateFakeCandle(true);
+            }
+
+            btnStart.addEventListener('click', startGame);
+            btnRetry.addEventListener('click', startGame);
+            btnLong.addEventListener('click', () => placeBet('LONG'));
+            btnShort.addEventListener('click', () => placeBet('SHORT'));
+
+            btnQuit.addEventListener('click', () => {
+                if (confirm("QUIT GAME? ALL PROGRESS WILL BE LOST.")) {
+                    quitToMenu();
+                }
+            });
+
+            function gameLoop() {
+                if (gameState !== 'GAMEOVER' && gameState !== 'MENU') {
+                    updateGame();
+                    drawGame();
+                }
+                requestAnimationFrame(gameLoop);
+            }
+            gameLoop();
+
+            function updateGame() {
+                let last = gameCandles[gameCandles.length - 1];
+                if (!last) return;
+
+                let move = (Math.random() - 0.5) * 10;
+                last.close += move;
+
+                if (last.close > last.high) last.high = last.close;
+                if (last.close < last.low) last.low = last.close;
+
+                if (gameState === 'RUNNING') {
+                    roundTimer -= 1 / 60;
+                    gameStatusEl.innerText = `CANDLE CLOSING IN: ${Math.ceil(roundTimer)}s`;
+                    if (roundTimer <= 0) {
+                        endRound();
+                    }
+                }
+            }
+
+            function startGame() {
+                gameCredits = 1000;
+                gameLives = 3;
+                gameStreak = 0;
+                gameScoreEl.innerText = gameCredits;
+                updateLivesDisplay();
+
+                gameCandles = [];
+                gamePrice = 2500;
+                for (let i = 0; i < MAX_VISIBLE_CANDLES; i++) {
+                    generateFakeCandle(true);
+                }
+
+                menuOverlay.style.display = 'none';
+                endOverlay.style.display = 'none';
+                btnQuit.style.display = 'block';
+
+                gameState = 'BETTING';
+                gameStatusEl.innerText = "PLACE YOUR BET";
+                gameStatusEl.className = "game-wait-text";
+                btnLong.disabled = false;
+                btnShort.disabled = false;
+            }
+
+            function quitToMenu() {
+                gameState = 'MENU';
+                menuOverlay.style.display = 'flex';
+                endOverlay.style.display = 'none';
+                btnQuit.style.display = 'none';
+            }
+
+            function placeBet(direction) {
+                if (gameState !== 'BETTING') return;
+
+                btnLong.disabled = true;
+                btnShort.disabled = true;
+                gameState = 'RUNNING';
+                roundTimer = ROUND_LENGTH;
+                gameStatusEl.innerText = "ROUND STARTED...";
+                gameStatusEl.className = "game-wait-text";
+
+                let prevClose = gameCandles[gameCandles.length - 1].close;
+
+                currentRoundCandle = {
+                    open: prevClose,
+                    close: prevClose,
+                    high: prevClose,
+                    low: prevClose,
+                    direction: direction
+                };
+
+                gameCandles.push(currentRoundCandle);
+                if (gameCandles.length > MAX_VISIBLE_CANDLES) {
+                    gameCandles.shift();
+                }
+            }
+
+            function generateFakeCandle(isComplete) {
+                let prev = gameCandles.length > 0 ? gameCandles[gameCandles.length - 1].close : 2500;
+                let open = prev;
+                let close = open + (Math.random() - 0.5) * 30;
+                let high = Math.max(open, close) + Math.random() * 5;
+                let low = Math.min(open, close) - Math.random() * 5;
+
+                gameCandles.push({ open, close, high, low, complete: true });
+
+                if (gameCandles.length > MAX_VISIBLE_CANDLES) {
+                    gameCandles.shift();
+                }
+            }
+
+            function endRound() {
+                gameState = 'RESULT';
+                let c = currentRoundCandle;
+                let isGreen = c.close > c.open;
+                let win = false;
+
+                if (c.direction === 'LONG' && isGreen) win = true;
+                if (c.direction === 'SHORT' && !isGreen) win = true;
+
+                if (win) {
+                    handleWin();
+                } else {
+                    handleLoss();
+                }
+
+                if (gameState !== 'GAMEOVER') {
+                    setTimeout(() => {
+                        gameState = 'BETTING';
+                        btnLong.disabled = false;
+                        btnShort.disabled = false;
+                        gameStatusEl.innerText = "PLACE YOUR BET";
+                        gameStatusEl.className = "game-wait-text";
+                        currentRoundCandle = null;
+                    }, 2000);
+                }
+            }
+
+            function handleWin() {
+                gameStatusEl.innerText = "WIN! +100 CREDITS";
+                gameStatusEl.className = "game-win-text";
+                gameCredits += 100;
+                gameStreak++;
+                gameScoreEl.innerText = gameCredits;
+
+                if (gameCredits >= WINNING_SCORE) {
+                    triggerWin();
+                    return;
+                }
+
+                if (gameStreak === 3) {
+                    setTimeout(() => alert("3 WIN STREAK! Keep going!"), 500);
+                    gameStreak = 0;
+                }
+            }
+
+            function handleLoss() {
+                gameStatusEl.innerText = "LOSS. -1 LIFE";
+                gameStatusEl.className = "game-lose-text";
+                gameCredits = Math.max(0, gameCredits - 100);
+                gameStreak = 0;
+                gameScoreEl.innerText = gameCredits;
+
+                gameLives--;
+                updateLivesDisplay();
+
+                if (gameLives <= 0) {
+                    triggerGameOver();
+                }
+            }
+
+            function updateLivesDisplay() {
+                let hearts = "";
+                for (let i = 0; i < gameLives; i++) hearts += "♥";
+                gameLivesEl.innerText = hearts;
+            }
+
+            function triggerWin() {
+                gameState = 'GAMEOVER';
+                endOverlay.style.display = 'flex';
+                endOverlay.className = 'game-overlay win';
+                endTitle.innerText = "VICTORY!";
+                endTitle.style.color = "#ffd700";
+                endMsg.innerHTML = "FINAL SCORE: " + gameCredits + "<br><br><strong style='color:#0ecb81'>FREE WEEK OF BOUNTY SEEKER!</strong><br>Screenshot this & DM @RickySpanish on Discord";
+                btnQuit.style.display = 'none';
+
+                // Check monthly play limit
+                const lastWinMonth = localStorage.getItem('arcadeWinMonth');
+                const currentMonth = new Date().getMonth();
+                if (lastWinMonth !== String(currentMonth)) {
+                    localStorage.setItem('arcadeWinMonth', currentMonth);
+                }
+            }
+
+            function triggerGameOver() {
+                gameState = 'GAMEOVER';
+                endOverlay.style.display = 'flex';
+                endOverlay.className = 'game-overlay lose';
+                endTitle.innerText = "GAME OVER";
+                endTitle.style.color = "#ff0055";
+                endMsg.innerText = "FINAL SCORE: " + gameCredits;
+                btnQuit.style.display = 'none';
+            }
+
+            function drawGame() {
+                gameCtx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
+
+                let min = Infinity, max = -Infinity;
+                gameCandles.forEach(c => {
+                    if (c.low < min) min = c.low;
+                    if (c.high < min) min = c.high;
+                    if (c.high > max) max = c.high;
+                });
+                let range = max - min;
+                if (range === 0) range = 1;
+                const scaleY = (gameCanvas.height - 20) / range;
+                const padding = 10;
+
+                // Grid
+                gameCtx.strokeStyle = "#222";
+                gameCtx.lineWidth = 1;
+                gameCtx.beginPath();
+                for (let i = 0; i < gameCanvas.width; i += 40) { gameCtx.moveTo(i, 0); gameCtx.lineTo(i, gameCanvas.height); }
+                for (let i = 0; i < gameCanvas.height; i += 40) { gameCtx.moveTo(0, i); gameCtx.lineTo(gameCanvas.width, i); }
+                gameCtx.stroke();
+
+                // Candles
+                gameCandles.forEach((c, i) => {
+                    let x = i * (CANDLE_WIDTH + CANDLE_SPACING);
+
+                    let yOpen = gameCanvas.height - padding - (c.open - min) * scaleY;
+                    let yClose = gameCanvas.height - padding - (c.close - min) * scaleY;
+                    let yHigh = gameCanvas.height - padding - (c.high - min) * scaleY;
+                    let yLow = gameCanvas.height - padding - (c.low - min) * scaleY;
+
+                    let isGreen = c.close >= c.open;
+                    let color = isGreen ? '#0ecb81' : '#ff0055';
+
+                    if (gameState === 'RUNNING' && i === gameCandles.length - 1) {
+                        gameCtx.shadowBlur = 20;
+                        gameCtx.shadowColor = color;
+                    } else {
+                        gameCtx.shadowBlur = 0;
+                    }
+
+                    gameCtx.strokeStyle = color;
+                    gameCtx.fillStyle = color;
+
+                    // Wick
+                    gameCtx.beginPath();
+                    gameCtx.moveTo(x + CANDLE_WIDTH / 2, yHigh);
+                    gameCtx.lineTo(x + CANDLE_WIDTH / 2, yLow);
+                    gameCtx.stroke();
+
+                    // Body
+                    let bodyH = Math.max(Math.abs(yClose - yOpen), 1);
+                    let bodyY = Math.min(yOpen, yClose);
+                    gameCtx.fillRect(x, bodyY, CANDLE_WIDTH, bodyH);
+                });
+
+                // Entry Line
+                if (gameState === 'RUNNING' && currentRoundCandle) {
+                    let entryY = gameCanvas.height - padding - (currentRoundCandle.open - min) * scaleY;
+                    gameCtx.strokeStyle = "#fff";
+                    gameCtx.setLineDash([5, 5]);
+                    gameCtx.beginPath();
+                    gameCtx.moveTo(0, entryY);
+                    gameCtx.lineTo(gameCanvas.width, entryY);
+                    gameCtx.stroke();
+                    gameCtx.setLineDash([]);
+                }
+            }
+        })();
     </script>
 </body>
 </html>

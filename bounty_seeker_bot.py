@@ -65,13 +65,14 @@ VOL_MULTIPLIER = 2.0  # Abnormal Volume Threshold
 VOL_EXTREME_MULTIPLIER = 3.5  # Extreme Volume Threshold
 
 # Market Filters
-MIN_24H_VOLUME_USD = 10000000  # $10M minimum volume (to get closer to 50 coins)
-SCAN_INTERVAL_SEC = 60  # Check every minute for XX:45 window
+MIN_24H_VOLUME_USD = 10000000  # $10M minimum volume
+SCAN_INTERVAL_SEC = 60  # Check every minute for XX:00/30 window
 ACTIVE_TRADES_COOLDOWN = 300  # 5 minutes cooldown per symbol
 
-# Assets to monitor (Will be dynamically loaded - Top 50 by volume)
+# Assets to monitor (Will be dynamically loaded - Top 10 by volume)
 WATCHLIST_SYMBOLS = []  # Populated dynamically
 WATCHLIST_UPDATE_INTERVAL = 3600  # Update watchlist every hour
+WATCHLIST_SIZE = 10
 
 # Setup logging
 logging.basicConfig(
@@ -483,7 +484,12 @@ class BountySeekerBot:
         self.adjusted_params = {}
         self.watchlist = []
         self.watchlist_last_update = None
+        self.trending_coins = []
+        self.standout_coin = None
+        self.top_gainers = []
+        self.top_losers = []
         self.trade_counter = self.state.get("trade_counter", 0)
+        self.signal_counter = self.state.get("signal_counter", 0)
         self.last_status_minute = None
         self.init_exchange()
         self.load_top_50_watchlist()
@@ -631,9 +637,9 @@ class BountySeekerBot:
             return f"https://www.tradingview.com/chart/?symbol={base}/USDT"
 
     def load_top_50_watchlist(self):
-        """Load top 50 perpetual futures USDT pairs by 24h volume"""
+        """Load top 10 perpetual futures USDT pairs by 24h volume"""
         try:
-            logger.info("📊 Loading top 50 coins by volume...")
+            logger.info("📊 Loading top 10 coins by volume...")
 
             # Get all swap (perpetual futures) markets
             all_swap_pairs = []
@@ -656,13 +662,53 @@ class BountySeekerBot:
                 tickers = self.exchange.fetch_tickers()
             except Exception as e:
                 logger.error(f"Failed to fetch tickers: {e}")
-                # Fallback to first 50 pairs
-                self.watchlist = all_swap_pairs[:50]
-                logger.info(f"📊 Using first 50 pairs as fallback")
+                # Fallback to first 10 pairs
+                self.watchlist = all_swap_pairs[:WATCHLIST_SIZE]
+                logger.info("📊 Using first 10 pairs as fallback")
                 return
+
+            def safe_float(value, default=0.0):
+                try:
+                    if value is None:
+                        return default
+                    return float(value)
+                except (ValueError, TypeError):
+                    return default
+
+            def compute_change_pct(ticker):
+                pct = ticker.get('percentage')
+                pct = safe_float(pct, None)
+
+                if pct is None:
+                    info = ticker.get('info', {}) or {}
+                    last = safe_float(ticker.get('last') or info.get('last'))
+                    open_24h = safe_float(
+                        ticker.get('open') or info.get('open24h') or info.get('sodUtc0') or info.get('sodUtc8')
+                    )
+                    if open_24h > 0:
+                        pct = ((last - open_24h) / open_24h) * 100
+                    else:
+                        pct = 0.0
+
+                # Heuristic: if pct looks like a ratio (0.02), convert to percent
+                if abs(pct) < 1:
+                    info = ticker.get('info', {}) or {}
+                    last = safe_float(ticker.get('last') or info.get('last'))
+                    open_24h = safe_float(
+                        ticker.get('open') or info.get('open24h') or info.get('sodUtc0') or info.get('sodUtc8')
+                    )
+                    if open_24h > 0:
+                        calc_pct = ((last - open_24h) / open_24h) * 100
+                        if abs(calc_pct) >= 1:
+                            pct = calc_pct
+                    else:
+                        pct = pct * 100
+
+                return pct
 
             # Get volumes for each pair
             symbol_volumes = []
+            symbol_changes = []
             for symbol in all_swap_pairs:
                 ticker = tickers.get(symbol, {})
                 # Try different volume fields
@@ -670,24 +716,50 @@ class BountySeekerBot:
                          ticker.get('baseVolume') or
                          ticker.get('info', {}).get('volCcy24h') or
                          0)
-                try:
-                    volume = float(volume)
-                except (ValueError, TypeError):
-                    volume = 0.0
+                volume = safe_float(volume)
+                pct_change = compute_change_pct(ticker)
 
                 if volume >= MIN_24H_VOLUME_USD:  # Filter by minimum volume
                     symbol_volumes.append((symbol, volume))
+                    symbol_changes.append((symbol, pct_change, volume))
 
             # Sort by volume descending
             symbol_volumes.sort(key=lambda x: x[1], reverse=True)
 
-            # Get top 50
-            self.watchlist = [s[0] for s in symbol_volumes[:50]]
+            # Get top 10
+            self.watchlist = [s[0] for s in symbol_volumes[:WATCHLIST_SIZE]]
             self.watchlist_last_update = datetime.now(timezone.utc)
 
             # Log top 10 for verification
             top_10_names = [s.split('/')[0] if '/' in s else s.split(':')[0] for s in self.watchlist[:10]]
-            logger.info(f"✅ Loaded top 50 coins: {', '.join(top_10_names)}... (Total: {len(self.watchlist)})")
+            logger.info(f"✅ Loaded top 10 coins: {', '.join(top_10_names)} (Total: {len(self.watchlist)})")
+
+            # Top movers from 24h % change
+            gainers_sorted = sorted(symbol_changes, key=lambda x: x[1], reverse=True)
+            losers_sorted = sorted(symbol_changes, key=lambda x: x[1])
+
+            self.trending_coins = [
+                {"symbol": s, "change_pct": pct, "volume": vol}
+                for s, pct, vol in gainers_sorted[:5]
+            ]
+            self.top_gainers = [
+                {"symbol": s, "change_pct": pct, "volume": vol}
+                for s, pct, vol in gainers_sorted[:5]
+            ]
+            self.top_losers = [
+                {"symbol": s, "change_pct": pct, "volume": vol}
+                for s, pct, vol in losers_sorted[:5]
+            ]
+
+            # Standout coin (highest absolute % change)
+            if symbol_changes:
+                standout = max(symbol_changes, key=lambda x: abs(x[1]))
+                self.standout_coin = {
+                    "symbol": standout[0],
+                    "change_pct": standout[1],
+                    "volume": standout[2],
+                    "reason": "Top 24h mover"
+                }
 
         except Exception as e:
             logger.error(f"❌ Failed to load watchlist: {e}")
@@ -727,14 +799,20 @@ class BountySeekerBot:
         except Exception as e:
             logger.error(f"Failed to save state: {e}")
 
+    def increment_signal_counter(self, count: int):
+        """Increment and persist total signals count"""
+        self.signal_counter += count
+        self.state["signal_counter"] = self.signal_counter
+        self.save_state()
+
     def get_next_scan_time_utc(self) -> datetime:
-        """Next scan time at XX:45 UTC"""
+        """Next scan time at XX:00 or XX:30 UTC"""
         now = datetime.now(timezone.utc)
         next_scan = now.replace(second=0, microsecond=0)
-        if next_scan.minute < 45:
-            next_scan = next_scan.replace(minute=45)
+        if next_scan.minute < 30:
+            next_scan = next_scan.replace(minute=30)
         else:
-            next_scan = (next_scan + timedelta(hours=1)).replace(minute=45)
+            next_scan = (next_scan + timedelta(hours=1)).replace(minute=0)
         return next_scan
 
     def write_status(self, status: str, signals: Optional[List[Signal]] = None):
@@ -745,10 +823,15 @@ class BountySeekerBot:
                 "status": status,
                 "exchange": EXCHANGE_NAME,
                 "watchlist_size": len(self.watchlist),
+                "signal_count": self.signal_counter,
                 "last_scan_time": self.state.get("last_scan_time"),
                 "next_scan_time": self.get_next_scan_time_utc().isoformat(),
                 "open_trades": open_trades,
-                "signals": []
+                "signals": [],
+                "trending_coins": self.trending_coins,
+                "spotlight": self.standout_coin,
+                "top_gainers": self.top_gainers,
+                "top_losers": self.top_losers
             }
 
             if signals:
@@ -958,9 +1041,9 @@ class BountySeekerBot:
                 })
 
             embed = {
-                "title": f"🟧 BOUNTY ALERTS • {len(picks)} TRADE(S)",
+                "title": f"🟩 BOUNTY ALERTS • {len(picks)} TRADE(S)",
                 "description": "Top reversal setups (15m scan). Trades are numbered and executed.",
-                "color": 0xF39C12,  # Orange
+                "color": 0x0ecb81,  # Green
                 "timestamp": datetime.now(timezone.utc).isoformat(),
                 "fields": fields,
                 "footer": {
@@ -968,7 +1051,28 @@ class BountySeekerBot:
                 }
             }
 
-            payload = {"embeds": [embed]}
+            # Watchlist card (Top 3 coins) - Orange
+            watchlist = self.watchlist[:3]
+            watchlist_lines = []
+            for idx, sym in enumerate(watchlist, 1):
+                tv_link = self.get_tradingview_link(sym)
+                watchlist_lines.append(f"{idx}. **{sym}** — [Chart]({tv_link})")
+
+            watchlist_embed = {
+                "title": "🟧 WATCHLIST • TOP 3 COINS",
+                "description": "Quick watchlist for the next hour.",
+                "color": 0xF39C12,  # Orange
+                "fields": [
+                    {
+                        "name": "Watchlist",
+                        "value": "\n".join(watchlist_lines) if watchlist_lines else "No coins available",
+                        "inline": False
+                    }
+                ],
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            }
+
+            payload = {"embeds": [embed, watchlist_embed]}
             response = requests.post(DISCORD_WEBHOOK, json=payload, timeout=15)
 
             if response.status_code in (200, 201, 204):
@@ -1143,6 +1247,7 @@ class BountySeekerBot:
                 signal.trade_number = self.get_next_trade_number()
             logger.info(f"🎯 Found {len(signals_found)} signals, sending top {len(top_picks)} picks...")
             self.send_top_picks_discord(top_picks)
+            self.increment_signal_counter(len(top_picks))
 
             # Save all picks to database and mark as active
             for signal in top_picks:
@@ -1164,34 +1269,104 @@ class BountySeekerBot:
         except Exception as e:
             logger.error(f"Learning update failed: {e}")
 
+    def send_status_discord(self, status: str, details: dict = None):
+        """Send bot status/heartbeat to Discord"""
+        try:
+            now = datetime.now(timezone.utc)
+            
+            # Color based on status
+            colors = {
+                "STARTUP": 0x00f3ff,    # Cyan
+                "SCANNING": 0xF39C12,   # Orange
+                "ACTIVE": 0x0ecb81,     # Green
+                "SIGNALS": 0x0ecb81,    # Green
+                "NO_SIGNALS": 0x848e9c, # Gray
+                "ERROR": 0xff0055,      # Red
+                "SHUTDOWN": 0x9c27b0,   # Purple
+            }
+            color = colors.get(status, 0x848e9c)
+            
+            # Build fields
+            fields = [
+                {"name": "Status", "value": status, "inline": True},
+                {"name": "Time (UTC)", "value": now.strftime('%H:%M:%S'), "inline": True},
+                {"name": "Watchlist", "value": f"{len(self.watchlist)} coins", "inline": True},
+            ]
+            
+            if details:
+                if "signals_found" in details:
+                    fields.append({"name": "Signals Found", "value": str(details["signals_found"]), "inline": True})
+                if "open_trades" in details:
+                    fields.append({"name": "Open Trades", "value": f"{details['open_trades']}/3", "inline": True})
+                if "top_gainers" in details and details["top_gainers"]:
+                    gainers = details["top_gainers"][:3]
+                    gainer_text = "\n".join([f"{g['symbol']}: +{g['change_pct']:.2f}%" for g in gainers])
+                    fields.append({"name": "Top Gainers", "value": gainer_text or "N/A", "inline": True})
+                if "top_losers" in details and details["top_losers"]:
+                    losers = details["top_losers"][:3]
+                    loser_text = "\n".join([f"{l['symbol']}: {l['change_pct']:.2f}%" for l in losers])
+                    fields.append({"name": "Top Losers", "value": loser_text or "N/A", "inline": True})
+                if "error" in details:
+                    fields.append({"name": "Error", "value": str(details["error"])[:200], "inline": False})
+                if "message" in details:
+                    fields.append({"name": "Info", "value": str(details["message"])[:200], "inline": False})
+            
+            embed = {
+                "title": f"🤖 BOUNTY SEEKER • {status}",
+                "color": color,
+                "timestamp": now.isoformat(),
+                "fields": fields,
+                "footer": {"text": "Bounty Seeker Bot • Live Status"}
+            }
+            
+            payload = {"embeds": [embed]}
+            response = requests.post(DISCORD_WEBHOOK, json=payload, timeout=10)
+            
+            if response.status_code != 204:
+                logger.warning(f"Discord status ping returned {response.status_code}")
+                
+        except Exception as e:
+            logger.error(f"Failed to send status to Discord: {e}")
+
     def send_startup_notification(self):
-        """Send startup notification to Discord - DISABLED (only send signals)"""
-        # Removed - user has HTML interface, only send signals
-        logger.info("✅ Bot started (Discord notifications disabled for startup)")
+        """Send startup notification to Discord"""
+        self.send_status_discord("STARTUP", {
+            "message": f"Bot initialized. Scanning top {len(self.watchlist)} coins every 30 minutes.",
+            "open_trades": self.count_open_trades()
+        })
+        logger.info("✅ Bot started - Discord startup notification sent")
 
     def run(self):
         """Main bot loop"""
         logger.info("🚀 Bounty Seeker Bot Started")
-        logger.info(f"📊 Monitoring {len(self.watchlist)} symbols (Top 50 by volume)")
-        logger.info("⏰ Scanning at XX:45 (15 minutes before hour)")
-        logger.info("🔕 Discord: Only sending signals (no scanning messages)")
+        logger.info(f"📊 Monitoring {len(self.watchlist)} symbols (Top 10 by volume)")
+        logger.info("⏰ Scanning at XX:00 and XX:30 (every 30 minutes)")
+        logger.info("📢 Discord: Sending status updates + signals")
 
-        # Startup notification disabled - user has HTML interface
+        # Startup notification to Discord
         self.send_startup_notification()
         self.write_status("ACTIVE")
 
         last_scan_minute = -1
         last_scan_hour = -1
+        last_hourly_ping = -1
 
         while True:
             try:
                 now = datetime.now(timezone.utc)
 
-                # Scan ONLY at XX:45 (15 minutes before the hour) - once per hour
-                if now.minute == 45 and now.second < 5:
+                # Scan ONLY at XX:00 and XX:30 - once per half-hour
+                if now.minute in (0, 30) and now.second < 5:
                     # Make sure we don't scan twice in the same minute/hour
                     if now.minute != last_scan_minute or now.hour != last_scan_hour:
-                        logger.info(f"⏰ Scan time: {now.strftime('%H:%M:%S UTC')} (15 min before hour)")
+                        logger.info(f"⏰ Scan time: {now.strftime('%H:%M:%S UTC')} (30‑min interval)")
+                        
+                        # Send scanning status to Discord
+                        self.send_status_discord("SCANNING", {
+                            "message": f"Starting 30-min scan at {now.strftime('%H:%M UTC')}",
+                            "open_trades": self.count_open_trades()
+                        })
+                        
                         self.write_status("SCANNING")
                         self.update_learning()  # Update parameters based on performance
                         signals = self.scan_markets()
@@ -1199,17 +1374,44 @@ class BountySeekerBot:
                         last_scan_hour = now.hour
                         self.state["last_scan_time"] = now.isoformat()
                         self.save_state()
+                        
+                        # Send scan results to Discord
                         if signals:
                             logger.info(f"✅ Scan complete: Found {len(signals)} signals, sent to Discord")
+                            self.send_status_discord("SIGNALS", {
+                                "signals_found": len(signals),
+                                "open_trades": self.count_open_trades(),
+                                "top_gainers": self.top_gainers[:3] if self.top_gainers else [],
+                                "top_losers": self.top_losers[:3] if self.top_losers else [],
+                                "message": f"Found {len(signals)} trade setups"
+                            })
                         else:
                             logger.info(f"⏳ Scan complete: No signals found")
+                            self.send_status_discord("NO_SIGNALS", {
+                                "signals_found": 0,
+                                "open_trades": self.count_open_trades(),
+                                "top_gainers": self.top_gainers[:3] if self.top_gainers else [],
+                                "top_losers": self.top_losers[:3] if self.top_losers else [],
+                                "message": "No setups met criteria this scan"
+                            })
+                        
                         self.write_status("ACTIVE", signals=signals)
 
                 # Update learning every hour
                 if now.minute == 0 and now.second < 5:
                     self.update_learning()
 
-                # Heartbeat status update every minute
+                # Hourly heartbeat ping to Discord (on the hour, different from scans)
+                if now.hour != last_hourly_ping and now.minute == 0 and now.second >= 10 and now.second < 15:
+                    last_hourly_ping = now.hour
+                    self.send_status_discord("ACTIVE", {
+                        "message": f"Hourly heartbeat - bot running normally",
+                        "open_trades": self.count_open_trades(),
+                        "top_gainers": self.top_gainers[:3] if self.top_gainers else [],
+                        "top_losers": self.top_losers[:3] if self.top_losers else []
+                    })
+
+                # Heartbeat status update every minute (for website JSON)
                 if self.last_status_minute != now.minute:
                     self.last_status_minute = now.minute
                     self.write_status("ACTIVE")
@@ -1218,9 +1420,11 @@ class BountySeekerBot:
 
             except KeyboardInterrupt:
                 logger.info("🛑 Bot stopped by user")
+                self.send_status_discord("SHUTDOWN", {"message": "Bot stopped by user"})
                 break
             except Exception as e:
                 logger.error(f"Error in main loop: {e}")
+                self.send_status_discord("ERROR", {"error": str(e)})
                 time.sleep(5)
 
         self.learning.close()
