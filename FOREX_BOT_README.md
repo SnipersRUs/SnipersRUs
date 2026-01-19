@@ -224,3 +224,8 @@ The bot tracks:
 **Note**: This is a paper trading bot for educational purposes. Always test thoroughly before using with real funds.
 
 
+
+
+
+
+

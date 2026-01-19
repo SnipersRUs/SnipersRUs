@@ -283,5 +283,3 @@ For issues, questions, or feature requests, please refer to the indicator's desc
 **Thank you for using PivotX Pro!** 🚀
 
 *This indicator represents a significant evolution in pivot detection and market structure analysis. We hope it enhances your trading analysis and decision-making process.*
-
-

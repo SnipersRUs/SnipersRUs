@@ -1,0 +1,370 @@
+//@version=6
+indicator("Liquidity Heatmap Overlay", shorttitle="LiqHeatmap", overlay=true, max_boxes_count=500)
+
+// ── INPUTS
+g1 = "Liquidity Detection"
+liqMinM = input.float(10.0, "Minimum Liquidation Size (M)", step=0.1, group=g1)
+maxLiqCap = input.float(100.0, "Extreme Liquidation Cap (M)", step=10, group=g1)
+lookback = input.int(100, "Adaptive Lookback (bars)", minval=20, group=g1)
+zThresh = input.float(1.5, "Z-Score Threshold", step=0.1, group=g1)
+adaptiveZ = input.bool(true, "Use Adaptive Z-Score", group=g1)
+
+g2 = "Heatmap Settings"
+boxHeight = input.float(0.5, "Box Height (% of ATR)", step=0.1, group=g2, minval=0.1)
+fadeBars = input.int(10, "Exhaustion Fade (bars)", minval=1, group=g2)
+transparency = input.int(40, "Box Transparency", minval=0, maxval=100, group=g2)
+showSignals = input.bool(true, "Show Bounce Signals (+)", group=g2)
+
+g3 = "Color Settings"
+strongBuyColor = input.color(#00FF88, "Strong Buy (Emerald)", group=g3)
+exhaustedBuyColor = input.color(#88FFAA, "Exhausted Buy (Light Green)", group=g3)
+strongSellColor = input.color(#FF3366, "Strong Sell (Coral Red)", group=g3)
+exhaustedSellColor = input.color(#FF88AA, "Exhausted Sell (Pink)", group=g3)
+
+// ── CORE CALCULATIONS
+volumeM = volume / 1e6
+rangePU = high - low
+liqRawM = volumeM * rangePU
+isBear = close < open
+tickMove = math.abs(close - close[1])
+tickVolume = tickMove > 0 ? volume / tickMove : volume
+liqEnhancedM = (liqRawM * 0.7) + ((tickVolume / 1e6) * 0.3)
+atr14 = ta.atr(14)
+
+getVolatility() => atr14 / close
+volatility = getVolatility()
+adaptiveThreshold = adaptiveZ ? zThresh * (1 + volatility * 2) : zThresh
+
+liqMean = ta.sma(liqEnhancedM, lookback)
+liqStd = ta.stdev(liqEnhancedM, lookback)
+z = liqStd > 0 ? (liqEnhancedM - liqMean) / liqStd : 0.0
+
+// More lenient condition: show boxes on more coins
+// Previously required BOTH liqMinM AND z-score, now shows if ANY condition is met:
+// 1. Very high liquidity (2x minimum) - always show regardless of z-score
+// 2. Meets z-score threshold (when enough historical data exists)
+// 3. Significantly above average (1.3x mean) - catches spikes even if z-score is low
+// 4. Not enough data yet - show if meets minimum (helps with new coins/timeframes)
+hasEnoughData = bar_index >= lookback
+highLiquidity = liqEnhancedM >= liqMinM * 2.0  // Very high liquidity, always show
+meetsZScore = hasEnoughData and z >= zThresh
+aboveAverage = hasEnoughData and liqEnhancedM >= liqMean * 1.3  // Significantly above average
+// Show if: high liquidity OR meets z-score OR above average OR not enough data yet
+isSignificant = liqEnhancedM >= liqMinM and (highLiquidity or meetsZScore or aboveAverage or not hasEnoughData)
+
+// ── EXHAUSTION DETECTION
+var int[] buyExhaustionBars = array.new_int()
+var int[] sellExhaustionBars = array.new_int()
+
+if isSignificant
+    if isBear
+        array.push(sellExhaustionBars, bar_index)
+    else
+        array.push(buyExhaustionBars, bar_index)
+
+// Clean old bars
+if array.size(buyExhaustionBars) > 0 and bar_index - array.get(buyExhaustionBars, 0) > fadeBars
+    array.shift(buyExhaustionBars)
+if array.size(sellExhaustionBars) > 0 and bar_index - array.get(sellExhaustionBars, 0) > fadeBars
+    array.shift(sellExhaustionBars)
+
+// ── HEATMAP DRAWING
+var box[] buyBoxes = array.new_box()
+var box[] sellBoxes = array.new_box()
+var float[] buyBoxTops = array.new_float()
+var float[] buyBoxBottoms = array.new_float()
+var float[] sellBoxTops = array.new_float()
+var float[] sellBoxBottoms = array.new_float()
+var int[] buyBoxBarIndex = array.new_int()
+var int[] sellBoxBarIndex = array.new_int()
+
+// Track cleared liquidity for bounce signals
+var float[] clearedBuyLevels = array.new_float()
+var float[] clearedSellLevels = array.new_float()
+var int[] clearedBuyBars = array.new_int()
+var int[] clearedSellBars = array.new_int()
+
+// Clean old boxes
+if array.size(buyBoxes) > 100
+    box.delete(array.shift(buyBoxes))
+    array.shift(buyBoxTops)
+    array.shift(buyBoxBottoms)
+    array.shift(buyBoxBarIndex)
+if array.size(sellBoxes) > 100
+    box.delete(array.shift(sellBoxes))
+    array.shift(sellBoxTops)
+    array.shift(sellBoxBottoms)
+    array.shift(sellBoxBarIndex)
+
+// Clean old cleared levels (keep last 50)
+if array.size(clearedBuyLevels) > 50
+    array.shift(clearedBuyLevels)
+    array.shift(clearedBuyBars)
+if array.size(clearedSellLevels) > 50
+    array.shift(clearedSellLevels)
+    array.shift(clearedSellBars)
+
+// Draw new boxes when significant liquidity is detected
+if isSignificant
+    boxHeightPixels = boxHeight * atr14
+    top = isBear ? high : high + boxHeightPixels
+    bottom = isBear ? low - boxHeightPixels : low
+
+    // Ensure minimum box height for visibility
+    minBoxHeight = atr14 * 0.1
+    if top - bottom < minBoxHeight
+        center = (top + bottom) / 2
+        top := center + minBoxHeight / 2
+        bottom := center - minBoxHeight / 2
+
+    // Determine color based on exhaustion with gradient
+    if isBear
+        isExhausted = array.size(sellExhaustionBars) > 0 and (bar_index - array.get(sellExhaustionBars, array.size(sellExhaustionBars)-1)) <= fadeBars
+        // Gradient from strong to exhausted
+        boxColor = isExhausted ? exhaustedSellColor : strongSellColor
+        borderColor = isExhausted ? color.new(exhaustedSellColor, math.max(0, transparency - 30)) : color.new(strongSellColor, math.max(0, transparency - 30))
+        // Create box with initial width of at least 2 bars for visibility
+        newBox = box.new(bar_index, bottom, bar_index + 2, top,
+                         bgcolor=color.new(boxColor, transparency),
+                         border_color=borderColor,
+                         border_width=2)
+        array.push(sellBoxes, newBox)
+        array.push(sellBoxTops, top)
+        array.push(sellBoxBottoms, bottom)
+        array.push(sellBoxBarIndex, bar_index)
+    else
+        isExhausted = array.size(buyExhaustionBars) > 0 and (bar_index - array.get(buyExhaustionBars, array.size(buyExhaustionBars)-1)) <= fadeBars
+        // Gradient from strong to exhausted
+        boxColor = isExhausted ? exhaustedBuyColor : strongBuyColor
+        borderColor = isExhausted ? color.new(exhaustedBuyColor, math.max(0, transparency - 30)) : color.new(strongBuyColor, math.max(0, transparency - 30))
+        // Create box with initial width of at least 2 bars for visibility
+        newBox = box.new(bar_index, bottom, bar_index + 2, top,
+                         bgcolor=color.new(boxColor, transparency),
+                         border_color=borderColor,
+                         border_width=2)
+        array.push(buyBoxes, newBox)
+        array.push(buyBoxTops, top)
+        array.push(buyBoxBottoms, bottom)
+        array.push(buyBoxBarIndex, bar_index)
+
+// ── VISUAL ENHANCEMENTS & LIQUIDITY CLEARING DETECTION
+// Update box positions and colors for exhaustion effect with smooth gradients
+// Use backward iteration to safely remove items
+if array.size(buyBoxes) > 0
+    i = array.size(buyBoxes) - 1
+    while i >= 0
+        currentBox = array.get(buyBoxes, i)
+        boxTop = array.get(buyBoxTops, i)
+        boxBottom = array.get(buyBoxBottoms, i)
+        boxBarIdx = array.get(buyBoxBarIndex, i)
+        age = bar_index - boxBarIdx
+
+        // FIXED: Check if entire bar has passed below the box (liquidity cleared)
+        if high < boxBottom
+            // Liquidity cleared from below - expect bounce up
+            clearedLevel = (boxTop + boxBottom) / 2
+            array.push(clearedBuyLevels, clearedLevel)
+            array.push(clearedBuyBars, bar_index)
+            // Delete the cleared box
+            box.delete(currentBox)
+            array.remove(buyBoxes, i)
+            array.remove(buyBoxTops, i)
+            array.remove(buyBoxBottoms, i)
+            array.remove(buyBoxBarIndex, i)
+            i -= 1
+            continue
+
+        // Delete old boxes that have faded out
+        if age > fadeBars
+            box.delete(currentBox)
+            array.remove(buyBoxes, i)
+            array.remove(buyBoxTops, i)
+            array.remove(buyBoxBottoms, i)
+            array.remove(buyBoxBarIndex, i)
+            i -= 1
+            continue
+
+        // Extend box but stop 2 bars before current bar to avoid covering current candle
+        // Always extend boxes forward, but cap at 2 bars before current
+        if bar_index >= boxBarIdx + 2
+            // Box is old enough, extend to 2 bars before current
+            targetRight = bar_index - 2
+            // Ensure minimum width of 2 bars
+            if targetRight <= boxBarIdx
+                targetRight := boxBarIdx + 2
+            box.set_right(currentBox, targetRight)
+        else
+            // Very new box, keep at initial width
+            box.set_right(currentBox, boxBarIdx + 2)
+
+        // Smooth gradient fade as exhaustion progresses
+        fadeProgress = math.min(1.0, age / fadeBars)
+
+        // Interpolate color from strong to exhausted
+        red1 = color.r(strongBuyColor)
+        green1 = color.g(strongBuyColor)
+        blue1 = color.b(strongBuyColor)
+        red2 = color.r(exhaustedBuyColor)
+        green2 = color.g(exhaustedBuyColor)
+        blue2 = color.b(exhaustedBuyColor)
+
+        currentR = math.round(red1 + (red2 - red1) * fadeProgress)
+        currentG = math.round(green1 + (green2 - green1) * fadeProgress)
+        currentB = math.round(blue1 + (blue2 - blue1) * fadeProgress)
+        gradientColor = color.rgb(currentR, currentG, currentB)
+
+        fadeTransparency = math.min(90, transparency + (fadeProgress * 30))
+        box.set_bgcolor(currentBox, color.new(gradientColor, fadeTransparency))
+        box.set_border_color(currentBox, color.new(gradientColor, math.max(0, fadeTransparency - 20)))
+        i -= 1
+
+if array.size(sellBoxes) > 0
+    i = array.size(sellBoxes) - 1
+    while i >= 0
+        currentBox = array.get(sellBoxes, i)
+        boxTop = array.get(sellBoxTops, i)
+        boxBottom = array.get(sellBoxBottoms, i)
+        boxBarIdx = array.get(sellBoxBarIndex, i)
+        age = bar_index - boxBarIdx
+
+        // FIXED: Check if entire bar has passed above the box (liquidity cleared)
+        if low > boxTop
+            // Liquidity cleared from above - expect bounce down
+            clearedLevel = (boxTop + boxBottom) / 2
+            array.push(clearedSellLevels, clearedLevel)
+            array.push(clearedSellBars, bar_index)
+            // Delete the cleared box
+            box.delete(currentBox)
+            array.remove(sellBoxes, i)
+            array.remove(sellBoxTops, i)
+            array.remove(sellBoxBottoms, i)
+            array.remove(sellBoxBarIndex, i)
+            i -= 1
+            continue
+
+        // Delete old boxes that have faded out
+        if age > fadeBars
+            box.delete(currentBox)
+            array.remove(sellBoxes, i)
+            array.remove(sellBoxTops, i)
+            array.remove(sellBoxBottoms, i)
+            array.remove(sellBoxBarIndex, i)
+            i -= 1
+            continue
+
+        // Extend box but stop 2 bars before current bar to avoid covering current candle
+        // Always extend boxes forward, but cap at 2 bars before current
+        if bar_index >= boxBarIdx + 2
+            // Box is old enough, extend to 2 bars before current
+            targetRight = bar_index - 2
+            // Ensure minimum width of 2 bars
+            if targetRight <= boxBarIdx
+                targetRight := boxBarIdx + 2
+            box.set_right(currentBox, targetRight)
+        else
+            // Very new box, keep at initial width
+            box.set_right(currentBox, boxBarIdx + 2)
+
+        // Smooth gradient fade as exhaustion progresses
+        fadeProgress = math.min(1.0, age / fadeBars)
+
+        // Interpolate color from strong to exhausted
+        red1 = color.r(strongSellColor)
+        green1 = color.g(strongSellColor)
+        blue1 = color.b(strongSellColor)
+        red2 = color.r(exhaustedSellColor)
+        green2 = color.g(exhaustedSellColor)
+        blue2 = color.b(exhaustedSellColor)
+
+        currentR = math.round(red1 + (red2 - red1) * fadeProgress)
+        currentG = math.round(green1 + (green2 - green1) * fadeProgress)
+        currentB = math.round(blue1 + (blue2 - blue1) * fadeProgress)
+        gradientColor = color.rgb(currentR, currentG, currentB)
+
+        fadeTransparency = math.min(90, transparency + (fadeProgress * 30))
+        box.set_bgcolor(currentBox, color.new(gradientColor, fadeTransparency))
+        box.set_border_color(currentBox, color.new(gradientColor, math.max(0, fadeTransparency - 20)))
+        i -= 1
+
+// ── ENHANCED SIGNAL DETECTION (using original indicator logic)
+// Exhaustion detection
+exhaustion_detected = false
+if liqEnhancedM >= liqMinM
+    vol_decay = true
+    for i = 1 to 3
+        if i < bar_index and volume[i] >= volume[i - 1]
+            vol_decay := false
+    price_rejection = (isBear and close > low + rangePU * 0.6) or (not isBear and close < high - rangePU * 0.6)
+    exhaustion_detected := vol_decay or price_rejection
+
+// Reversal patterns
+pin_bar = rangePU > 0 and (((high - math.max(open, close)) / rangePU) > 0.6 or ((math.min(open, close) - low) / rangePU) > 0.6)
+doji = math.abs(close - open) < rangePU * 0.2
+reversal_candle = pin_bar or doji
+
+// Stop sweep detection
+[session_high, session_low, prev_high, prev_low] = request.security(syminfo.tickerid, "D", [high, low, high[1], low[1]], lookahead=barmerge.lookahead_off)
+sweep_detected = (high > prev_high and close < prev_high) or (low < prev_low and close > prev_low)
+
+// ── BOUNCE SIGNALS AT CLEARED LIQUIDITY
+// Enhanced signal detection using multiple factors
+bool buyBounceSignal = false
+bool sellBounceSignal = false
+bool strongBuySignal = false
+bool strongSellSignal = false
+
+// Check for recently cleared buy liquidity (expect bounce up)
+if showSignals and array.size(clearedBuyBars) > 0
+    lastClearedBar = array.get(clearedBuyBars, array.size(clearedBuyBars) - 1)
+    lastClearedLevel = array.get(clearedBuyLevels, array.size(clearedBuyLevels) - 1)
+
+    // Base signal: liquidity was cleared
+    if bar_index == lastClearedBar
+        buyBounceSignal := true
+        // Strong signal if multiple factors align
+        if (exhaustion_detected or reversal_candle or sweep_detected) and math.abs(low - lastClearedLevel) < atr14 * 0.5
+            strongBuySignal := true
+
+    // Also show signal if price bounces back from cleared level
+    if bar_index > lastClearedBar and bar_index <= lastClearedBar + 3
+        if close > lastClearedLevel and close[1] <= lastClearedLevel
+            buyBounceSignal := true
+
+// Check for recently cleared sell liquidity (expect bounce down)
+if showSignals and array.size(clearedSellBars) > 0
+    lastClearedBar = array.get(clearedSellBars, array.size(clearedSellBars) - 1)
+    lastClearedLevel = array.get(clearedSellLevels, array.size(clearedSellLevels) - 1)
+
+    // Base signal: liquidity was cleared
+    if bar_index == lastClearedBar
+        sellBounceSignal := true
+        // Strong signal if multiple factors align
+        if (exhaustion_detected or reversal_candle or sweep_detected) and math.abs(high - lastClearedLevel) < atr14 * 0.5
+            strongSellSignal := true
+
+    // Also show signal if price bounces back from cleared level
+    if bar_index > lastClearedBar and bar_index <= lastClearedBar + 3
+        if close < lastClearedLevel and close[1] >= lastClearedLevel
+            sellBounceSignal := true
+
+// Plot bounce signals - using smallest flag symbols
+plotshape(buyBounceSignal and not strongBuySignal, title="Buy Bounce Signal", style=shape.flag, location=location.belowbar, color=color.new(strongBuyColor, 0), size=size.tiny)
+plotshape(strongBuySignal, title="Strong Buy Bounce", style=shape.flag, location=location.belowbar, color=color.new(strongBuyColor, 0), size=size.tiny)
+plotshape(sellBounceSignal and not strongSellSignal, title="Sell Bounce Signal", style=shape.flag, location=location.abovebar, color=color.new(strongSellColor, 0), size=size.tiny)
+plotshape(strongSellSignal, title="Strong Sell Bounce", style=shape.flag, location=location.abovebar, color=color.new(strongSellColor, 0), size=size.tiny)
+
+// ── LEGEND
+if barstate.islast
+    var table legend = table.new(position.top_right, 2, 6, bgcolor=color.new(#1a1a1a, 85), border_width=1, border_color=color.new(#333333, 0))
+    table.cell(legend, 0, 0, "Liquidity Heatmap", text_color=color.white, text_size=size.normal, text_halign=text.align_center)
+    table.cell(legend, 1, 0, "", text_color=color.white)
+    table.cell(legend, 0, 1, "Strong Buys", bgcolor=color.new(strongBuyColor, 30), text_color=color.white, text_size=size.small)
+    table.cell(legend, 1, 1, "Exhausted Buys", bgcolor=color.new(exhaustedBuyColor, 30), text_color=color.white, text_size=size.small)
+    table.cell(legend, 0, 2, "Strong Sells", bgcolor=color.new(strongSellColor, 30), text_color=color.white, text_size=size.small)
+    table.cell(legend, 1, 2, "Exhausted Sells", bgcolor=color.new(exhaustedSellColor, 30), text_color=color.white, text_size=size.small)
+    table.cell(legend, 0, 3, "Bounce Signal", bgcolor=color.new(#00FF88, 20), text_color=color.new(#00FF88, 0), text_size=size.small)
+    table.cell(legend, 1, 3, "+", text_color=color.new(#00FF88, 0), text_size=size.normal)
+    table.cell(legend, 0, 4, "Min Size", text_color=color.gray, text_size=size.small)
+    table.cell(legend, 1, 4, str.tostring(liqMinM, "#.#") + "M", text_color=color.white, text_size=size.small)
+    table.cell(legend, 0, 5, "Current", text_color=color.gray, text_size=size.small)
+    table.cell(legend, 1, 5, str.tostring(liqEnhancedM, "#.#") + "M", text_color=color.white, text_size=size.small)

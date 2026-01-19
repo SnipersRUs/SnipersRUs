@@ -48,3 +48,7 @@ Thumbs.db
 # Config (keep template)
 config.py
 !config_template.py
+
+# Environment variables (contains sensitive tokens)
+.env
+free_crypto_llm_bot/.env

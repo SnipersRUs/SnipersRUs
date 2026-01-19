@@ -1,0 +1,266 @@
+//@version=6
+indicator("Liquidation Reversal Hunter (Pro)", shorttitle="LiqRevHunt Pro", overlay=true, max_lines_count=50, max_boxes_count=50)
+
+// ── INPUTS ──
+g1 = "Liquidation Detection"
+swingLookback = input.int(15, "Swing Lookback (Structure)", minval=5, maxval=50, group=g1, tooltip="How many bars back to check for a Swing High/Low")
+volumeMultiplier = input.float(2.5, "Volume Multiplier", minval=1.5, maxval=5.0, step=0.1, group=g1)
+volumeLookback = input.int(50, "Volume Lookback", minval=20, maxval=200, group=g1)
+minLiquidationSize = input.float(10.0, "Min Liquidation Size (M)", minval=1.0, maxval=50.0, step=1.0, group=g1)
+zScoreThreshold = input.float(2.0, "Z-Score Threshold", minval=1.5, maxval=4.0, step=0.1, group=g1)
+minWickRatio = input.float(0.40, "Min Wick Ratio (Sweep)", minval=0.1, maxval=0.9, step=0.05, group=g1, tooltip="Wick must be this % of total candle size to be a 'Sweep'")
+
+g2 = "Divergence Settings"
+useDivergence = input.bool(true, "Use Divergence Filter", group=g2)
+rsiLength = input.int(14, "RSI Length", minval=5, maxval=30, group=g2)
+
+g3 = "Signal Quality"
+signalCooldown = input.int(10, "Signal Cooldown (bars)", minval=2, maxval=50, group=g3)
+minImportanceForSignal = input.float(60.0, "Min Importance for Signal (%)", minval=0.0, maxval=100.0, step=5.0, group=g3, tooltip="Higher = Only major liquidity events trigger alerts")
+
+g4 = "Visual Settings"
+maxLinesToKeep = input.int(5, "Max Active Lines to Keep", minval=3, maxval=20, group=g4, tooltip="Keeps only the TOP X most important lines on chart")
+useHeatmap = input.bool(true, "Use Heatmap Colors", group=g4)
+lineLength = input.int(100, "Line Extension (bars)", minval=20, maxval=500, group=g4)
+lineWidth = input.int(2, "Line Width", minval=1, maxval=5, group=g4)
+bullishColor = input.color(#00FF00, "Bullish Signal", group=g4)
+bearishColor = input.color(#FF0000, "Bearish Signal", group=g4)
+
+// ── CORE CALCULATIONS ──
+
+// Volume Stats
+avgVolume = ta.sma(volume, volumeLookback)
+volumeStd = ta.stdev(volume, volumeLookback)
+volumeZ = volumeStd > 0 ? (volume - avgVolume) / volumeStd : 0.0
+abnormalVolume = volumeZ >= zScoreThreshold
+veryAbnormalVolume = volumeZ >= (zScoreThreshold * 1.5)
+
+// Liquidation Size (Range * Volume)
+rangePU = high - low
+volumeM = volume / 1e6
+liquidationSize = volumeM * rangePU
+
+// Size Stats
+avgLiquidationSize = ta.sma(liquidationSize, volumeLookback)
+liquidationStd = ta.stdev(liquidationSize, volumeLookback)
+liquidationZ = liquidationStd > 0 ? (liquidationSize - avgLiquidationSize) / liquidationStd : 0.0
+
+// Candle Anatomy
+isBearishCandle = close < open
+isBullishCandle = close > open
+bodySize = math.abs(close - open)
+topWick = high - math.max(close, open)
+bottomWick = math.min(close, open) - low
+totalRange = high - low
+wickRatio = totalRange > 0 ? math.max(topWick, bottomWick) / totalRange : 0
+
+// Structure Analysis (The "Liquidity Pools")
+highestHigh = ta.highest(high, swingLookback)
+lowestLow = ta.lowest(low, swingLookback)
+
+// Is this candle creating a new Swing High or Low?
+isSwingHigh = high >= highestHigh[1]
+isSwingLow = low <= lowestLow[1]
+
+// Is there a valid wick rejection? (Sweep)
+hasValidWick = wickRatio >= minWickRatio
+
+// ATR for Volatility context
+atr14 = ta.atr(14)
+
+// ── IMPORTANCE CALCULATION ──
+calculateImportance() =>
+    importance = 0.0
+
+    // 1. Volume Abnormality (Max 40 pts)
+    if veryAbnormalVolume
+        importance += 40.0
+    else if abnormalVolume
+        importance += 25.0
+    else if volume > avgVolume * volumeMultiplier
+        importance += 10.0
+
+    // 2. Size Abnormality (Max 30 pts)
+    if liquidationZ >= zScoreThreshold * 1.5
+        importance += 30.0
+    else if liquidationZ >= zScoreThreshold
+        importance += 20.0
+    else if liquidationSize >= minLiquidationSize
+        importance += 10.0
+
+    // 3. Structure/Wick Confirmation (Max 30 pts) - Crucial for "Sweeps"
+    if isSwingHigh or isSwingLow
+        importance += 15.0 // Bonus for hitting a pivot
+    if hasValidWick
+        importance += 15.0 // Bonus for rejection wick
+
+    math.min(100.0, importance)
+
+currentImportance = calculateImportance()
+
+// ── STRICT ENTRY CONDITIONS ──
+
+// Logic: Must be High Volume AND (Have Size OR Be Extreme Volume) AND (Hit Structure OR Have Huge Wick)
+// This filters out the "noise" volume that happens in the middle of a range.
+isValidLiquidation = abnormalVolume and (liquidationSize >= minLiquidationSize or veryAbnormalVolume) and (isSwingHigh or isSwingLow or hasValidWick)
+
+// ── DIVERGENCE ──
+rsi = ta.rsi(close, rsiLength)
+// Simple divergence check (Current RSI vs RSI 3 bars ago vs Price)
+rsiBullDiv = low < low[3] and rsi > rsi[3]
+rsiBearDiv = high > high[3] and rsi < rsi[3]
+
+divergenceFilter = useDivergence ? (rsiBullDiv or rsiBearDiv) : true
+
+// ── STATE MANAGEMENT (Pruning Logic) ──
+// We use a simple "Insert and Prune" strategy.
+// 1. Add new valid liquidation.
+// 2. If array size > maxLinesToKeep, remove the one with lowest importance.
+
+var float[] liqLevels = array.new_float(0)
+var int[] liqBars = array.new_int(0)
+var bool[] liqIsBearish = array.new_bool(0) // true = Long Liquidity (Top), false = Short Liquidity (Bottom)
+var float[] liqImportance = array.new_float(0)
+var line[] lineRefs = array.new_line(0) // Keep track of line objects to delete them
+var int lastBullishBar = 0
+var int lastBearishBar = 0
+
+// Function to manage line array (Keeps only the best lines)
+manageLevels(newLevel, newBar, isBearish, importance) =>
+    // 1. Check for duplicates/merging (Simplified: if price is very close, update importance instead of adding new)
+    mergeThreshold = close * 0.001 // 0.1% proximity
+    merged = false
+
+    if array.size(liqLevels) > 0
+        for i = 0 to array.size(liqLevels) - 1
+            existingLvl = array.get(liqLevels, i)
+            if math.abs(newLevel - existingLvl) < mergeThreshold
+                // Update existing if new one is more important
+                if importance > array.get(liqImportance, i)
+                    array.set(liqImportance, i, importance)
+                    array.set(liqBars, i, newBar) // Update time
+                merged := true
+                break
+
+    if not merged
+        // 2. Add new
+        array.push(liqLevels, newLevel)
+        array.push(liqBars, newBar)
+        array.push(liqIsBearish, isBearish)
+        array.push(liqImportance, importance)
+
+        // Create visual line object immediately
+        newLine = line.new(bar_index, newLevel, bar_index + lineLength, newLevel, color=color.white, width=1, style=line.style_dotted)
+        array.push(lineRefs, newLine)
+
+        // 3. Prune if too many
+        // Find index of minimum importance
+        minImpIdx = 0
+        minImpVal = 100.0
+
+        if array.size(liqLevels) > maxLinesToKeep
+            for i = 0 to array.size(liqLevels) - 1
+                imp = array.get(liqImportance, i)
+                if imp < minImpVal
+                    minImpVal := imp
+                    minImpIdx := i
+
+            // Remove the weakest line data
+            array.remove(liqLevels, minImpIdx)
+            array.remove(liqBars, minImpIdx)
+            array.remove(liqIsBearish, minImpIdx)
+            array.remove(liqImportance, minImpIdx)
+
+            // Delete the visual line object
+            lineToDelete = array.get(lineRefs, minImpIdx)
+            line.delete(lineToDelete)
+            array.remove(lineRefs, minImpIdx)
+
+// ── DETECTION & SIGNAL GENERATION ──
+
+bullishSignal = false
+bearishSignal = false
+
+// 1. Check for NEW Liquidation Events (The Sweep)
+if isValidLiquidation
+    importance = currentImportance
+
+    // Long Liquidation (Bearish Candle) -> Target is Shorts -> Price will likely Reverse UP
+    if isBearishCandle
+        manageLevels(high, bar_index, true, importance)
+
+        // Generate Signal if importance is high enough and divergence matches
+        if isSwingHigh and importance >= minImportanceForSignal and (bar_index - lastBullishBar >= signalCooldown)
+            if (not useDivergence) or rsiBullDiv
+                bullishSignal := true
+                lastBullishBar := bar_index
+
+    // Short Liquidation (Bullish Candle) -> Target is Longs -> Price will likely Reverse DOWN
+    if isBullishCandle
+        manageLevels(low, bar_index, false, importance)
+
+        if isSwingLow and importance >= minImportanceForSignal and (bar_index - lastBearishBar >= signalCooldown)
+            if (not useDivergence) or rsiBearDiv
+                bearishSignal := true
+                lastBearishBar := bar_index
+
+// ── UPDATE VISUALS ──
+
+// We must update the visuals of the lines every bar (colors, extension)
+// Since we maintain the `lineRefs` array alongside the data, this is efficient.
+if array.size(liqLevels) > 0
+    for i = 0 to array.size(liqLevels) - 1
+        lvl = array.get(liqLevels, i)
+        imp = array.get(liqImportance, i)
+        isBear = array.get(liqIsBearish, i)
+        ln = array.get(lineRefs, i)
+
+        // Calculate Color based on Importance (Heatmap)
+        heatColor = color.white
+        if useHeatmap
+            normImp = imp / 100.0
+            if normImp > 0.8
+                heatColor := #FF0000 // Red (Critical)
+            else if normImp > 0.6
+                heatColor := #FF8800 // Orange
+            else if normImp > 0.4
+                heatColor := #FFFF00 // Yellow
+            else
+                heatColor := #00FFFF // Cyan
+        else
+            heatColor := isBear ? bearishColor : bullishColor
+
+        // Update Line Properties
+        line.set_x2(ln, bar_index + lineLength)
+        line.set_y1(ln, lvl)
+        line.set_y2(ln, lvl)
+        line.set_color(ln, heatColor)
+        line.set_width(ln, imp > 70 ? lineWidth + 1 : lineWidth) // Thicker if very important
+
+// Cleanup lines if price breaks through them aggressively (Sweeped again)
+if array.size(liqLevels) > 0
+    i = array.size(liqLevels) - 1
+    while i >= 0
+        lvl = array.get(liqLevels, i)
+        isBear = array.get(liqIsBearish, i)
+
+        // If price breaks the level by more than 0.5 ATR, the liquidity is "consumed"
+        broken = false
+        if isBear and close < lvl - (atr14 * 0.5)
+            broken := true
+        else if not isBear and close > lvl + (atr14 * 0.5)
+            broken := true
+
+        if broken
+            array.remove(liqLevels, i)
+            array.remove(liqBars, i)
+            array.remove(liqIsBearish, i)
+            array.remove(liqImportance, i)
+            line.delete(array.get(lineRefs, i))
+            array.remove(lineRefs, i)
+        i -= 1
+
+// ── PLOTS ──
+plotshape(bullishSignal, title="Buy Signal", location=location.belowbar, style=shape.triangleup, size=size.normal, color=color.new(bullishColor, 0))
+plotshape(bearishSignal, title="Sell Signal", location=location.abovebar, style=shape.triangledown, size=size.normal, color=color.new(bearishColor, 0))
+

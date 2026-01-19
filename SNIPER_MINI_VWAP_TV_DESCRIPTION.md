@@ -91,3 +91,11 @@
 **Note:** This version focuses on mean reversion trading. Enable ORB features in the Inputs tab when needed.
 
 
+
+
+
+
+
+
+
+

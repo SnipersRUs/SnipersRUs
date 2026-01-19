@@ -1,0 +1,184 @@
+//@version=6
+indicator("Golden Pocket VWAP", shorttitle="GP VWAP", overlay=true, max_lines_count=500)
+
+// ============================================================================
+// INPUT PARAMETERS
+// ============================================================================
+
+grp1 = "Golden Pocket Settings"
+gpHighFib = input.float(0.618, "Golden Pocket High (61.8%)", minval=0.5, maxval=0.7, step=0.001, group=grp1)
+gpLowFib = input.float(0.65, "Golden Pocket Low (65%)", minval=0.5, maxval=0.7, step=0.001, group=grp1)
+gpTouchTolerance = input.float(0.5, "GP Touch Tolerance %", minval=0.1, maxval=2.0, step=0.1, group=grp1, tooltip="How close price must be to GP zone to trigger reset")
+
+grp2 = "VWAP Display Settings"
+showDailyGP_VWAP = input.bool(true, "Show Daily GP VWAP", group=grp2)
+showWeeklyGP_VWAP = input.bool(true, "Show Weekly GP VWAP", group=grp2)
+dailyGP_VWAPColor = input.color(color.new(#00FF00, 0), "Daily GP VWAP Color", group=grp2)
+weeklyGP_VWAPColor = input.color(color.new(#FFA500, 0), "Weekly GP VWAP Color", group=grp2)
+vwapLineWidth = input.int(2, "VWAP Line Width", minval=1, maxval=5, group=grp2)
+
+grp3 = "Golden Pocket Zone Display"
+showGPZones = input.bool(true, "Show GP Zones", group=grp3)
+showDailyGP = input.bool(true, "Show Daily GP", group=grp3)
+showWeeklyGP = input.bool(true, "Show Weekly GP", group=grp3)
+gpZoneOpacity = input.int(80, "GP Zone Opacity", minval=0, maxval=100, group=grp3)
+
+// ============================================================================
+// GOLDEN POCKET CALCULATIONS
+// ============================================================================
+
+// Daily Golden Pocket
+dHigh = request.security(syminfo.tickerid, "D", high, lookahead=barmerge.lookahead_off)
+dLow = request.security(syminfo.tickerid, "D", low, lookahead=barmerge.lookahead_off)
+dRange = dHigh - dLow
+dGpHigh = dHigh - (dRange * gpHighFib)
+dGpLow = dHigh - (dRange * gpLowFib)
+
+// Weekly Golden Pocket
+wHigh = request.security(syminfo.tickerid, "W", high, lookahead=barmerge.lookahead_off)
+wLow = request.security(syminfo.tickerid, "W", low, lookahead=barmerge.lookahead_off)
+wRange = wHigh - wLow
+wGpHigh = wHigh - (wRange * gpHighFib)
+wGpLow = wHigh - (wRange * gpLowFib)
+
+// ============================================================================
+// GOLDEN POCKET TOUCH DETECTION
+// ============================================================================
+
+// Check if price is touching or inside daily GP zone
+isNearDailyGP(price) =>
+    tolerance = price * (gpTouchTolerance / 100)
+    (price >= dGpLow - tolerance and price <= dGpHigh + tolerance) or (low <= dGpHigh + tolerance and high >= dGpLow - tolerance)
+
+// Check if price is touching or inside weekly GP zone
+isNearWeeklyGP(price) =>
+    tolerance = price * (gpTouchTolerance / 100)
+    (price >= wGpLow - tolerance and price <= wGpHigh + tolerance) or (low <= wGpHigh + tolerance and high >= wGpLow - tolerance)
+
+// Detect when price enters/touches daily GP zone
+touchedDailyGP = isNearDailyGP(close) and not isNearDailyGP(close[1])
+enteredDailyGP = (close >= dGpLow and close <= dGpHigh) and not (close[1] >= dGpLow and close[1] <= dGpHigh)
+
+// Detect when price enters/touches weekly GP zone
+touchedWeeklyGP = isNearWeeklyGP(close) and not isNearWeeklyGP(close[1])
+enteredWeeklyGP = (close >= wGpLow and close <= wGpHigh) and not (close[1] >= wGpLow and close[1] <= wGpHigh)
+
+// Reset triggers: when price touches or enters GP zone
+dailyGP_Reset = touchedDailyGP or enteredDailyGP
+weeklyGP_Reset = touchedWeeklyGP or enteredWeeklyGP
+
+// ============================================================================
+// DAILY GOLDEN POCKET VWAP
+// ============================================================================
+
+var float dailyGP_VWAP_sum = 0.0
+var float dailyGP_VWAP_vol = 0.0
+var float dailyGP_VWAP = na
+var int dailyGP_VWAP_startBar = na
+var bool dailyGP_VWAP_initialized = false
+
+// Initialize on first bar or reset when price touches/enters daily GP
+if bar_index == 0 or dailyGP_Reset
+    dailyGP_VWAP_sum := hlc3 * volume
+    dailyGP_VWAP_vol := volume
+    dailyGP_VWAP_startBar := bar_index
+    dailyGP_VWAP_initialized := true
+else if dailyGP_VWAP_initialized
+    // Continue accumulating VWAP
+    dailyGP_VWAP_sum += hlc3 * volume
+    dailyGP_VWAP_vol += volume
+
+// Calculate VWAP
+if dailyGP_VWAP_vol > 0
+    dailyGP_VWAP := dailyGP_VWAP_sum / dailyGP_VWAP_vol
+else
+    dailyGP_VWAP := na
+
+// ============================================================================
+// WEEKLY GOLDEN POCKET VWAP
+// ============================================================================
+
+var float weeklyGP_VWAP_sum = 0.0
+var float weeklyGP_VWAP_vol = 0.0
+var float weeklyGP_VWAP = na
+var int weeklyGP_VWAP_startBar = na
+var bool weeklyGP_VWAP_initialized = false
+
+// Initialize on first bar or reset when price touches/enters weekly GP
+if bar_index == 0 or weeklyGP_Reset
+    weeklyGP_VWAP_sum := hlc3 * volume
+    weeklyGP_VWAP_vol := volume
+    weeklyGP_VWAP_startBar := bar_index
+    weeklyGP_VWAP_initialized := true
+else if weeklyGP_VWAP_initialized
+    // Continue accumulating VWAP
+    weeklyGP_VWAP_sum += hlc3 * volume
+    weeklyGP_VWAP_vol += volume
+
+// Calculate VWAP
+if weeklyGP_VWAP_vol > 0
+    weeklyGP_VWAP := weeklyGP_VWAP_sum / weeklyGP_VWAP_vol
+else
+    weeklyGP_VWAP := na
+
+// ============================================================================
+// PLOTTING
+// ============================================================================
+
+// Plot VWAPs
+plot(showDailyGP_VWAP ? dailyGP_VWAP : na, "Daily GP VWAP", color=dailyGP_VWAPColor, linewidth=vwapLineWidth, style=plot.style_line)
+plot(showWeeklyGP_VWAP ? weeklyGP_VWAP : na, "Weekly GP VWAP", color=weeklyGP_VWAPColor, linewidth=vwapLineWidth, style=plot.style_line)
+
+// Plot Golden Pocket Zones
+dailyGpHighPlot = plot(showGPZones and showDailyGP ? dGpHigh : na, "Daily GP High", color=color.new(#00FF00, 50), linewidth=1, style=plot.style_line)
+dailyGpLowPlot = plot(showGPZones and showDailyGP ? dGpLow : na, "Daily GP Low", color=color.new(#00FF00, 50), linewidth=1, style=plot.style_line)
+
+weeklyGpHighPlot = plot(showGPZones and showWeeklyGP ? wGpHigh : na, "Weekly GP High", color=color.new(#FFA500, 50), linewidth=1, style=plot.style_line)
+weeklyGpLowPlot = plot(showGPZones and showWeeklyGP ? wGpLow : na, "Weekly GP Low", color=color.new(#FFA500, 50), linewidth=1, style=plot.style_line)
+
+// Fill GP zones (called at global scope - plots already handle conditional display)
+fill(dailyGpHighPlot, dailyGpLowPlot, color=color.new(#00FF00, gpZoneOpacity), title="Daily GP Zone")
+fill(weeklyGpHighPlot, weeklyGpLowPlot, color=color.new(#FFA500, gpZoneOpacity), title="Weekly GP Zone")
+
+// Mark VWAP resets
+plotshape(dailyGP_Reset and showDailyGP_VWAP, "Daily GP VWAP Reset", shape.circle, location.bottom, color.new(dailyGP_VWAPColor, 0), size=size.tiny)
+plotshape(weeklyGP_Reset and showWeeklyGP_VWAP, "Weekly GP VWAP Reset", shape.circle, location.bottom, color.new(weeklyGP_VWAPColor, 0), size=size.tiny)
+
+// ============================================================================
+// INFO TABLE
+// ============================================================================
+
+var table infoTable = table.new(position.top_right, 2, 5, bgcolor=color.new(color.black, 80), border_width=1)
+
+if barstate.islast
+    table.cell(infoTable, 0, 0, "Daily GP", text_color=color.white, text_size=size.small)
+    table.cell(infoTable, 1, 0, str.tostring(dGpHigh, "#.##") + " - " + str.tostring(dGpLow, "#.##"), text_color=color.new(#00FF00, 0), text_size=size.small)
+
+    table.cell(infoTable, 0, 1, "Weekly GP", text_color=color.white, text_size=size.small)
+    table.cell(infoTable, 1, 1, str.tostring(wGpHigh, "#.##") + " - " + str.tostring(wGpLow, "#.##"), text_color=color.new(#FFA500, 0), text_size=size.small)
+
+    table.cell(infoTable, 0, 2, "Daily GP VWAP", text_color=color.white, text_size=size.small)
+    table.cell(infoTable, 1, 2, not na(dailyGP_VWAP) ? str.tostring(dailyGP_VWAP, "#.##") : "---", text_color=dailyGP_VWAPColor, text_size=size.small)
+
+    table.cell(infoTable, 0, 3, "Weekly GP VWAP", text_color=color.white, text_size=size.small)
+    table.cell(infoTable, 1, 3, not na(weeklyGP_VWAP) ? str.tostring(weeklyGP_VWAP, "#.##") : "---", text_color=weeklyGP_VWAPColor, text_size=size.small)
+
+    // Status
+    string status = ""
+    if isNearDailyGP(close)
+        status += "At Daily GP "
+    if isNearWeeklyGP(close)
+        status += "At Weekly GP"
+    if status == ""
+        status := "Outside GP"
+    table.cell(infoTable, 0, 4, "Status", text_color=color.white, text_size=size.small)
+    table.cell(infoTable, 1, 4, status, text_color=isNearDailyGP(close) or isNearWeeklyGP(close) ? color.yellow : color.gray, text_size=size.small)
+
+// ============================================================================
+// ALERTS
+// ============================================================================
+
+alertcondition(dailyGP_Reset, "Daily GP VWAP Reset", "Price touched Daily Golden Pocket - VWAP reset!")
+alertcondition(weeklyGP_Reset, "Weekly GP VWAP Reset", "Price touched Weekly Golden Pocket - VWAP reset!")
+alertcondition(enteredDailyGP, "Entered Daily GP", "Price entered Daily Golden Pocket zone!")
+alertcondition(enteredWeeklyGP, "Entered Weekly GP", "Price entered Weekly Golden Pocket zone!")

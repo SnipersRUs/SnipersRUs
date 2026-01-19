@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="450" viewBox="0 0 800 450">
+  <rect width="800" height="450" fill="#0f172a"/>
+  
+  <!-- Grid lines -->
+  <line x1="0" y1="100" x2="800" y2="100" stroke="#334155" stroke-width="1" stroke-dasharray="5,5"/>
+  <line x1="0" y1="200" x2="800" y2="200" stroke="#334155" stroke-width="1" stroke-dasharray="5,5"/>
+  <line x1="0" y1="300" x2="800" y2="300" stroke="#334155" stroke-width="1" stroke-dasharray="5,5"/>
+  
+  <!-- Previous bearish candles showing downtrend -->
+  <line x1="300" y1="120" x2="330" y2="180" stroke="#ef4444" stroke-width="8" stroke-linecap="butt"/>
+  <rect x="305" y="130" width="20" height="40" fill="#ef4444"/>
+  
+  <line x1="350" y1="150" x2="380" y2="220" stroke="#ef4444" stroke-width="8" stroke-linecap="butt"/>
+  <rect x="355" y="160" width="20" height="50" fill="#ef4444"/>
+  
+  <!-- Small red candle (first of engulfing pattern) -->
+  <line x1="400" y1="210" x2="430" y2="270" stroke="#ef4444" stroke-width="8" stroke-linecap="butt"/>
+  <rect x="405" y="220" width="20" height="40" fill="#ef4444"/>
+  
+  <!-- Large green candle that engulfs (second of engulfing pattern) -->
+  <line x1="450" y1="170" x2="480" y2="290" stroke="#22c55e" stroke-width="8" stroke-linecap="butt"/>
+  <rect x="455" y="180" width="20" height="100" fill="#22c55e"/>
+  
+  <!-- Highlight arrow pointing to the pattern -->
+  <path d="M 480 150 L 480 130 L 450 150" fill="#22c55e"/>
+  
+  <!-- Label -->
+  <text x="400" y="420" text-anchor="middle" fill="#94a3b8" font-size="18" font-family="Arial">Bullish Engulfing Pattern</text>
+</svg>

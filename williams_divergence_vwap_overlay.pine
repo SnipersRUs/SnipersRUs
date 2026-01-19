@@ -1,0 +1,187 @@
+// @version=6
+indicator("Williams %R Divergence VWAP [Overlay]", shorttitle="WDivVWAP", overlay=true)
+
+// ============================================================================
+// INPUTS
+// ============================================================================
+
+// Williams %R Settings
+willrLength = input.int(14, "Williams %R Length", minval=1, group="Williams %R")
+obLevel = input.int(-20, "Overbought Level", maxval=0, group="Williams %R")
+osLevel = input.int(-80, "Oversold Level", maxval=0, group="Williams %R")
+
+// Divergence Settings
+pivotLookback = input.int(5, "Pivot Lookback", minval=1, group="Divergence Detection")
+divLookbackRange = input.int(60, "Divergence Lookback Range", minval=10, group="Divergence Detection")
+
+// Visual Settings
+bullColor = input.color(color.white, "Bullish Color", group="Colors")
+bearColor = input.color(#9C27B0, "Bearish Color (Purple)", group="Colors")
+
+// VWAP Settings
+showBullVWAP = input.bool(true, "Show Bullish Divergence VWAP", group="VWAP")
+showBearVWAP = input.bool(true, "Show Bearish Divergence VWAP", group="VWAP")
+showVwapFill = input.bool(true, "Show VWAP Fill Zone", group="VWAP")
+fillTransparency = input.int(90, "Fill Transparency", minval=50, maxval=99, group="VWAP")
+
+// Divergence Markers removed
+// ============================================================================
+// WILLIAMS %R CALCULATION
+// ============================================================================
+
+highestHigh = ta.highest(high, willrLength)
+lowestLow = ta.lowest(low, willrLength)
+willR = (highestHigh - close) / (highestHigh - lowestLow) * -100
+
+isOverbought = willR >= obLevel
+isOversold = willR <= osLevel
+
+// ============================================================================
+// PIVOT DETECTION FOR DIVERGENCES
+// ============================================================================
+
+pricePivotLow = ta.pivotlow(low, pivotLookback, pivotLookback)
+pricePivotHigh = ta.pivothigh(high, pivotLookback, pivotLookback)
+willrPivotLow = ta.pivotlow(willR, pivotLookback, pivotLookback)
+willrPivotHigh = ta.pivothigh(willR, pivotLookback, pivotLookback)
+
+// ============================================================================
+// DIVERGENCE DETECTION
+// ============================================================================
+
+var float lastPriceLow = na
+var float lastWillrLow = na
+var int lastPriceLowBar = na
+
+var float lastPriceHigh = na
+var float lastWillrHigh = na
+var int lastPriceHighBar = na
+
+// Bullish Divergence
+bullishDivergence = false
+if not na(pricePivotLow) and not na(willrPivotLow)
+    if not na(lastPriceLow) and not na(lastWillrLow)
+        barsBack = bar_index - lastPriceLowBar
+        if barsBack <= divLookbackRange and barsBack > 0
+            if low[pivotLookback] < lastPriceLow and willR[pivotLookback] > lastWillrLow
+                if willR[pivotLookback] <= osLevel or lastWillrLow <= osLevel
+                    bullishDivergence := true
+
+if not na(pricePivotLow) and not na(willrPivotLow)
+    lastPriceLow := low[pivotLookback]
+    lastWillrLow := willR[pivotLookback]
+    lastPriceLowBar := bar_index - pivotLookback
+
+// Bearish Divergence
+bearishDivergence = false
+if not na(pricePivotHigh) and not na(willrPivotHigh)
+    if not na(lastPriceHigh) and not na(lastWillrHigh)
+        barsBack = bar_index - lastPriceHighBar
+        if barsBack <= divLookbackRange and barsBack > 0
+            if high[pivotLookback] > lastPriceHigh and willR[pivotLookback] < lastWillrHigh
+                if willR[pivotLookback] >= obLevel or lastWillrHigh >= obLevel
+                    bearishDivergence := true
+
+if not na(pricePivotHigh) and not na(willrPivotHigh)
+    lastPriceHigh := high[pivotLookback]
+    lastWillrHigh := willR[pivotLookback]
+    lastPriceHighBar := bar_index - pivotLookback
+
+// ============================================================================
+// DIVERGENCE-BASED VWAP CALCULATION
+// ============================================================================
+
+// Bullish Divergence VWAP
+var float bullVwapSum = 0.0
+var float bullVolSum = 0.0
+var float bullVwap = na
+var bool bullVwapActive = false
+var int bullDivBar = na
+
+if bullishDivergence
+    bullVwapSum := 0.0
+    bullVolSum := 0.0
+    bullVwapActive := true
+    bullDivBar := bar_index
+
+if bullVwapActive
+    typicalPrice = (high + low + close) / 3
+    bullVwapSum += typicalPrice * volume
+    bullVolSum += volume
+    bullVwap := bullVolSum > 0 ? bullVwapSum / bullVolSum : na
+
+// Bearish Divergence VWAP
+var float bearVwapSum = 0.0
+var float bearVolSum = 0.0
+var float bearVwap = na
+var bool bearVwapActive = false
+var int bearDivBar = na
+
+if bearishDivergence
+    bearVwapSum := 0.0
+    bearVolSum := 0.0
+    bearVwapActive := true
+    bearDivBar := bar_index
+
+if bearVwapActive
+    typicalPrice = (high + low + close) / 3
+    bearVwapSum += typicalPrice * volume
+    bearVolSum += volume
+    bearVwap := bearVolSum > 0 ? bearVwapSum / bearVolSum : na
+
+// ============================================================================
+// PLOTTING - VWAP LINES
+// ============================================================================
+
+// Bullish VWAP (White)
+bullVwapPlot = plot(showBullVWAP and bullVwapActive ? bullVwap : na, "Bullish Div VWAP",
+     color=bullColor, linewidth=1, style=plot.style_cross)
+
+// Bearish VWAP (Purple)
+bearVwapPlot = plot(showBearVWAP and bearVwapActive ? bearVwap : na, "Bearish Div VWAP",
+     color=bearColor, linewidth=1, style=plot.style_cross)
+
+// Price for fill reference
+pricePlot = plot(close, display=display.none)
+
+// Fill between price and VWAPs
+fill(bullVwapPlot, pricePlot, color=showVwapFill and bullVwapActive and close > bullVwap ?
+     color.new(bullColor, fillTransparency) : na)
+fill(bearVwapPlot, pricePlot, color=showVwapFill and bearVwapActive and close < bearVwap ?
+     color.new(bearColor, fillTransparency) : na)
+
+// ============================================================================
+// DIVERGENCE MARKERS (DISABLED)
+// ============================================================================
+
+// ============================================================================
+// VWAP LABELS
+// ============================================================================
+
+// Dynamic label showing VWAP values
+if barstate.islast
+    if bullVwapActive and showBullVWAP
+        label.new(bar_index + 2, bullVwap, "Bull VWAP\n" + str.tostring(bullVwap, "#.##"),
+             color=color.new(bullColor, 70), textcolor=bullColor, style=label.style_label_left, size=size.small)
+
+    if bearVwapActive and showBearVWAP
+        label.new(bar_index + 2, bearVwap, "Bear VWAP\n" + str.tostring(bearVwap, "#.##"),
+             color=color.new(bearColor, 70), textcolor=bearColor, style=label.style_label_left, size=size.small)
+
+// ============================================================================
+// ALERTS
+// ============================================================================
+
+alertcondition(bullishDivergence, "Bullish Divergence", "Williams %R Bullish Divergence - VWAP Reset")
+alertcondition(bearishDivergence, "Bearish Divergence", "Williams %R Bearish Divergence - VWAP Reset")
+
+// Price crossing VWAPs
+bullVwapCrossUp = ta.crossover(close, bullVwap) and bullVwapActive
+bullVwapCrossDown = ta.crossunder(close, bullVwap) and bullVwapActive
+bearVwapCrossUp = ta.crossover(close, bearVwap) and bearVwapActive
+bearVwapCrossDown = ta.crossunder(close, bearVwap) and bearVwapActive
+
+alertcondition(bullVwapCrossUp, "Price Cross Above Bull VWAP", "Price crossed above Bullish Divergence VWAP")
+alertcondition(bullVwapCrossDown, "Price Cross Below Bull VWAP", "Price crossed below Bullish Divergence VWAP")
+alertcondition(bearVwapCrossUp, "Price Cross Above Bear VWAP", "Price crossed above Bearish Divergence VWAP")
+alertcondition(bearVwapCrossDown, "Price Cross Below Bear VWAP", "Price crossed below Bearish Divergence VWAP")

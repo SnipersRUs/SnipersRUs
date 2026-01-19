@@ -1,0 +1,129 @@
+//@version=6
+indicator("Advanced Liquidity Heatmap", overlay=true)
+
+// --- INPUTS ---
+trendFastLength = input.int(50, title="Fast Trend EMA Length")
+trendSlowLength = input.int(200, title="Slow Trend EMA Length")
+rsiLength = input.int(14, title="RSI Length")
+stochRsiLength = input.int(14, title="Stochastic RSI Length")
+atrLength = input.int(14, title="ATR Volatility Length")
+rsiOversold = input.int(30, title="RSI Oversold Level")
+rsiOverbought = input.int(70, title="RSI Overbought Level")
+divergenceLookback = input.int(20, title="Divergence Lookback Period")
+
+// --- CALCULATIONS ---
+
+// 1. Dynamic Trend Filter
+emaFast = ta.ema(close, trendFastLength)
+emaSlow = ta.ema(close, trendSlowLength)
+isUptrend = emaFast > emaSlow
+isDowntrend = emaFast < emaSlow
+
+// 2. Momentum Indicators
+rsi = ta.rsi(close, rsiLength)
+stochRsi = ta.stoch(rsi, rsi, rsi, stochRsiLength)
+stochRsiK = ta.sma(stochRsi, 3)
+stochRsiD = ta.sma(stochRsiK, 3)
+
+// 3. Volatility Filter
+atr = ta.atr(atrLength)
+avgAtr = ta.sma(atr, atrLength * 2) // Average ATR over a longer period
+isVolatile = atr > avgAtr * 1.2 // Signal only if ATR is 20% above its average
+
+// 4. Custom Divergence Detection
+// Bullish Divergence: Price makes lower low, RSI makes higher low
+// Bearish Divergence: Price makes higher high, RSI makes lower high
+bool bullDiv = false
+bool bearDiv = false
+
+// Find recent pivot lows for bullish divergence
+pivotLow = ta.pivotlow(low, 5, 5)
+pivotHigh = ta.pivothigh(high, 5, 5)
+
+if not na(pivotLow)
+    // FIXED: Remove [5] offset - ta.valuewhen already gets value at the pivot bar
+    currentLow = low[5]
+    currentRsiLow = rsi[5]
+    prevLow = ta.valuewhen(pivotLow, low, 1)
+    prevRsiLow = ta.valuewhen(pivotLow, rsi, 1)
+    if not na(prevLow) and not na(prevRsiLow) and prevLow > 0 and prevRsiLow > 0
+        bullDiv := currentLow < prevLow and currentRsiLow > prevRsiLow
+
+// Find recent pivot highs for bearish divergence
+if not na(pivotHigh)
+    // FIXED: Remove [5] offset - ta.valuewhen already gets value at the pivot bar
+    currentHigh = high[5]
+    currentRsiHigh = rsi[5]
+    prevHigh = ta.valuewhen(pivotHigh, high, 1)
+    prevRsiHigh = ta.valuewhen(pivotHigh, rsi, 1)
+    if not na(prevHigh) and not na(prevRsiHigh) and prevHigh > 0 and prevRsiHigh > 0
+        bearDiv := currentHigh > prevHigh and currentRsiHigh < prevRsiHigh
+
+// 5. Original Heatmap Logic (for visual context)
+lookback = input.int(50, title="Heatmap Lookback")
+avg_volume = ta.sma(volume, lookback)
+volume_score = volume > avg_volume ? 1 : 0
+trend_score = close > emaSlow ? 1 : -1 // Using slow EMA for heatmap trend
+momentum_score = (rsi - 50) / 50
+heatmap_value = (trend_score * 0.4) + (momentum_score * 0.4) + (volume_score * 0.2)
+// Fixed: Single-line ternary assignment (Pine Script v6 doesn't support backslash line continuation)
+heatmap_color = heatmap_value > 0.6 ? color.new(color.green, 85) : heatmap_value > 0.2 ? color.new(color.lime, 90) : heatmap_value > -0.2 ? color.new(color.yellow, 92) : heatmap_value > -0.6 ? color.new(color.orange, 90) : color.new(color.red, 85)
+bgcolor(heatmap_color, title="Heatmap")
+
+// --- SIGNAL LOGIC ---
+
+// Long Signal Conditions
+longCondition1 = isUptrend
+longCondition2 = ta.crossover(rsi, rsiOversold)
+longCondition3 = stochRsiK > stochRsiD and stochRsiK < 80 // Stoch RSI confirming upward momentum but not overbought
+longCondition4 = isVolatile
+longCondition5 = bullDiv // Optional divergence confirmation
+
+// Short Signal Conditions
+shortCondition1 = isDowntrend
+shortCondition2 = ta.crossunder(rsi, rsiOverbought)
+shortCondition3 = stochRsiK < stochRsiD and stochRsiK > 20 // Stoch RSI confirming downward momentum but not oversold
+shortCondition4 = isVolatile
+shortCondition5 = bearDiv // Optional divergence confirmation
+
+// Final Trigger Signals
+longSignal = longCondition1 and longCondition2 and longCondition3 and longCondition4
+shortSignal = shortCondition1 and shortCondition2 and shortCondition3 and shortCondition4
+
+// Higher-Confidence Signals (with Divergence)
+longSignalDivergence = longSignal and longCondition5
+shortSignalDivergence = shortSignal and shortCondition5
+
+// --- PLOTTING ---
+
+// Plot Trend EMAs for visual reference
+plot(emaFast, color=color.blue, title="Fast EMA")
+plot(emaSlow, color=color.red, title="Slow EMA")
+
+// Plot Standard Signals
+plotshape(longSignal, title="Long Signal", style=shape.triangleup, location=location.belowbar, color=color.new(color.green, 0), size=size.small)
+plotshape(shortSignal, title="Short Signal", style=shape.triangledown, location=location.abovebar, color=color.new(color.red, 0), size=size.small)
+
+// Plot High-Confidence Divergence Signals (bigger, different color)
+plotshape(longSignalDivergence, title="Long (Divergence)", style=shape.triangleup, location=location.belowbar, color=color.new(color.lime, 0), size=size.normal, offset=0)
+plotshape(shortSignalDivergence, title="Short (Divergence)", style=shape.triangledown, location=location.abovebar, color=color.new(color.orange, 0), size=size.normal, offset=0)
+
+// Alert Conditions
+alertcondition(longSignal, title="Long Alert", message="Advanced Long Signal Triggered")
+alertcondition(shortSignal, title="Short Alert", message="Advanced Short Signal Triggered")
+alertcondition(longSignalDivergence, title="Long Divergence Alert", message="High-Confidence Long Signal with Divergence")
+alertcondition(shortSignalDivergence, title="Short Divergence Alert", message="High-Confidence Short Signal with Divergence")
+
+// German Labels for Longs
+if longSignalDivergence
+    label.new(bar_index, low, "LANG (DIV)", color=color.lime, textcolor=color.white, style=label.style_label_down, size=size.small)
+else if longSignal
+    label.new(bar_index, low, "LANG", color=color.green, textcolor=color.white, style=label.style_label_down, size=size.small)
+
+
+
+
+
+
+
+

@@ -1,0 +1,17 @@
+// @version=6
+indicator("Piv X", shorttitle="Piv X", overlay=true, max_labels_count=500, max_lines_count=500, max_boxes_count=500, max_bars_back=2000)
+
+// ============================================================================
+// INPUTS  
+// ============================================================================
+grpPivotDetection = "🔍 Pivot Detection"
+grpMarketStructure = "📊 Market Structure"
+grpFilters = "🛡️ Filters"
+grpVisuals = "🎨 Visuals"
+grpAlerts = "🔔 Alerts"
+grpIBSS = "📈 IBSS Pro Signals"
+grpVWAP = "📏 VWAPs"
+grpPivotQuality = "✅ Pivot Quality"
+grpDivVWAP = "📏 Divergence VWAPs"
+
+// [Rest of inputs will be added - file too large for single write]

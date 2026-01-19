@@ -196,3 +196,5 @@
 *Complete market structure analysis for serious traders.*
 
 
+
+

@@ -1,0 +1,36 @@
+GOLDEN POCKET SYNDICATE (GPS) - UPDATE NOTES
+(For TradingView Update Field)
+
+═══════════════════════════════════════════════════════════════
+
+✨ NEW FEATURES:
+• 4-Day Golden Pocket (4DGP) - Cyan lines showing 4-day cycle GP zones
+• 9-Day Golden Pocket (9DGP) - Dark blue lines showing 9-day cycle GP zones
+• Yearly Golden Pocket (YGP) - White lines showing current year's 61.8%-65% Fibonacci retracement zone
+• Previous Year Golden Pocket (PYGP) - White lines showing previous year's GP zone for historical reference
+• Previous Period GP Lines - All previous period GPs now use efficient line rendering (saves plot count)
+• Signal Visibility Controls - Individual toggles for GPS Signals, Divergences, Order Blocks, and Sweeps
+
+🎨 VISUAL IMPROVEMENTS:
+• 9-Day GP Color - Changed to dark blue (#0066FF) for better visibility
+• Previous Period GPs - Now displayed as dashed lines (more efficient, doesn't count toward plot limit)
+• Smart Defaults - Main GP lines (Daily, Weekly, Monthly, Yearly) ON by default for immediate visibility
+• Signal Controls - All signal markers (divergences, sweeps, OBs, GPS signals) OFF by default for cleaner charts
+
+⚙️ TECHNICAL UPDATES:
+• Plot Limit Optimization - Converted previous period GPs from plots to lines, reducing plot count from 72 to 22 (well under 64 limit)
+• Enhanced Confluence Scoring - Yearly GP adds 35 points (highest weight), 9-Day GP adds 24 points, 4-Day GP adds 22 points
+• Complete GP Integration - All new GP periods (4-Day, 9-Day, Yearly) fully integrated into signal detection, visibility checks, and proximity filters
+• Timeframe Integration - Uses "4D" and "9D" timeframes for accurate cycle-based data retrieval
+• Previous Period Detection - Proper time change detection for all periods (4D, 9D, 12M)
+
+📊 GOLDEN POCKET COVERAGE:
+Daily, Prev Day, 4-Day, Prev 4-Day, 9-Day, Prev 9-Day, Weekly, Prev Week, Monthly, Prev Month, Yearly, Prev Year
+(12 total GP zones with independent toggle controls)
+
+🎯 DEFAULT SETTINGS:
+• ON by Default: Daily, Prev Day, Weekly, Prev Week, Monthly, Prev Month, Yearly, Prev Year GP lines
+• OFF by Default: 4-Day, 9-Day GP lines (can be enabled if needed)
+• OFF by Default: All signal markers (GPS Signals, Divergences, Order Blocks, Sweeps)
+
+✅ All features verified working. Plot count optimized. No runtime errors.

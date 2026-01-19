@@ -1,0 +1,301 @@
+//@version=6
+indicator("Session VWAP Indicator", "Session VWAP", overlay=true)
+
+// ============================================================================
+// INPUT PARAMETERS
+// ============================================================================
+// Current Session VWAP Toggles
+show_asian_vwap = input.bool(true, "Show Asian Session VWAP", group="Current Session VWAPs")
+show_london_vwap = input.bool(true, "Show London Session VWAP", group="Current Session VWAPs")
+show_ny_vwap = input.bool(true, "Show New York Session VWAP", group="Current Session VWAPs")
+
+// Previous Session VWAP Toggles
+show_prev_asian_vwap = input.bool(true, "Show Previous Asian Session VWAP", group="Previous Session VWAPs")
+show_prev_london_vwap = input.bool(true, "Show Previous London Session VWAP", group="Previous Session VWAPs")
+show_prev_ny_vwap = input.bool(true, "Show Previous New York Session VWAP", group="Previous Session VWAPs")
+
+// Color Settings - Matching TradingView Style
+asian_vwap_color = input.color(#00FF00, "Asian Session VWAP Color", group="Colors")
+london_vwap_color = input.color(#FFA500, "London Session VWAP Color", group="Colors")
+ny_vwap_color = input.color(#FF00FF, "New York Session VWAP Color", group="Colors")
+prev_asian_vwap_color = input.color(#00FF00, "Previous Asian VWAP Color", group="Colors")
+prev_london_vwap_color = input.color(#FFA500, "Previous London VWAP Color", group="Colors")
+prev_ny_vwap_color = input.color(#800080, "Previous New York VWAP Color", group="Colors")
+
+// Golden Pocket Toggles
+show_asian_gp = input.bool(true, "Show Asian Session Golden Pocket", group="Current Session Golden Pockets")
+show_london_gp = input.bool(true, "Show London Session Golden Pocket", group="Current Session Golden Pockets")
+show_ny_gp = input.bool(true, "Show New York Session Golden Pocket", group="Current Session Golden Pockets")
+
+show_prev_asian_gp = input.bool(true, "Show Previous Asian Session Golden Pocket", group="Previous Session Golden Pockets")
+show_prev_london_gp = input.bool(true, "Show Previous London Session Golden Pocket", group="Previous Session Golden Pockets")
+show_prev_ny_gp = input.bool(true, "Show Previous New York Session Golden Pocket", group="Previous Session Golden Pockets")
+
+// Golden Pocket Colors
+asian_gp_color = input.color(#00FF00, "Asian Session GP Color", group="GP Colors", inline="asian_gp")
+asian_gp_transparency = input.int(80, "", minval=0, maxval=100, group="GP Colors", inline="asian_gp")
+london_gp_color = input.color(#FFA500, "London Session GP Color", group="GP Colors", inline="london_gp")
+london_gp_transparency = input.int(80, "", minval=0, maxval=100, group="GP Colors", inline="london_gp")
+ny_gp_color = input.color(#FF00FF, "New York Session GP Color", group="GP Colors", inline="ny_gp")
+ny_gp_transparency = input.int(80, "", minval=0, maxval=100, group="GP Colors", inline="ny_gp")
+
+prev_asian_gp_color = input.color(#00FF00, "Previous Asian GP Color", group="GP Colors", inline="prev_asian_gp")
+prev_asian_gp_transparency = input.int(85, "", minval=0, maxval=100, group="GP Colors", inline="prev_asian_gp")
+prev_london_gp_color = input.color(#FFA500, "Previous London GP Color", group="GP Colors", inline="prev_london_gp")
+prev_london_gp_transparency = input.int(85, "", minval=0, maxval=100, group="GP Colors", inline="prev_london_gp")
+prev_ny_gp_color = input.color(#800080, "Previous New York GP Color", group="GP Colors", inline="prev_ny_gp")
+prev_ny_gp_transparency = input.int(85, "", minval=0, maxval=100, group="GP Colors", inline="prev_ny_gp")
+
+// Line Style Settings
+current_vwap_linewidth = input.int(2, "Current Session VWAP Line Width", minval=1, maxval=5, group="Line Settings")
+prev_vwap_linewidth = input.int(1, "Previous Session VWAP Line Width", minval=1, maxval=5, group="Line Settings")
+
+// ============================================================================
+// SESSION VWAP CALCULATIONS - ANCHORED VWAPs
+// ============================================================================
+// Get current hour in UTC
+current_hour = hour(time, "UTC")
+
+// Typical price for VWAP calculation
+hlc3 = (high + low + close) / 3
+
+// ============================================================================
+// ASIAN SESSION VWAP (00:00-12:00 UTC)
+// ============================================================================
+is_asian_session = current_hour >= 0 and current_hour < 12
+asian_session_start = is_asian_session and not is_asian_session[1]
+asian_session_end = not is_asian_session and is_asian_session[1]
+
+// Asian Session VWAP (anchored to session start)
+var float asian_vwap_sum = 0.0
+var float asian_vwap_vol = 0.0
+var float prev_asian_vwap = na
+
+// Asian Session High/Low tracking for Golden Pocket
+var float asian_high = na
+var float asian_low = na
+var float prev_asian_high = na
+var float prev_asian_low = na
+
+if asian_session_start
+    // Save previous session VWAP and high/low before resetting
+    if asian_vwap_vol > 0
+        prev_asian_vwap := asian_vwap_sum / asian_vwap_vol
+    if not na(asian_high) and not na(asian_low)
+        prev_asian_high := asian_high
+        prev_asian_low := asian_low
+    // Reset for new session
+    asian_vwap_sum := hlc3 * volume
+    asian_vwap_vol := volume
+    asian_high := high
+    asian_low := low
+else if is_asian_session
+    // Continue accumulating during session
+    asian_vwap_sum += hlc3 * volume
+    asian_vwap_vol += volume
+    asian_high := math.max(asian_high, high)
+    asian_low := math.min(asian_low, low)
+
+asian_vwap = is_asian_session and asian_vwap_vol > 0 ? asian_vwap_sum / asian_vwap_vol : na
+
+// Asian Session Golden Pocket Calculation
+asian_range = asian_high - asian_low
+asian_gp_high = not na(asian_high) and not na(asian_low) and asian_range > 0 ? asian_high - (asian_range * 0.618) : na
+asian_gp_low = not na(asian_high) and not na(asian_low) and asian_range > 0 ? asian_high - (asian_range * 0.65) : na
+
+// Previous Asian Session Golden Pocket
+prev_asian_range = prev_asian_high - prev_asian_low
+prev_asian_gp_high = not na(prev_asian_high) and not na(prev_asian_low) and prev_asian_range > 0 ? prev_asian_high - (prev_asian_range * 0.618) : na
+prev_asian_gp_low = not na(prev_asian_high) and not na(prev_asian_low) and prev_asian_range > 0 ? prev_asian_high - (prev_asian_range * 0.65) : na
+
+// ============================================================================
+// LONDON SESSION VWAP (08:00-17:00 UTC)
+// ============================================================================
+is_london_session = current_hour >= 8 and current_hour < 17
+london_session_start = is_london_session and not is_london_session[1]
+london_session_end = not is_london_session and is_london_session[1]
+
+// London Session VWAP (anchored to session start)
+var float london_vwap_sum = 0.0
+var float london_vwap_vol = 0.0
+var float prev_london_vwap = na
+
+// London Session High/Low tracking for Golden Pocket
+var float london_high = na
+var float london_low = na
+var float prev_london_high = na
+var float prev_london_low = na
+
+if london_session_start
+    // Save previous session VWAP and high/low before resetting
+    if london_vwap_vol > 0
+        prev_london_vwap := london_vwap_sum / london_vwap_vol
+    if not na(london_high) and not na(london_low)
+        prev_london_high := london_high
+        prev_london_low := london_low
+    // Reset for new session
+    london_vwap_sum := hlc3 * volume
+    london_vwap_vol := volume
+    london_high := high
+    london_low := low
+else if is_london_session
+    // Continue accumulating during session
+    london_vwap_sum += hlc3 * volume
+    london_vwap_vol += volume
+    london_high := math.max(london_high, high)
+    london_low := math.min(london_low, low)
+
+london_vwap = is_london_session and london_vwap_vol > 0 ? london_vwap_sum / london_vwap_vol : na
+
+// London Session Golden Pocket Calculation
+london_range = london_high - london_low
+london_gp_high = not na(london_high) and not na(london_low) and london_range > 0 ? london_high - (london_range * 0.618) : na
+london_gp_low = not na(london_high) and not na(london_low) and london_range > 0 ? london_high - (london_range * 0.65) : na
+
+// Previous London Session Golden Pocket
+prev_london_range = prev_london_high - prev_london_low
+prev_london_gp_high = not na(prev_london_high) and not na(prev_london_low) and prev_london_range > 0 ? prev_london_high - (prev_london_range * 0.618) : na
+prev_london_gp_low = not na(prev_london_high) and not na(prev_london_low) and prev_london_range > 0 ? prev_london_high - (prev_london_range * 0.65) : na
+
+// ============================================================================
+// NEW YORK SESSION VWAP (13:00-22:00 UTC)
+// ============================================================================
+is_ny_session = current_hour >= 13 and current_hour < 22
+ny_session_start = is_ny_session and not is_ny_session[1]
+ny_session_end = not is_ny_session and is_ny_session[1]
+
+// New York Session VWAP (anchored to session start)
+var float ny_vwap_sum = 0.0
+var float ny_vwap_vol = 0.0
+var float prev_ny_vwap = na
+
+// New York Session High/Low tracking for Golden Pocket
+var float ny_high = na
+var float ny_low = na
+var float prev_ny_high = na
+var float prev_ny_low = na
+
+if ny_session_start
+    // Save previous session VWAP and high/low before resetting
+    if ny_vwap_vol > 0
+        prev_ny_vwap := ny_vwap_sum / ny_vwap_vol
+    if not na(ny_high) and not na(ny_low)
+        prev_ny_high := ny_high
+        prev_ny_low := ny_low
+    // Reset for new session
+    ny_vwap_sum := hlc3 * volume
+    ny_vwap_vol := volume
+    ny_high := high
+    ny_low := low
+else if is_ny_session
+    // Continue accumulating during session
+    ny_vwap_sum += hlc3 * volume
+    ny_vwap_vol += volume
+    ny_high := math.max(ny_high, high)
+    ny_low := math.min(ny_low, low)
+
+ny_vwap = is_ny_session and ny_vwap_vol > 0 ? ny_vwap_sum / ny_vwap_vol : na
+
+// New York Session Golden Pocket Calculation
+ny_range = ny_high - ny_low
+ny_gp_high = not na(ny_high) and not na(ny_low) and ny_range > 0 ? ny_high - (ny_range * 0.618) : na
+ny_gp_low = not na(ny_high) and not na(ny_low) and ny_range > 0 ? ny_high - (ny_range * 0.65) : na
+
+// Previous New York Session Golden Pocket
+prev_ny_range = prev_ny_high - prev_ny_low
+prev_ny_gp_high = not na(prev_ny_high) and not na(prev_ny_low) and prev_ny_range > 0 ? prev_ny_high - (prev_ny_range * 0.618) : na
+prev_ny_gp_low = not na(prev_ny_high) and not na(prev_ny_low) and prev_ny_range > 0 ? prev_ny_high - (prev_ny_range * 0.65) : na
+
+// ============================================================================
+// PREVIOUS SESSION VWAPs (ANCHORED)
+// ============================================================================
+// Previous session VWAPs (displayed after session ends)
+// These are anchored values that persist until the next session starts
+prev_asian_vwap_display = not na(prev_asian_vwap) ? prev_asian_vwap : na
+prev_london_vwap_display = not na(prev_london_vwap) ? prev_london_vwap : na
+prev_ny_vwap_display = not na(prev_ny_vwap) ? prev_ny_vwap : na
+
+// ============================================================================
+// PLOT SESSION VWAPs
+// ============================================================================
+// Plot Current Session VWAPs
+plot(show_asian_vwap ? asian_vwap : na, "Asian Session VWAP",
+     color=asian_vwap_color, linewidth=current_vwap_linewidth, style=plot.style_line)
+
+plot(show_london_vwap ? london_vwap : na, "London Session VWAP",
+     color=london_vwap_color, linewidth=current_vwap_linewidth, style=plot.style_line)
+
+plot(show_ny_vwap ? ny_vwap : na, "New York Session VWAP",
+     color=ny_vwap_color, linewidth=current_vwap_linewidth, style=plot.style_line)
+
+// Plot Previous Session VWAPs (anchored) - using cross style to distinguish
+plot(show_prev_asian_vwap ? prev_asian_vwap_display : na, "Previous Asian Session VWAP",
+     color=prev_asian_vwap_color, linewidth=prev_vwap_linewidth, style=plot.style_cross)
+
+plot(show_prev_london_vwap ? prev_london_vwap_display : na, "Previous London Session VWAP",
+     color=prev_london_vwap_color, linewidth=prev_vwap_linewidth, style=plot.style_cross)
+
+plot(show_prev_ny_vwap ? prev_ny_vwap_display : na, "Previous New York Session VWAP",
+     color=prev_ny_vwap_color, linewidth=prev_vwap_linewidth, style=plot.style_cross)
+
+// ============================================================================
+// PLOT SESSION GOLDEN POCKETS
+// ============================================================================
+// Current Session Golden Pockets (only during active session)
+asian_gp_high_plot = plot(show_asian_gp and is_asian_session ? asian_gp_high : na, "Asian GP High",
+                         color=color.new(asian_gp_color, asian_gp_transparency), linewidth=1)
+asian_gp_low_plot = plot(show_asian_gp and is_asian_session ? asian_gp_low : na, "Asian GP Low",
+                         color=color.new(asian_gp_color, asian_gp_transparency), linewidth=1)
+fill(asian_gp_high_plot, asian_gp_low_plot, color=color.new(asian_gp_color, asian_gp_transparency), title="Asian GP Fill")
+
+london_gp_high_plot = plot(show_london_gp and is_london_session ? london_gp_high : na, "London GP High",
+                           color=color.new(london_gp_color, london_gp_transparency), linewidth=1)
+london_gp_low_plot = plot(show_london_gp and is_london_session ? london_gp_low : na, "London GP Low",
+                         color=color.new(london_gp_color, london_gp_transparency), linewidth=1)
+fill(london_gp_high_plot, london_gp_low_plot, color=color.new(london_gp_color, london_gp_transparency), title="London GP Fill")
+
+ny_gp_high_plot = plot(show_ny_gp and is_ny_session ? ny_gp_high : na, "New York GP High",
+                      color=color.new(ny_gp_color, ny_gp_transparency), linewidth=1)
+ny_gp_low_plot = plot(show_ny_gp and is_ny_session ? ny_gp_low : na, "New York GP Low",
+                     color=color.new(ny_gp_color, ny_gp_transparency), linewidth=1)
+fill(ny_gp_high_plot, ny_gp_low_plot, color=color.new(ny_gp_color, ny_gp_transparency), title="New York GP Fill")
+
+// Previous Session Golden Pockets (anchored - displayed all the time)
+prev_asian_gp_high_plot = plot(show_prev_asian_gp and not na(prev_asian_gp_high) ? prev_asian_gp_high : na, "Previous Asian GP High",
+                               color=color.new(prev_asian_gp_color, prev_asian_gp_transparency), linewidth=1)
+prev_asian_gp_low_plot = plot(show_prev_asian_gp and not na(prev_asian_gp_low) ? prev_asian_gp_low : na, "Previous Asian GP Low",
+                              color=color.new(prev_asian_gp_color, prev_asian_gp_transparency), linewidth=1)
+fill(prev_asian_gp_high_plot, prev_asian_gp_low_plot, color=color.new(prev_asian_gp_color, prev_asian_gp_transparency), title="Previous Asian GP Fill")
+
+prev_london_gp_high_plot = plot(show_prev_london_gp and not na(prev_london_gp_high) ? prev_london_gp_high : na, "Previous London GP High",
+                                color=color.new(prev_london_gp_color, prev_london_gp_transparency), linewidth=1)
+prev_london_gp_low_plot = plot(show_prev_london_gp and not na(prev_london_gp_low) ? prev_london_gp_low : na, "Previous London GP Low",
+                               color=color.new(prev_london_gp_color, prev_london_gp_transparency), linewidth=1)
+fill(prev_london_gp_high_plot, prev_london_gp_low_plot, color=color.new(prev_london_gp_color, prev_london_gp_transparency), title="Previous London GP Fill")
+
+prev_ny_gp_high_plot = plot(show_prev_ny_gp and not na(prev_ny_gp_high) ? prev_ny_gp_high : na, "Previous New York GP High",
+                            color=color.new(prev_ny_gp_color, prev_ny_gp_transparency), linewidth=1)
+prev_ny_gp_low_plot = plot(show_prev_ny_gp and not na(prev_ny_gp_low) ? prev_ny_gp_low : na, "Previous New York GP Low",
+                           color=color.new(prev_ny_gp_color, prev_ny_gp_transparency), linewidth=1)
+fill(prev_ny_gp_high_plot, prev_ny_gp_low_plot, color=color.new(prev_ny_gp_color, prev_ny_gp_transparency), title="Previous New York GP Fill")
+
+// ============================================================================
+// ALERTS
+// ============================================================================
+// Asian Session VWAP Alerts
+alertcondition(ta.crossover(close, asian_vwap), "Asian VWAP Break Above",
+               "📈 ASIAN SESSION VWAP BREAK ABOVE")
+alertcondition(ta.crossunder(close, asian_vwap), "Asian VWAP Break Below",
+               "📉 ASIAN SESSION VWAP BREAK BELOW")
+
+// London Session VWAP Alerts
+alertcondition(ta.crossover(close, london_vwap), "London VWAP Break Above",
+               "📈 LONDON SESSION VWAP BREAK ABOVE")
+alertcondition(ta.crossunder(close, london_vwap), "London VWAP Break Below",
+               "📉 LONDON SESSION VWAP BREAK BELOW")
+
+// New York Session VWAP Alerts
+alertcondition(ta.crossover(close, ny_vwap), "New York VWAP Break Above",
+               "📈 NEW YORK SESSION VWAP BREAK ABOVE")
+alertcondition(ta.crossunder(close, ny_vwap), "New York VWAP Break Below",
+               "📉 NEW YORK SESSION VWAP BREAK BELOW")

@@ -40,12 +40,11 @@ mfUp = ta.sma(upVolume, mfLength)
 mfDown = ta.sma(downVolume, mfLength)
 moneyFlow = 100 * mfUp / (mfUp + mfDown)
 
-// Enhanced Liquidation Detection
-isLiquidation() =>
-	volumeSpike = currentVolume > volMA * 1.8
-	wickSize = math.abs(currentHigh - currentLow) > ta.atr(14) * 1.2
-	priceJump = math.abs(currentClose - currentClose[1]) / currentClose[1] > 0.008
-	volumeSpike and wickSize and priceJump
+// Enhanced Liquidation Detection (cache result to avoid conditional execution warning)
+_volSpike = currentVolume > volMA * 1.8
+_wickSize = math.abs(currentHigh - currentLow) > ta.atr(14) * 1.2
+_priceJump = math.abs(currentClose - currentClose[1]) / currentClose[1] > 0.008
+liq = _volSpike and _wickSize and _priceJump
 
 // Signal Detection (legacy)
 bullSignal = ta.crossover(moneyFlow, 65) and currentVolume > volMA
@@ -59,14 +58,14 @@ fakeoutSignal = ((moneyFlow > 70 and moneyFlow[3] < 30) or
 superBullSignal = moneyFlow < 30 and                   // Deep oversold
                  moneyFlow > moneyFlow[1] and          // Starting to turn up
                  currentVolume > volMA * 1.5 and       // Strong volume
-                 (isLiquidation() or                   // Either liquidation
+                 (liq or                               // Either liquidation
                  (currentVolume > volMA * 2 and        // Or strong rejection with volume
                  math.abs(currentClose - currentLow) / math.abs(currentHigh - currentLow) > 0.7))
 
 superBearSignal = moneyFlow > 70 and                   // Deep overbought
                  moneyFlow < moneyFlow[1] and          // Starting to turn down
                  currentVolume > volMA * 1.5 and       // Strong volume
-                 (isLiquidation() or                   // Either liquidation
+                 (liq or                               // Either liquidation
                  (currentVolume > volMA * 2 and        // Or strong rejection with volume
                  math.abs(currentHigh - currentClose) / math.abs(currentHigh - currentLow) > 0.7))
 
@@ -132,36 +131,36 @@ var int prevPLBar_micro = na
 var int lastPLBar_micro = na
 
 if not na(ph_macro)
-	prevPriceHigh_macro := lastPriceHigh_macro
-	prevOscHigh_macro := lastOscHigh_macro
-	prevPHBar_macro := lastPHBar_macro
-	lastPriceHigh_macro := ph_macro
-	lastOscHigh_macro := mh_macro
-	lastPHBar_macro := bar_index - macroRight
+    prevPriceHigh_macro := lastPriceHigh_macro
+    prevOscHigh_macro := lastOscHigh_macro
+    prevPHBar_macro := lastPHBar_macro
+    lastPriceHigh_macro := ph_macro
+    lastOscHigh_macro := mh_macro
+    lastPHBar_macro := bar_index - macroRight
 
 if not na(pl_macro)
-	prevPriceLow_macro := lastPriceLow_macro
-	prevOscLow_macro := lastOscLow_macro
-	prevPLBar_macro := lastPLBar_macro
-	lastPriceLow_macro := pl_macro
-	lastOscLow_macro := ml_macro
-	lastPLBar_macro := bar_index - macroRight
+    prevPriceLow_macro := lastPriceLow_macro
+    prevOscLow_macro := lastOscLow_macro
+    prevPLBar_macro := lastPLBar_macro
+    lastPriceLow_macro := pl_macro
+    lastOscLow_macro := ml_macro
+    lastPLBar_macro := bar_index - macroRight
 
 if not na(ph_micro)
-	prevPriceHigh_micro := lastPriceHigh_micro
-	prevOscHigh_micro := lastOscHigh_micro
-	prevPHBar_micro := lastPHBar_micro
-	lastPriceHigh_micro := ph_micro
-	lastOscHigh_micro := mh_micro
-	lastPHBar_micro := bar_index - microRight
+    prevPriceHigh_micro := lastPriceHigh_micro
+    prevOscHigh_micro := lastOscHigh_micro
+    prevPHBar_micro := lastPHBar_micro
+    lastPriceHigh_micro := ph_micro
+    lastOscHigh_micro := mh_micro
+    lastPHBar_micro := bar_index - microRight
 
 if not na(pl_micro)
-	prevPriceLow_micro := lastPriceLow_micro
-	prevOscLow_micro := lastOscLow_micro
-	prevPLBar_micro := lastPLBar_micro
-	lastPriceLow_micro := pl_micro
-	lastOscLow_micro := ml_micro
-	lastPLBar_micro := bar_index - microRight
+    prevPriceLow_micro := lastPriceLow_micro
+    prevOscLow_micro := lastOscLow_micro
+    prevPLBar_micro := lastPLBar_micro
+    lastPriceLow_micro := pl_micro
+    lastOscLow_micro := ml_micro
+    lastPLBar_micro := bar_index - microRight
 
 // Divergence helpers
 regularBear(priceHigherNow, oscLowerNow) => priceHigherNow and oscLowerNow
@@ -169,17 +168,17 @@ regularBull(priceLowerNow, oscHigherNow) => priceLowerNow and oscHigherNow
 hiddenBear(priceLowerHigh, oscHigherHigh) => priceLowerHigh and oscHigherHigh
 hiddenBull(priceHigherLow, oscLowerLow) => priceHigherLow and oscLowerLow
 
-// Macro divergences
-macro_reg_bear = showMacro and not na(lastPriceHigh_macro) and not na(prevPriceHigh_macro) and not na(lastOscHigh_macro) and not na(prevOscHigh_macro) and regularBear(lastPriceHigh_macro > prevPriceHigh_macro, lastOscHigh_macro < prevOscHigh_macro)
-macro_hid_bear = showMacro and not na(lastPriceHigh_macro) and not na(prevPriceHigh_macro) and not na(lastOscHigh_macro) and not na(prevOscHigh_macro) and hiddenBear(lastPriceHigh_macro < prevPriceHigh_macro, lastOscHigh_macro > prevOscHigh_macro)
-macro_reg_bull = showMacro and not na(lastPriceLow_macro) and not na(prevPriceLow_macro) and not na(lastOscLow_macro) and not na(prevOscLow_macro) and regularBull(lastPriceLow_macro < prevPriceLow_macro, lastOscLow_macro > prevOscLow_macro)
-macro_hid_bull = showMacro and not na(lastPriceLow_macro) and not na(prevPriceLow_macro) and not na(lastOscLow_macro) and not na(prevOscLow_macro) and hiddenBull(lastPriceLow_macro > prevPriceLow_macro, lastOscLow_macro < prevOscLow_macro)
+// Macro divergences (only fire on the bar when a new pivot is confirmed)
+macro_reg_bear = not na(ph_macro) and showMacro and not na(lastPriceHigh_macro) and not na(prevPriceHigh_macro) and not na(lastOscHigh_macro) and not na(prevOscHigh_macro) and regularBear(lastPriceHigh_macro > prevPriceHigh_macro, lastOscHigh_macro < prevOscHigh_macro)
+macro_hid_bear = not na(ph_macro) and showMacro and not na(lastPriceHigh_macro) and not na(prevPriceHigh_macro) and not na(lastOscHigh_macro) and not na(prevOscHigh_macro) and hiddenBear(lastPriceHigh_macro < prevPriceHigh_macro, lastOscHigh_macro > prevOscHigh_macro)
+macro_reg_bull = not na(pl_macro) and showMacro and not na(lastPriceLow_macro) and not na(prevPriceLow_macro) and not na(lastOscLow_macro) and not na(prevOscLow_macro) and regularBull(lastPriceLow_macro < prevPriceLow_macro, lastOscLow_macro > prevOscLow_macro)
+macro_hid_bull = not na(pl_macro) and showMacro and not na(lastPriceLow_macro) and not na(prevPriceLow_macro) and not na(lastOscLow_macro) and not na(prevOscLow_macro) and hiddenBull(lastPriceLow_macro > prevPriceLow_macro, lastOscLow_macro < prevOscLow_macro)
 
-// Micro divergences
-micro_reg_bear = showMicro and not na(lastPriceHigh_micro) and not na(prevPriceHigh_micro) and not na(lastOscHigh_micro) and not na(prevOscHigh_micro) and regularBear(lastPriceHigh_micro > prevPriceHigh_micro, lastOscHigh_micro < prevOscHigh_micro)
-micro_hid_bear = showMicro and not na(lastPriceHigh_micro) and not na(prevPriceHigh_micro) and not na(lastOscHigh_micro) and not na(prevOscHigh_micro) and hiddenBear(lastPriceHigh_micro < prevPriceHigh_micro, lastOscHigh_micro > prevOscHigh_micro)
-micro_reg_bull = showMicro and not na(lastPriceLow_micro) and not na(prevPriceLow_micro) and not na(lastOscLow_micro) and not na(prevOscLow_micro) and regularBull(lastPriceLow_micro < prevPriceLow_micro, lastOscLow_micro > prevOscLow_micro)
-micro_hid_bull = showMicro and not na(lastPriceLow_micro) and not na(prevPriceLow_micro) and not na(lastOscLow_micro) and not na(prevOscLow_micro) and hiddenBull(lastPriceLow_micro > prevPriceLow_micro, lastOscLow_micro < prevOscLow_micro)
+// Micro divergences (only fire on the bar when a new pivot is confirmed)
+micro_reg_bear = not na(ph_micro) and showMicro and not na(lastPriceHigh_micro) and not na(prevPriceHigh_micro) and not na(lastOscHigh_micro) and not na(prevOscHigh_micro) and regularBear(lastPriceHigh_micro > prevPriceHigh_micro, lastOscHigh_micro < prevOscHigh_micro)
+micro_hid_bear = not na(ph_micro) and showMicro and not na(lastPriceHigh_micro) and not na(prevPriceHigh_micro) and not na(lastOscHigh_micro) and not na(prevOscHigh_micro) and hiddenBear(lastPriceHigh_micro < prevPriceHigh_micro, lastOscHigh_micro > prevOscHigh_micro)
+micro_reg_bull = not na(pl_micro) and showMicro and not na(lastPriceLow_micro) and not na(prevPriceLow_micro) and not na(lastOscLow_micro) and not na(prevOscLow_micro) and regularBull(lastPriceLow_micro < prevPriceLow_micro, lastOscLow_micro > prevOscLow_micro)
+micro_hid_bull = not na(pl_micro) and showMicro and not na(lastPriceLow_micro) and not na(prevPriceLow_micro) and not na(lastOscLow_micro) and not na(prevOscLow_micro) and hiddenBull(lastPriceLow_micro > prevPriceLow_micro, lastOscLow_micro < prevOscLow_micro)
 
 // Strong overlay gating
 strongBull = superBullSignal
@@ -211,14 +210,14 @@ plotshape(micro_hid_bear ? moneyFlow[microRight] : na, title="Micro Hidden Beari
 
 // Connector lines
 if showConnectorLines
-	if macro_reg_bear or macro_hid_bear
-		line.new(x1=prevPHBar_macro, y1=prevOscHigh_macro, x2=lastPHBar_macro, y2=lastOscHigh_macro, xloc=xloc.bar_index, color=color.new(colBear, 30), width=1, extend=extend.none)
-	if macro_reg_bull or macro_hid_bull
-		line.new(x1=prevPLBar_macro, y1=prevOscLow_macro, x2=lastPLBar_macro, y2=lastOscLow_macro, xloc=xloc.bar_index, color=color.new(colBull, 30), width=1, extend=extend.none)
-	if micro_reg_bear or micro_hid_bear
-		line.new(x1=prevPHBar_micro, y1=prevOscHigh_micro, x2=lastPHBar_micro, y2=lastOscHigh_micro, xloc=xloc.bar_index, color=color.new(colBear, 70), width=1, extend=extend.none)
-	if micro_reg_bull or micro_hid_bull
-		line.new(x1=prevPLBar_micro, y1=prevOscLow_micro, x2=lastPLBar_micro, y2=lastOscLow_micro, xloc=xloc.bar_index, color=color.new(colBull, 70), width=1, extend=extend.none)
+    if macro_reg_bear or macro_hid_bear
+        line.new(x1=prevPHBar_macro, y1=prevOscHigh_macro, x2=lastPHBar_macro, y2=lastOscHigh_macro, xloc=xloc.bar_index, color=color.new(colBear, 30), width=1, extend=extend.none)
+    if macro_reg_bull or macro_hid_bull
+        line.new(x1=prevPLBar_macro, y1=prevOscLow_macro, x2=lastPLBar_macro, y2=lastOscLow_macro, xloc=xloc.bar_index, color=color.new(colBull, 30), width=1, extend=extend.none)
+    if micro_reg_bear or micro_hid_bear
+        line.new(x1=prevPHBar_micro, y1=prevOscHigh_micro, x2=lastPHBar_micro, y2=lastOscHigh_micro, xloc=xloc.bar_index, color=color.new(colBear, 70), width=1, extend=extend.none)
+    if micro_reg_bull or micro_hid_bull
+        line.new(x1=prevPLBar_micro, y1=prevOscLow_micro, x2=lastPLBar_micro, y2=lastOscLow_micro, xloc=xloc.bar_index, color=color.new(colBull, 70), width=1, extend=extend.none)
 
 // Keep existing regular signals & fakeouts
 plotshape(bullSignal and not superBullSignal ? moneyFlow : na, title="Bullish", style=shape.circle, location=location.absolute, color=#32CD32, size=size.tiny)
@@ -233,7 +232,7 @@ alertcondition(bearSignal, "Bearish Signal", "Bearish Signal")
 alertcondition(fakeoutSignal, "Fakeout Signal", "Fakeout Signal")
 alertcondition(superBullSignal, "Super Bullish Signal", "Super Bullish Signal")
 alertcondition(superBearSignal, "Super Bearish Signal", "Super Bearish Signal")
-alertcondition(isLiquidation(), "Liquidation Detected", "Liquidation Detected")
+alertcondition(liq, "Liquidation Detected", "Liquidation Detected")
 
 // Divergence alerts
 alertcondition(macro_reg_bull, "Macro Regular Bullish Divergence", "Macro Regular Bullish Divergence")

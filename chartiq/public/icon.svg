@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#0b0e11"/>
+  <!-- Crosshairs/sniper scope -->
+  <circle cx="256" cy="256" r="120" fill="none" stroke="#0ecb81" stroke-width="4"/>
+  <circle cx="256" cy="256" r="80" fill="none" stroke="#0ecb81" stroke-width="3" opacity="0.7"/>
+  <circle cx="256" cy="256" r="15" fill="#0ecb81"/>
+  <line x1="256" y1="0" x2="256" y2="512" stroke="#0ecb81" stroke-width="2" opacity="0.5"/>
+  <line x1="0" y1="256" x2="512" y2="256" stroke="#0ecb81" stroke-width="2" opacity="0.5"/>
+  <!-- Chart line -->
+  <polyline points="150,380 200,340 256,350 320,280 380,320" fill="none" stroke="#6c5ce7" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="320" cy="280" r="8" fill="#f6465d"/>
+</svg>

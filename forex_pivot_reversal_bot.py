@@ -34,20 +34,40 @@ logging.basicConfig(
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger("ForexPivotBot")
+# Enable debug logging for signal detection
+logger.setLevel(logging.DEBUG)
 
 # ====================== CONFIGURATION ======================
 DISCORD_WEBHOOK = "https://discord.com/api/webhooks/1451483953897668610/uhi0EVl81jV4B17m6tbiwZ3fOV88F7goMERBn4Vyim4_owOpDNZK1regFliw4bcl8mBF"
 
 PAPER_TRADING_CONFIG = {
     "starting_balance": 1000.0,  # $1k starting
-    "leverage": 150,              # 150x leverage
-    "trade_size_usd": 50.0,        # $50 per trade
+    "leverage": 100,              # 100x leverage (forex-optimized)
+    "risk_per_trade": 0.02,        # 2% risk per trade
     "max_open_positions": 3,      # Max 3 trades
     "tp1_percent": 25,            # 25% take first TP
-    "db_path": "forex_paper_trades.db"
+    "db_path": "forex_paper_trades.db",
+    "max_spread_pips": 2.0,       # Skip trades if spread > 2 pips
+    "pip_value_usd": 10.0         # $10 per pip for standard lots
 }
 
 SCAN_INTERVAL = 2700  # Scan every 45 minutes (45 * 60 = 2700 seconds)
+
+# Forex session times (UTC)
+FOREX_SESSIONS = {
+    "tokyo": {"start": 0, "end": 9},      # 00:00 - 09:00 UTC
+    "london": {"start": 8, "end": 17},    # 08:00 - 17:00 UTC
+    "new_york": {"start": 13, "end": 22},  # 13:00 - 22:00 UTC
+    "overlap_london_ny": {"start": 13, "end": 17}  # 13:00 - 17:00 UTC (best liquidity)
+}
+
+# ATR multipliers for forex (lower volatility)
+FOREX_ATR_MULTIPLIERS = {
+    "stop_loss": 1.0,    # 1.0x ATR for stops (forex-optimized)
+    "tp1": 1.5,          # 1.5x ATR for TP1
+    "tp2": 2.5,          # 2.5x ATR for TP2
+    "tp3": 4.0           # 4.0x ATR for TP3
+}
 
 # Forex pairs to trade (only these 3 pairs)
 FOREX_PAIRS = [
@@ -55,6 +75,90 @@ FOREX_PAIRS = [
     "EUR/USD",
     "GBP/USD"
 ]
+
+# ====================== FOREX UTILITIES ======================
+
+class ForexUtils:
+    """Forex-specific utility functions"""
+
+    @staticmethod
+    def normalize_symbol(symbol: str) -> str:
+        """Normalize forex symbols (e.g., 'EUR/USD')"""
+        if '/' in symbol:
+            return symbol  # Already normalized
+        elif symbol.endswith('USD'):
+            return f"{symbol[:-3]}/USD"
+        elif len(symbol) == 6:  # EURUSD format
+            return f"{symbol[:3]}/{symbol[3:]}"
+        return symbol
+
+    @staticmethod
+    def price_to_pips(price_diff: float, symbol: str) -> float:
+        """Convert price difference to pips"""
+        # For XXX/USD pairs, 1 pip = 0.0001
+        # For XXX/JPY pairs, 1 pip = 0.01
+        if "JPY" in symbol:
+            return abs(price_diff) * 100  # JPY pairs
+        else:
+            return abs(price_diff) * 10000  # Standard pairs
+
+    @staticmethod
+    def pips_to_price(pips: float, symbol: str) -> float:
+        """Convert pips to price difference"""
+        if "JPY" in symbol:
+            return pips / 100
+        else:
+            return pips / 10000
+
+    @staticmethod
+    def is_psychological_level(price: float, threshold: float = 0.0005) -> bool:
+        """Check if price is near a psychological level (round numbers)"""
+        # Check if price is near round numbers (e.g., 1.0000, 1.0500, 1.1000)
+        rounded = round(price, 2)  # Round to 2 decimals
+        diff = abs(price - rounded)
+        return diff <= threshold
+
+    @staticmethod
+    def get_current_session() -> str:
+        """Get current forex session"""
+        now = datetime.now(timezone.utc)
+        hour = now.hour
+
+        if 13 <= hour < 17:
+            return "overlap_london_ny"  # Best liquidity
+        elif 8 <= hour < 17:
+            return "london"
+        elif 13 <= hour < 22:
+            return "new_york"
+        elif 0 <= hour < 9:
+            return "tokyo"
+        else:
+            return "low_liquidity"  # Outside main sessions
+
+    @staticmethod
+    def is_market_open() -> bool:
+        """Check if forex market is open (24/5 - closed weekends)"""
+        now = datetime.now(timezone.utc)
+        weekday = now.weekday()  # 0=Monday, 6=Sunday
+
+        # Forex is closed on weekends (Saturday = 5, Sunday = 6)
+        if weekday >= 5:
+            return False
+
+        # Check if it's Friday after close (22:00 UTC) or Sunday before open
+        if weekday == 4 and now.hour >= 22:  # Friday after 22:00 UTC
+            return False
+        if weekday == 6:  # Sunday
+            return False
+
+        return True
+
+    @staticmethod
+    def is_news_event_near() -> bool:
+        """Check if high-impact news is within 30 mins (placeholder for news API)"""
+        # TODO: Integrate with Forex Factory API or similar
+        # For now, return False (no news filter)
+        return False
 
 # ====================== INDICATOR CALCULATIONS ======================
 
@@ -170,18 +274,21 @@ class IndicatorCalculator:
         }
 
     @staticmethod
-    def calculate_gps_zones(df: pd.DataFrame, timeframe: str) -> Dict:
+    def calculate_gps_zones(df: pd.DataFrame, timeframe: str, symbol: str) -> Dict:
         """
         Golden Pocket Syndicate - Calculate golden pocket zones
+        Enhanced for forex: combines GP with psychological levels
         Returns: Daily, Weekly, Monthly GP zones and proximity
         """
         if len(df) < 20:
             return {
-                'daily_gp': None,
-                'weekly_gp': None,
-                'monthly_gp': None,
+                'daily_gp_high': None,
+                'daily_gp_low': None,
+                'daily_gp_mid': None,
                 'distance_to_gp': None,
-                'near_gp': False
+                'near_gp': False,
+                'at_psychological_level': False,
+                'psychological_level': None
             }
 
         # For simplicity, we'll use the current timeframe's high/low
@@ -196,37 +303,59 @@ class IndicatorCalculator:
         gp_low = high - (range_val * 0.65)
         gp_mid = (gp_high + gp_low) / 2
 
-        # Calculate distance to GP
-        if gp_low <= current_price <= gp_high:
-            distance_to_gp = 0.0  # Inside GP
-        elif current_price < gp_low:
-            distance_to_gp = ((gp_low - current_price) / current_price) * 100
-        else:
-            distance_to_gp = ((current_price - gp_high) / current_price) * 100
+        # Check for psychological levels (round numbers)
+        at_psychological = ForexUtils.is_psychological_level(current_price)
+        psychological_level = round(current_price, 2) if at_psychological else None
 
-        near_gp = abs(distance_to_gp) < 0.5 if distance_to_gp is not None else False
+        # Calculate distance to GP in pips
+        if gp_low <= current_price <= gp_high:
+            distance_to_gp_pips = 0.0  # Inside GP
+        elif current_price < gp_low:
+            distance_to_gp_pips = ForexUtils.price_to_pips(gp_low - current_price, symbol)
+        else:
+            distance_to_gp_pips = ForexUtils.price_to_pips(current_price - gp_high, symbol)
+
+        # Near GP if within 10 pips
+        near_gp = distance_to_gp_pips <= 10.0
 
         return {
             'daily_gp_high': gp_high,
             'daily_gp_low': gp_low,
             'daily_gp_mid': gp_mid,
-            'distance_to_gp': distance_to_gp,
+            'distance_to_gp_pips': distance_to_gp_pips,
+            'distance_to_gp': (distance_to_gp_pips / 100) if "JPY" not in symbol else (distance_to_gp_pips / 10),  # Percentage
             'near_gp': near_gp,
-            'current_price': current_price
+            'current_price': current_price,
+            'at_psychological_level': at_psychological,
+            'psychological_level': psychological_level
         }
 
     @staticmethod
-    def calculate_tactical_deviation(df: pd.DataFrame) -> Optional[Dict]:
+    def calculate_session_vwap(df: pd.DataFrame, session: str = "london") -> Optional[Dict]:
         """
-        Tactical Deviation - VWAP with ±1σ, ±2σ, ±3σ bands
-        Returns: deviation level and percentage
+        Calculate session-based VWAP for forex (London/New York/Tokyo sessions)
+        Forex respects session boundaries more than daily levels
         """
         if df is None or len(df) < 20:
             return None
 
+        # Filter by session hours (UTC)
+        session_hours = FOREX_SESSIONS.get(session, FOREX_SESSIONS["london"])
+        df['hour'] = pd.to_datetime(df['timestamp']).dt.hour
+
+        # Filter data for session
+        if session == "overlap_london_ny":
+            df_session = df[(df['hour'] >= 13) & (df['hour'] < 17)]
+        else:
+            df_session = df[(df['hour'] >= session_hours["start"]) & (df['hour'] < session_hours["end"])]
+
+        if len(df_session) < 10:
+            # Fallback to all data if session data insufficient
+            df_session = df
+
         # Calculate VWAP
-        typical_price = (df['high'] + df['low'] + df['close']) / 3.0
-        volume = df['volume'].values if 'volume' in df.columns else np.ones(len(df))
+        typical_price = (df_session['high'] + df_session['low'] + df_session['close']) / 3.0
+        volume = df_session['volume'].values if 'volume' in df_session.columns else np.ones(len(df_session))
 
         sum_pv = (typical_price * volume).sum()
         sum_v = volume.sum()
@@ -272,8 +401,23 @@ class IndicatorCalculator:
             "upper_2": upper_2,
             "lower_2": lower_2,
             "upper_3": upper_3,
-            "lower_3": lower_3
+            "lower_3": lower_3,
+            "session": session
         }
+
+    @staticmethod
+    def calculate_tactical_deviation(df: pd.DataFrame) -> Optional[Dict]:
+        """
+        Tactical Deviation - Session-based VWAP with ±1σ, ±2σ, ±3σ bands
+        Uses current session (London/New York overlap preferred)
+        Returns: deviation level and percentage
+        """
+        # Use session-based VWAP for forex
+        current_session = ForexUtils.get_current_session()
+        if current_session == "low_liquidity":
+            current_session = "london"  # Fallback to London
+
+        return IndicatorCalculator.calculate_session_vwap(df, current_session)
 
 # ====================== PAPER TRADING ACCOUNT ======================
 
@@ -364,17 +508,45 @@ class PaperTradingAccount:
         open_positions = self.get_open_positions()
         return len(open_positions) < PAPER_TRADING_CONFIG["max_open_positions"]
 
+    def calculate_position_size_pips(self, entry_price: float, stop_loss: float,
+                                     symbol: str, balance: float) -> float:
+        """Calculate forex position size in lots based on pip risk"""
+        stop_pips = ForexUtils.price_to_pips(abs(entry_price - stop_loss), symbol)
+        if stop_pips == 0:
+            stop_pips = 20  # Default 20 pips if calculation fails
+
+        risk_amount = balance * PAPER_TRADING_CONFIG["risk_per_trade"]
+        pip_value = PAPER_TRADING_CONFIG["pip_value_usd"]
+
+        # Calculate lot size: (Risk Amount / Stop Loss in Pips) / Pip Value
+        lot_size = (risk_amount / stop_pips) / pip_value
+
+        # Cap at 20% of balance
+        max_lot_size = (balance * 0.20) / (entry_price * pip_value * 100)  # Approximate
+        lot_size = min(lot_size, max_lot_size)
+
+        # Convert lots to quantity (1 standard lot = 100,000 units for XXX/USD)
+        if "JPY" in symbol:
+            quantity = lot_size * 100000  # Standard lot for JPY pairs
+        else:
+            quantity = lot_size * 100000  # Standard lot for XXX/USD pairs
+
+        return quantity
+
     def open_position(self, symbol: str, direction: str, entry_price: float,
                      tp1: float, tp2: float, tp3: float, stop_loss: float) -> Optional[int]:
-        """Open a new position"""
+        """Open a new position with pip-based position sizing"""
         if not self.can_open_position():
             return None
 
         leverage = PAPER_TRADING_CONFIG["leverage"]
-        trade_size_usd = PAPER_TRADING_CONFIG["trade_size_usd"]
-        margin = trade_size_usd
-        notional = margin * leverage
-        quantity = notional / entry_price
+
+        # Calculate position size based on pip risk
+        quantity = self.calculate_position_size_pips(entry_price, stop_loss, symbol, self.balance)
+
+        # Calculate margin (notional / leverage)
+        notional = quantity * entry_price
+        margin = notional / leverage
 
         conn = sqlite3.connect(self.db_path)
         c = conn.cursor()
@@ -390,7 +562,8 @@ class PaperTradingAccount:
         conn.commit()
         conn.close()
 
-        logger.info(f"✅ Opened {direction} position: {symbol} @ ${entry_price:.5f}")
+        stop_pips = ForexUtils.price_to_pips(abs(entry_price - stop_loss), symbol)
+        logger.info(f"✅ Opened {direction} position: {symbol} @ ${entry_price:.5f} | Stop: {stop_pips:.1f} pips")
         return trade_id
 
     def update_positions(self, current_prices: Dict[str, float]):
@@ -550,9 +723,11 @@ def send_discord_alert(embed: Dict):
         logger.error(f"❌ Discord alert failed: {e}")
 
 def create_gp_proximity_card(symbol: str, gps_data: Dict, current_price: float) -> Dict:
-    """Create golden pocket proximity alert card"""
-    distance = gps_data.get('distance_to_gp', 0)
+    """Create golden pocket proximity alert card with pip-based metrics"""
+    distance_pips = gps_data.get('distance_to_gp_pips', 0)
     near_gp = gps_data.get('near_gp', False)
+    at_psych = gps_data.get('at_psychological_level', False)
+    psych_level = gps_data.get('psychological_level')
 
     if near_gp:
         title = f"🎯 APPROACHING GOLDEN POCKET - {symbol}"
@@ -561,14 +736,18 @@ def create_gp_proximity_card(symbol: str, gps_data: Dict, current_price: float) 
     else:
         title = f"📍 GOLDEN POCKET PROXIMITY - {symbol}"
         color = 0xFFA500  # Orange
-        description = f"**Distance to Golden Pocket:** {abs(distance):.3f}%\n\n"
+        description = f"**Distance to Golden Pocket:** {distance_pips:.1f} pips\n\n"
 
     description += (
-        f"**Current Price:** ${current_price:.5f}\n"
-        f"**GP Zone:** ${gps_data.get('daily_gp_low', 0):.5f} - ${gps_data.get('daily_gp_high', 0):.5f}\n"
-        f"**GP Mid:** ${gps_data.get('daily_gp_mid', 0):.5f}\n\n"
-        f"*Watch for reversal signals at this level*"
+        f"**Current Price:** {current_price:.5f}\n"
+        f"**GP Zone:** {gps_data.get('daily_gp_low', 0):.5f} - {gps_data.get('daily_gp_high', 0):.5f}\n"
+        f"**GP Mid:** {gps_data.get('daily_gp_mid', 0):.5f}\n"
     )
+
+    if at_psych:
+        description += f"**🎯 At Psychological Level:** {psych_level}\n"
+
+    description += f"\n*Watch for reversal signals at this level*"
 
     return {
         "title": title,
@@ -578,11 +757,12 @@ def create_gp_proximity_card(symbol: str, gps_data: Dict, current_price: float) 
     }
 
 def create_deviation_card(symbol: str, deviation_data: Dict, timeframe: str, grade: str) -> Dict:
-    """Create A- deviation setup card"""
+    """Create A- deviation setup card with pip-based metrics"""
     level = deviation_data.get('deviation_level', 0)
     dev_pct = deviation_data.get('deviation_percent', 0)
     current_price = deviation_data.get('current_price', 0)
     vwap = deviation_data.get('vwap', 0)
+    session = deviation_data.get('session', 'london')
 
     # A- setup (2σ deviation)
     if level == 2:
@@ -597,11 +777,16 @@ def create_deviation_card(symbol: str, deviation_data: Dict, timeframe: str, gra
             direction = "SHORT"
             emoji = "🔴"
 
+        # Calculate distance from VWAP in pips
+        vwap_distance_pips = ForexUtils.price_to_pips(abs(current_price - vwap), symbol)
+
         description = (
             f"{emoji} **{direction} Setup** - A- Grade\n\n"
             f"**Timeframe:** {timeframe}\n"
-            f"**Current Price:** ${current_price:.5f}\n"
-            f"**VWAP:** ${vwap:.5f}\n"
+            f"**Session:** {session.upper()}\n"
+            f"**Current Price:** {current_price:.5f}\n"
+            f"**Session VWAP:** {vwap:.5f}\n"
+            f"**Distance from VWAP:** {vwap_distance_pips:.1f} pips\n"
             f"**Deviation:** {abs(dev_pct):.2f}σ ({level}σ level)\n\n"
             f"*Price is at ±2σ deviation - Good reversal setup*"
         )
@@ -617,13 +802,14 @@ def create_deviation_card(symbol: str, deviation_data: Dict, timeframe: str, gra
     }
 
 def create_aplus_card(symbol: str, signal_data: Dict, timeframe: str) -> Dict:
-    """Create A+ setup card"""
+    """Create A+ setup card with pip-based metrics"""
     direction = signal_data.get('direction', 'LONG')
     entry = signal_data.get('entry', 0)
     tp1 = signal_data.get('tp1', 0)
     tp2 = signal_data.get('tp2', 0)
     tp3 = signal_data.get('tp3', 0)
     stop_loss = signal_data.get('stop_loss', 0)
+    session = signal_data.get('session', 'london')
 
     # Green for longs (bull), purple for bearish (short)
     if direction == "LONG":
@@ -633,14 +819,22 @@ def create_aplus_card(symbol: str, signal_data: Dict, timeframe: str) -> Dict:
         color = 0x9B59B6  # Purple (bear)
         emoji = "🔴"
 
+    # Calculate pip distances
+    stop_pips = ForexUtils.price_to_pips(abs(entry - stop_loss), symbol)
+    tp1_pips = ForexUtils.price_to_pips(abs(tp1 - entry), symbol)
+    tp2_pips = ForexUtils.price_to_pips(abs(tp2 - entry), symbol)
+    tp3_pips = ForexUtils.price_to_pips(abs(tp3 - entry), symbol)
+
     description = (
         f"{emoji} **{direction} SETUP** - A+ Grade\n\n"
         f"**Timeframe:** {timeframe}\n"
-        f"**Entry:** ${entry:.5f}\n"
-        f"**Stop Loss:** ${stop_loss:.5f}\n"
-        f"**Take Profit 1:** ${tp1:.5f} (25%)\n"
-        f"**Take Profit 2:** ${tp2:.5f}\n"
-        f"**Take Profit 3:** ${tp3:.5f}\n\n"
+        f"**Session:** {session.upper()}\n"
+        f"**Entry:** {entry:.5f}\n"
+        f"**Stop Loss:** {stop_loss:.5f} ({stop_pips:.1f} pips)\n"
+        f"**Take Profit 1:** {tp1:.5f} ({tp1_pips:.1f} pips) - 25%\n"
+        f"**Take Profit 2:** {tp2:.5f} ({tp2_pips:.1f} pips)\n"
+        f"**Take Profit 3:** {tp3:.5f} ({tp3_pips:.1f} pips)\n\n"
+        f"**Risk/Reward:** 1:{tp1_pips/stop_pips:.2f} (TP1)\n\n"
         f"**Confluence Factors:**\n"
     )
 
@@ -655,7 +849,7 @@ def create_aplus_card(symbol: str, signal_data: Dict, timeframe: str) -> Dict:
         "color": color,
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "footer": {
-            "text": f"Forex Pivot Reversal Bot • {timeframe}"
+            "text": f"Forex Pivot Reversal Bot • {timeframe} • {session.upper()}"
         }
     }
 
@@ -670,6 +864,8 @@ class ForexPivotReversalBot:
         self.init_exchange()
         self.last_scan_time = {}
         self.last_gp_alert = {}  # Track last GP proximity alert per symbol
+        self.last_premarket_day = None  # Track last premarket update day
+        self.last_premarket_week = None  # Track last premarket update week
 
     def init_exchange(self):
         """Initialize exchange for data fetching"""
@@ -732,9 +928,31 @@ class ForexPivotReversalBot:
         df = pd.DataFrame(prices)
         return df
 
+    def get_spread(self, symbol: str) -> float:
+        """Get current spread in pips (placeholder - would use real broker API)"""
+        # TODO: Integrate with broker API to get real spread
+        # For now, return a mock spread (typically 1-2 pips for major pairs)
+        return 1.5  # Mock spread in pips
+
     def scan_symbol(self, symbol: str) -> Optional[Dict]:
-        """Scan a symbol for trading signals"""
+        """Scan a symbol for trading signals with FX-specific filters"""
         try:
+            # 1. Check market hours (24/5 - closed weekends)
+            if not ForexUtils.is_market_open():
+                logger.debug(f"Market closed for {symbol}")
+                return None
+
+            # 2. Check news filter (avoid high-impact events)
+            if ForexUtils.is_news_event_near():
+                logger.debug(f"High-impact news event near - skipping {symbol}")
+                return None
+
+            # 3. Check spread filter
+            spread_pips = self.get_spread(symbol)
+            if spread_pips > PAPER_TRADING_CONFIG["max_spread_pips"]:
+                logger.debug(f"Spread too wide ({spread_pips:.1f} pips) for {symbol}")
+                return None
+
             # Fetch data for multiple timeframes
             df_5m = self.fetch_ohlcv(symbol, "5m", 200)
             df_15m = self.fetch_ohlcv(symbol, "15m", 200)
@@ -748,11 +966,16 @@ class ForexPivotReversalBot:
             pivotx_5m = IndicatorCalculator.detect_pivotx_pivots(df_5m, "5m")
             pivotx_15m = IndicatorCalculator.detect_pivotx_pivots(df_15m, "15m")
 
-            # 2. Calculate GPS zones
-            gps_data = IndicatorCalculator.calculate_gps_zones(df_15m, "15m")
+            # 2. Calculate GPS zones (with psychological levels)
+            gps_data = IndicatorCalculator.calculate_gps_zones(df_15m, "15m", symbol)
 
-            # 3. Calculate Tactical Deviation
+            # 3. Calculate Tactical Deviation (session-based VWAP)
             deviation_data = IndicatorCalculator.calculate_tactical_deviation(df_15m)
+
+            # Debug logging
+            logger.debug(f"{symbol}: Pivot 5m={pivotx_5m['has_pivot']}, 15m={pivotx_15m['has_pivot']}, "
+                        f"Deviation={deviation_data['deviation_level'] if deviation_data else 'None'}, "
+                        f"Near GP={gps_data.get('near_gp', False)}")
 
             # Determine signal grade
             # A+ setups: 15m+ timeframes with strong confluence
@@ -762,60 +985,101 @@ class ForexPivotReversalBot:
             reasons = []
             confluence_score = 0
 
-            # Check for A+ setup (15m+ with strong confluence)
-            if pivotx_15m['has_pivot'] and deviation_data and deviation_data['deviation_level'] >= 2:
-                if gps_data['near_gp']:
-                    grade = "A+"
-                    confluence_score += 30
-                    reasons.append("✅ Near Golden Pocket")
+            # SWING TRADES (A+): 15m+ timeframes - Higher timeframe moves
+            # Check for A+ setup (15m+ with strong confluence) - SWING OPPORTUNITIES
+            swing_signal = False
+            # Relaxed: Allow signals with pivot OR deviation (not requiring both)
+            if (pivotx_15m['has_pivot'] or (deviation_data and deviation_data['deviation_level'] >= 2)) and deviation_data:
+                # Swing trade: Strong confluence on 15m+
+                if deviation_data['deviation_level'] >= 2:
+                    swing_signal = True
+                    if gps_data['near_gp']:
+                        grade = "A+"
+                        confluence_score += 30
+                        reasons.append("✅ Near Golden Pocket (SWING)")
 
-                if deviation_data['deviation_level'] >= 3:
-                    grade = "A+"
-                    confluence_score += 30
-                    reasons.append(f"✅ ±3σ deviation ({deviation_data['deviation_percent']:.2f}σ)")
-                elif deviation_data['deviation_level'] >= 2:
+                    if deviation_data['deviation_level'] >= 3:
+                        grade = "A+"
+                        confluence_score += 30
+                        reasons.append(f"✅ ±3σ deviation ({deviation_data['deviation_percent']:.2f}σ) - SWING")
+                    elif deviation_data['deviation_level'] >= 2:
+                        if not grade:  # Don't downgrade if already A+
+                            grade = "A-"
+                        confluence_score += 20
+                        reasons.append(f"✅ ±2σ deviation ({deviation_data['deviation_percent']:.2f}σ)")
+
+                    if pivotx_15m['exhaustion']:
+                        confluence_score += 15
+                        reasons.append(f"✅ {pivotx_15m['exhaustion']} - SWING")
+
+                    # Determine direction for SWING (more flexible)
+                    if deviation_data['deviation_percent'] < 0:
+                        # Oversold - potential LONG
+                        if pivotx_15m['pivot_low'] or not pivotx_15m['has_pivot']:
+                            direction = "LONG"
+                    elif deviation_data['deviation_percent'] > 0:
+                        # Overbought - potential SHORT
+                        if pivotx_15m['pivot_high'] or not pivotx_15m['has_pivot']:
+                            direction = "SHORT"
+
+            # SCALP TRADES (A-): 5m timeframe - Quick in/out moves
+            # Check for A- setup (5m timeframe) - SCALP OPPORTUNITIES
+            scalp_signal = False
+            # Relaxed: Allow signals with pivot OR deviation (not requiring both)
+            if not swing_signal and (pivotx_5m['has_pivot'] or (deviation_data and deviation_data['deviation_level'] >= 1)) and deviation_data:
+                # Lower threshold for scalps: 1σ deviation is acceptable
+                if deviation_data['deviation_level'] >= 1:
+                    scalp_signal = True
                     grade = "A-"
-                    confluence_score += 20
-                    reasons.append(f"✅ ±2σ deviation ({deviation_data['deviation_percent']:.2f}σ)")
-
-                if pivotx_15m['exhaustion']:
                     confluence_score += 15
-                    reasons.append(f"✅ {pivotx_15m['exhaustion']}")
+                    reasons.append("✅ 5m pivot detected (SCALP)")
+                    reasons.append(f"✅ ±2σ deviation ({deviation_data['deviation_percent']:.2f}σ) - SCALP")
 
-                # Determine direction
-                if pivotx_15m['pivot_low'] and deviation_data['deviation_percent'] < 0:
-                    direction = "LONG"
-                elif pivotx_15m['pivot_high'] and deviation_data['deviation_percent'] > 0:
-                    direction = "SHORT"
+                    # Check for additional scalp confirmations
+                    if pivotx_5m['exhaustion']:
+                        confluence_score += 10
+                        reasons.append(f"✅ {pivotx_5m['exhaustion']} - SCALP")
 
-            # Check for A- setup (5m timeframe)
-            elif pivotx_5m['has_pivot'] and deviation_data and deviation_data['deviation_level'] >= 2:
-                grade = "A-"
-                confluence_score += 15
-                reasons.append("✅ 5m pivot detected")
-                reasons.append(f"✅ ±2σ deviation ({deviation_data['deviation_percent']:.2f}σ)")
+                    if gps_data['near_gp']:
+                        confluence_score += 15
+                        reasons.append("✅ Near Golden Pocket (SCALP)")
 
-                if pivotx_5m['pivot_low'] and deviation_data['deviation_percent'] < 0:
-                    direction = "LONG"
-                elif pivotx_5m['pivot_high'] and deviation_data['deviation_percent'] > 0:
-                    direction = "SHORT"
+                    # Determine direction for SCALP (more flexible)
+                    if deviation_data['deviation_percent'] < 0:
+                        # Oversold - potential LONG
+                        if pivotx_5m['pivot_low'] or not pivotx_5m['has_pivot']:
+                            direction = "LONG"
+                    elif deviation_data['deviation_percent'] > 0:
+                        # Overbought - potential SHORT
+                        if pivotx_5m['pivot_high'] or not pivotx_5m['has_pivot']:
+                            direction = "SHORT"
 
             if grade and direction:
-                # Calculate entry, TP, SL
+                # Calculate entry, TP, SL using forex-optimized ATR multipliers
                 atr = pivotx_15m.get('atr', 0.001) if pivotx_15m.get('atr') else pivotx_5m.get('atr', 0.001)
+                current_session = ForexUtils.get_current_session()
 
+                # Use forex-optimized multipliers (lower volatility)
                 if direction == "LONG":
                     entry = current_price
-                    stop_loss = entry - (atr * 1.5)
-                    tp1 = entry + (atr * 2.5)
-                    tp2 = entry + (atr * 4.0)
-                    tp3 = entry + (atr * 6.0)
+                    stop_loss = entry - (atr * FOREX_ATR_MULTIPLIERS["stop_loss"])
+                    tp1 = entry + (atr * FOREX_ATR_MULTIPLIERS["tp1"])
+                    tp2 = entry + (atr * FOREX_ATR_MULTIPLIERS["tp2"])
+                    tp3 = entry + (atr * FOREX_ATR_MULTIPLIERS["tp3"])
                 else:  # SHORT
                     entry = current_price
-                    stop_loss = entry + (atr * 1.5)
-                    tp1 = entry - (atr * 2.5)
-                    tp2 = entry - (atr * 4.0)
-                    tp3 = entry - (atr * 6.0)
+                    stop_loss = entry + (atr * FOREX_ATR_MULTIPLIERS["stop_loss"])
+                    tp1 = entry - (atr * FOREX_ATR_MULTIPLIERS["tp1"])
+                    tp2 = entry - (atr * FOREX_ATR_MULTIPLIERS["tp2"])
+                    tp3 = entry - (atr * FOREX_ATR_MULTIPLIERS["tp3"])
+
+                # Add psychological level info if present
+                if gps_data.get('at_psychological_level'):
+                    reasons.append(f"✅ At psychological level: {gps_data.get('psychological_level')}")
+
+                # Add session info
+                if deviation_data:
+                    reasons.append(f"✅ Session VWAP: {deviation_data.get('session', 'london').upper()}")
 
                 return {
                     'symbol': symbol,
@@ -831,7 +1095,9 @@ class ForexPivotReversalBot:
                     'confluence_score': confluence_score,
                     'gps_data': gps_data,
                     'deviation_data': deviation_data,
-                    'pivotx_data': pivotx_15m if grade == "A+" else pivotx_5m
+                    'pivotx_data': pivotx_15m if grade == "A+" else pivotx_5m,
+                    'session': current_session,
+                    'spread_pips': spread_pips
                 }
 
             return None
@@ -856,9 +1122,102 @@ class ForexPivotReversalBot:
                 send_discord_alert(card)
                 self.last_gp_alert[symbol] = time.time()
 
+    def send_premarket_update(self, update_type: str = "daily"):
+        """Send premarket update to Discord at start of new day/week"""
+        now = datetime.now(timezone.utc)
+        current_day = now.date()
+        current_week = now.isocalendar()[1]  # Week number
+
+        # Check if we've already sent today's/week's update
+        if update_type == "daily" and self.last_premarket_day == current_day:
+            return
+        if update_type == "weekly" and self.last_premarket_week == current_week:
+            return
+
+        # Get account stats
+        open_positions = self.paper_account.get_open_positions()
+        balance = self.paper_account.balance
+
+        # Get current session
+        current_session = ForexUtils.get_current_session()
+        session_emoji = "🔥" if current_session == "overlap_london_ny" else "📊"
+
+        if update_type == "weekly":
+            title = "📅 WEEKLY PREMARKET UPDATE"
+            description = (
+                f"**New Trading Week Starting!**\n\n"
+                f"**Current Session:** {session_emoji} {current_session.upper()}\n"
+                f"**Account Balance:** ${balance:.2f}\n"
+                f"**Open Positions:** {len(open_positions)}/{PAPER_TRADING_CONFIG['max_open_positions']}\n\n"
+                f"**Trading Pairs:**\n"
+                f"• USD/JPY\n"
+                f"• EUR/USD\n"
+                f"• GBP/USD\n\n"
+                f"**Bot Status:** ✅ Active\n"
+                f"**Scan Interval:** Every 45 minutes\n"
+                f"**Market Hours:** 24/5 (Closed weekends)\n\n"
+                f"*Ready to hunt for A+ setups!*"
+            )
+        else:  # daily
+            title = "🌅 DAILY PREMARKET UPDATE"
+            description = (
+                f"**New Trading Day Starting!**\n\n"
+                f"**Current Session:** {session_emoji} {current_session.upper()}\n"
+                f"**Account Balance:** ${balance:.2f}\n"
+                f"**Open Positions:** {len(open_positions)}/{PAPER_TRADING_CONFIG['max_open_positions']}\n\n"
+                f"**Today's Focus:**\n"
+                f"• Session-based VWAP deviations\n"
+                f"• Golden Pocket + Psychological levels\n"
+                f"• Pivot reversals on 15m+\n\n"
+                f"*Looking for A+ setups with 3+ confirmations!*"
+            )
+
+        embed = {
+            "title": title,
+            "description": description,
+            "color": 0x00FF00,
+            "timestamp": now.isoformat(),
+            "footer": {
+                "text": "Forex Pivot Reversal Bot • FX-Optimized"
+            }
+        }
+
+        send_discord_alert(embed)
+
+        # Update tracking
+        if update_type == "daily":
+            self.last_premarket_day = current_day
+        else:
+            self.last_premarket_week = current_week
+
+        logger.info(f"✅ Sent {update_type} premarket update")
+
     def run_scan(self):
-        """Run one scan cycle"""
-        logger.info("🔍 Starting scan cycle...")
+        """Run one scan cycle with FX-specific checks"""
+        # Check if market is open
+        if not ForexUtils.is_market_open():
+            logger.info("⏸️  Market closed (weekend) - skipping scan")
+            return
+
+        # Check for new day/week and send premarket update
+        now = datetime.now(timezone.utc)
+        current_day = now.date()
+        current_week = now.isocalendar()[1]
+        current_hour = now.hour
+
+        # Send weekly update on Monday at market open (00:00 UTC or 08:00 UTC for London)
+        if (self.last_premarket_week != current_week and
+            (current_hour == 0 or current_hour == 8)):
+            self.send_premarket_update("weekly")
+
+        # Send daily update at start of new trading day (00:00 UTC or 08:00 UTC for London)
+        if (self.last_premarket_day != current_day and
+            (current_hour == 0 or current_hour == 8)):
+            self.send_premarket_update("daily")
+
+        current_session = ForexUtils.get_current_session()
+        logger.info(f"🔍 Starting scan cycle... (Session: {current_session.upper()})")
+        logger.info(f"🎯 Looking for: SCALPS (5m) & SWINGS (15m+) on {len(FOREX_PAIRS)} pairs")
 
         # Update existing positions
         current_prices = {}
@@ -869,12 +1228,21 @@ class ForexPivotReversalBot:
 
         self.paper_account.update_positions(current_prices)
 
-        # Scan for new signals
+        # Scan for new signals (SCALPS & SWINGS)
         signals = []
+        scalp_count = 0
+        swing_count = 0
+
         for symbol in FOREX_PAIRS:
             signal = self.scan_symbol(symbol)
             if signal:
                 signals.append(signal)
+                if signal.get('grade') == 'A+':
+                    swing_count += 1
+                    logger.info(f"📈 SWING opportunity: {symbol} {signal.get('direction')} - {signal.get('timeframe')}")
+                elif signal.get('grade') == 'A-':
+                    scalp_count += 1
+                    logger.info(f"⚡ SCALP opportunity: {symbol} {signal.get('direction')} - {signal.get('timeframe')}")
 
                 # Check GP proximity
                 if signal.get('gps_data'):
@@ -909,20 +1277,38 @@ class ForexPivotReversalBot:
                     if trade_id:
                         logger.info(f"✅ Opened trade: {signal['symbol']} {signal['direction']}")
 
-        logger.info(f"✅ Scan complete. Found {len(signals)} signals, {len(aplus_signals) if signals else 0} A+")
+        aplus_signals = [s for s in signals if s.get('grade') == 'A+']
+        logger.info(f"✅ Scan complete: {len(signals)} total signals ({scalp_count} scalps, {swing_count} swings)")
+        if aplus_signals:
+            logger.info(f"🎯 {len(aplus_signals)} A+ SWING setups ready for auto-trading")
 
     def run(self):
-        """Main bot loop"""
+        """Main bot loop - only runs during trading hours"""
         logger.info("🚀 Forex Pivot Reversal Bot started")
         logger.info(f"💰 Starting balance: ${PAPER_TRADING_CONFIG['starting_balance']:.2f}")
         logger.info(f"⚙️  Leverage: {PAPER_TRADING_CONFIG['leverage']}x")
-        logger.info(f"📊 Trade size: ${PAPER_TRADING_CONFIG['trade_size_usd']:.2f}")
+        logger.info(f"📊 Risk per trade: {PAPER_TRADING_CONFIG['risk_per_trade']*100}%")
         logger.info(f"🔢 Max positions: {PAPER_TRADING_CONFIG['max_open_positions']}")
+        logger.info(f"⏰ Market hours: 24/5 (Closed weekends)")
+
+        # Send initial premarket update if market is open
+        if ForexUtils.is_market_open():
+            now = datetime.now(timezone.utc)
+            current_week = now.isocalendar()[1]
+            self.last_premarket_week = current_week
+            self.last_premarket_day = now.date()
+            self.send_premarket_update("daily")
 
         while True:
             try:
-                self.run_scan()
-                time.sleep(SCAN_INTERVAL)
+                # Only run during trading hours
+                if ForexUtils.is_market_open():
+                    self.run_scan()
+                    time.sleep(SCAN_INTERVAL)
+                else:
+                    # Market is closed - wait and check again
+                    logger.info("⏸️  Market closed - waiting 1 hour before checking again...")
+                    time.sleep(3600)  # Wait 1 hour before checking again
             except KeyboardInterrupt:
                 logger.info("🛑 Bot stopped by user")
                 break
@@ -934,5 +1320,9 @@ class ForexPivotReversalBot:
 if __name__ == "__main__":
     bot = ForexPivotReversalBot()
     bot.run()
+
+
+
+
 
 

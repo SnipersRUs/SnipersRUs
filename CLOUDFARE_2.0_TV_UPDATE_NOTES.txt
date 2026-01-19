@@ -1,0 +1,35 @@
+CLOUDFARE 2.0 - UPDATE NOTES
+(For TradingView Update Field)
+
+═══════════════════════════════════════════════════════════════
+
+🔧 LATEST FIXES:
+• Fixed 1H VWAP - Now displays correctly when toggle is enabled
+• Fixed 2H VWAP - Now displays correctly when toggle is enabled
+• Removed Divergence Signals - Cleaned up signal system (plotshapes and alerts removed)
+finis• Fixed Current Session Box - Now shows only active session (Asian/London/NY), extends to session end
+
+✨ CURRENT SESSION BOX IMPROVEMENTS:
+• Shows only during active trading sessions (Asian 00:00-12:00 UTC, London 08:00-17:00 UTC, NY 13:00-22:00 UTC)
+• Box extends to right edge of chart during active session (shows where session will end)
+• Automatically resets when new session starts
+• Clear visual indication of session boundaries and end time
+• After session ends, box shows completed session range
+
+📊 VWAP STATUS:
+✓ 1H VWAP - Working and plotting
+✓ 2H VWAP - Working and plotting
+✓ 6H VWAP - Working
+✓ 4D VWAP - Working (resets every 4 days)
+✓ 9D VWAP - Working (resets every 9 days)
+✓ Weekly VWAP - Working
+✓ Yearly VWAP - Working
+✓ Previous Year VWAP - Working
+
+🎯 SIGNAL SYSTEM:
+✓ Reversal Signals - Active
+✓ High/Low Sweeps - Active
+✓ Divergence Signals - Removed
+✓ All alerts functional
+
+✅ All features verified working. No runtime errors.

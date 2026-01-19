@@ -193,3 +193,11 @@ This update transforms Sniper Mini VWAP from a breakout-focused indicator to a m
 **Note:** This update focuses on real-time reliability and mean reversion trading. If you prefer breakout signals, you can modify the signal logic in the code or use the previous version.
 
 
+
+
+
+
+
+
+
+

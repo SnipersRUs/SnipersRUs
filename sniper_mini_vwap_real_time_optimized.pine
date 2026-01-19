@@ -266,3 +266,11 @@ plot(vwap8h, "8H VWAP", color=c8h, linewidth=1, style=plot.style_cross)
 plot(vwapDaily, "Daily VWAP", color=cDaily, linewidth=1, style=plot.style_cross)
 
 
+
+
+
+
+
+
+
+

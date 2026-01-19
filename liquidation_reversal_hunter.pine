@@ -1,0 +1,915 @@
+//@version=6
+indicator("Liquidation Reversal Hunter V2", shorttitle="LiqRevV2", overlay=true, max_lines_count=500)
+
+// ══════════════════════════════════════════════════════════════════════════════
+// LIQUIDATION REVERSAL HUNTER V2
+// ══════════════════════════════════════════════════════════════════════════════
+// Detects major liquidation events and signals reversals with smart cleanup
+//
+// KEY FEATURES:
+// • Smart zone cleanup - tagged/swept zones disappear automatically
+// • Time decay - old zones fade unless highly important
+// • Stop hunt detection - identifies sweep & reversal patterns
+// • Multi-factor signal scoring for accuracy
+// ══════════════════════════════════════════════════════════════════════════════
+
+// ── INPUTS ──
+g1 = "Liquidation Detection"
+volumeMultiplier = input.float(2.5, "Volume Multiplier (Abnormal)", minval=1.5, maxval=5.0, step=0.1, group=g1, tooltip="Volume must be this many times average to trigger")
+volumeLookback = input.int(50, "Volume Lookback", minval=20, maxval=200, group=g1)
+minLiquidationSize = input.float(5.0, "Min Liquidation Size (M)", minval=1.0, maxval=50.0, step=0.5, group=g1, tooltip="Minimum liquidity cleared in millions")
+zScoreThreshold = input.float(2.0, "Z-Score Threshold", minval=1.5, maxval=4.0, step=0.1, group=g1, tooltip="Statistical threshold for abnormal events")
+minWickRatio = input.float(0.40, "Min Wick Ratio (Accuracy)", minval=0.1, maxval=0.9, step=0.05, group=g1, tooltip="Liquidations must have a wick this big relative to the candle")
+minImportanceToRecord = input.float(40.0, "Min Importance to Record (%)", minval=0.0, maxval=100.0, step=5.0, group=g1, tooltip="Only record liquidations above this importance for lines")
+
+g2 = "Signal Quality"
+useStopHuntFilter = input.bool(true, "Use Stop Hunt Detection", group=g2, tooltip="Look for sweep & reversal patterns - most accurate signals")
+useDivergence = input.bool(false, "Use Divergence Filter", group=g2, tooltip="Confirm with RSI/MACD divergence - turn off for more signals")
+useMomentumFilter = input.bool(true, "Use Momentum Filter", group=g2, tooltip="Confirm with RSI oversold/overbought")
+requireReversal = input.bool(false, "Require Price Reversal", group=g2, tooltip="Price must reverse after liquidation - turn off for more signals")
+reversalBars = input.int(3, "Reversal Confirmation Bars", minval=1, maxval=10, group=g2)
+signalCooldown = input.int(4, "Signal Cooldown (bars)", minval=1, maxval=20, group=g2, tooltip="Time between signals - lower = more signals")
+minSignalStrength = input.int(2, "Min Signal Strength (1-10)", minval=1, maxval=10, group=g2, tooltip="Higher = fewer but better signals. 2 recommended for balance")
+minImportanceForSignal = input.float(25.0, "Min Importance for Signal (%)", minval=0.0, maxval=100.0, step=5.0, group=g2, tooltip="Only signal on liquidations above this importance")
+
+g3 = "Smart Zone Cleanup"
+enableSmartCleanup = input.bool(true, "Enable Smart Cleanup", group=g3, tooltip="Automatically remove stale/tagged zones")
+taggedZoneDecay = input.int(5, "Tagged Zone Lifespan (bars)", minval=1, maxval=20, group=g3, tooltip="How long a tagged zone stays visible")
+maxZoneAge = input.int(100, "Max Zone Age (bars)", minval=20, maxval=500, group=g3, tooltip="Zones older than this are removed unless very important")
+ageDecayRate = input.float(1.0, "Age Decay Rate (%/bar)", minval=0.1, maxval=5.0, step=0.1, group=g3, tooltip="How fast importance decays with age")
+removeOnSweep = input.bool(true, "Remove on Clean Sweep", group=g3, tooltip="Remove zone immediately when price sweeps through and closes beyond")
+minImportanceToKeep = input.float(60.0, "Min Importance to Keep Old Zones (%)", minval=0.0, maxval=100.0, step=5.0, group=g3, tooltip="Old zones below this importance are removed")
+
+g4 = "Visual Settings"
+showLiquidationLines = input.bool(true, "Show Liquidation Lines", group=g4)
+showTaggedZones = input.bool(true, "Show Tagged Zones (dimmed)", group=g4, tooltip="Show zones that have been touched but not swept")
+showInfoTable = input.bool(false, "Show Info Table", group=g4, tooltip="Display information table in top right corner")
+useHeatmap = input.bool(true, "Use Heatmap Colors", group=g4, tooltip="Color code lines by importance")
+useHeatmapBg = input.bool(true, "Show Background Heatmap", group=g4, tooltip="Paint liquidation candles based on importance")
+lineLength = input.int(50, "Line Length (bars)", minval=20, maxval=200, group=g4)
+lineOpacity = input.int(80, "Line Opacity", minval=0, maxval=100, group=g4)
+lineWidth = input.int(2, "Line Width", minval=1, maxval=5, group=g4)
+bullishColor = input.color(#00FF00, "Bullish Signal (Bright Green)", group=g4)
+bearishColor = input.color(#FF0000, "Bearish Signal (Bright Red)", group=g4)
+
+g5 = "Line Management"
+minImportanceToShow = input.float(45.0, "Min Importance to Show (%)", minval=0.0, maxval=100.0, step=5.0, group=g5, tooltip="Filter out lines below this importance - higher = cleaner chart")
+maxLinesToShow = input.int(6, "Max Lines to Show", minval=3, maxval=30, group=g5, tooltip="Limit total number of lines")
+mergeNearbyLines = input.bool(true, "Merge Nearby Lines", group=g5, tooltip="Combine lines within 0.5% of price")
+deleteOnTag = input.bool(true, "Delete Lines on Tag", group=g5, tooltip="Remove line immediately when price touches it")
+autoCleanup = input.bool(true, "Auto-Cleanup for Lower TFs", group=g5, tooltip="Stricter filters on lower timeframes")
+
+g6 = "Divergence Settings"
+rsiLength = input.int(14, "RSI Length", minval=5, maxval=30, group=g6)
+macdFast = input.int(12, "MACD Fast", minval=8, maxval=20, group=g6)
+macdSlow = input.int(26, "MACD Slow", minval=20, maxval=35, group=g6)
+macdSignal = input.int(9, "MACD Signal", minval=5, maxval=15, group=g6)
+
+// ── CORE CALCULATIONS ──
+
+// Volume Analysis
+avgVolume = ta.sma(volume, volumeLookback)
+volumeStd = ta.stdev(volume, volumeLookback)
+volumeZ = volumeStd > 0 ? (volume - avgVolume) / volumeStd : 0.0
+abnormalVolume = volumeZ >= zScoreThreshold
+veryAbnormalVolume = volumeZ >= (zScoreThreshold * 1.5)
+extremeVolume = volumeZ >= (zScoreThreshold * 2.0)
+
+// Liquidation Size Calculation
+rangePU = high - low
+volumeM = volume / 1e6
+liquidationSize = volumeM * rangePU
+
+// Average liquidation size for comparison
+avgLiquidationSize = ta.sma(liquidationSize, volumeLookback)
+liquidationStd = ta.stdev(liquidationSize, volumeLookback)
+liquidationZ = liquidationStd > 0 ? (liquidationSize - avgLiquidationSize) / liquidationStd : 0.0
+
+// Price action analysis
+isBearishCandle = close < open
+isBullishCandle = close > open
+bodySize = math.abs(close - open)
+upperWick = high - math.max(close, open)
+lowerWick = math.min(close, open) - low
+wickSize = upperWick + lowerWick
+totalRange = high - low
+maxWick = math.max(upperWick, lowerWick)
+wickRatio = totalRange > 0 ? maxWick / totalRange : 0.0
+
+// Major liquidation detection - for LINE display (keep stricter)
+// Add wick ratio filter to reduce noise from non-liquidation candles
+isMajorLiquidation = ((veryAbnormalVolume and liquidationSize >= minLiquidationSize * 0.6) or extremeVolume or (abnormalVolume and liquidationZ >= zScoreThreshold * 1.2)) and wickRatio >= minWickRatio
+
+// Signal detection - MORE LENIENT for actual trading signals
+// Good signals can come from: high volume, large wicks, or stop hunts
+isSignalLiquidation = (isMajorLiquidation or abnormalVolume or (volume > avgVolume * volumeMultiplier and liquidationZ >= zScoreThreshold * 0.5)) and wickRatio >= minWickRatio
+
+// ATR for volatility
+atr14 = ta.atr(14)
+
+// ── MOMENTUM & DIVERGENCE ──
+
+// RSI for momentum
+rsi = ta.rsi(close, rsiLength)
+rsiOversold = rsi < 30
+rsiOverbought = rsi > 70
+rsiExtremeOS = rsi < 20
+rsiExtremeOB = rsi > 80
+
+// MACD for trend
+[macdLine, signalLine, histLine] = ta.macd(close, macdFast, macdSlow, macdSignal)
+macdBullishCross = ta.crossover(macdLine, signalLine)
+macdBearishCross = ta.crossunder(macdLine, signalLine)
+
+// Pivot detection for divergence
+var float[] priceHighs = array.new<float>()
+var float[] priceLows = array.new<float>()
+var float[] rsiHighs = array.new<float>()
+var float[] rsiLows = array.new<float>()
+var float[] macdHighs = array.new<float>()
+var float[] macdLows = array.new<float>()
+var int[] highBars = array.new<int>()
+var int[] lowBars = array.new<int>()
+
+pivotHigh = ta.pivothigh(high, 3, 3)
+pivotLow = ta.pivotlow(low, 3, 3)
+
+if not na(pivotHigh)
+    array.push(priceHighs, pivotHigh)
+    array.push(rsiHighs, rsi[3])
+    array.push(macdHighs, macdLine[3])
+    array.push(highBars, bar_index - 3)
+    if array.size(priceHighs) > 5
+        array.shift(priceHighs)
+        array.shift(rsiHighs)
+        array.shift(macdHighs)
+        array.shift(highBars)
+
+if not na(pivotLow)
+    array.push(priceLows, pivotLow)
+    array.push(rsiLows, rsi[3])
+    array.push(macdLows, macdLine[3])
+    array.push(lowBars, bar_index - 3)
+    if array.size(priceLows) > 5
+        array.shift(priceLows)
+        array.shift(rsiLows)
+        array.shift(macdLows)
+        array.shift(lowBars)
+
+// Detect bullish divergence
+detectBullishDivergence() =>
+    hasDivergence = false
+    if array.size(priceLows) >= 2 and array.size(rsiLows) >= 2
+        priceLow1 = array.get(priceLows, array.size(priceLows) - 1)
+        priceLow2 = array.get(priceLows, array.size(priceLows) - 2)
+        rsiLow1 = array.get(rsiLows, array.size(rsiLows) - 1)
+        rsiLow2 = array.get(rsiLows, array.size(rsiLows) - 2)
+        macdLow1 = array.get(macdLows, array.size(macdLows) - 1)
+        macdLow2 = array.get(macdLows, array.size(macdLows) - 2)
+        priceLower = priceLow1 < priceLow2
+        rsiHigher = rsiLow1 > rsiLow2
+        macdHigher = macdLow1 > macdLow2
+        if priceLower and (rsiHigher or macdHigher)
+            hasDivergence := true
+    hasDivergence
+
+// Detect bearish divergence
+detectBearishDivergence() =>
+    hasDivergence = false
+    if array.size(priceHighs) >= 2 and array.size(rsiHighs) >= 2
+        priceHigh1 = array.get(priceHighs, array.size(priceHighs) - 1)
+        priceHigh2 = array.get(priceHighs, array.size(priceHighs) - 2)
+        rsiHigh1 = array.get(rsiHighs, array.size(rsiHighs) - 1)
+        rsiHigh2 = array.get(rsiHighs, array.size(rsiHighs) - 2)
+        macdHigh1 = array.get(macdHighs, array.size(macdHighs) - 1)
+        macdHigh2 = array.get(macdHighs, array.size(macdHighs) - 2)
+        priceHigher = priceHigh1 > priceHigh2
+        rsiLower = rsiHigh1 < rsiHigh2
+        macdLower = macdHigh1 < macdHigh2
+        if priceHigher and (rsiLower or macdLower)
+            hasDivergence := true
+    hasDivergence
+
+bullishDivergence = useDivergence ? detectBullishDivergence() : true
+bearishDivergence = useDivergence ? detectBearishDivergence() : true
+
+// ── STOP HUNT DETECTION ──
+// A stop hunt occurs when price sweeps beyond a level then reverses strongly
+
+// Swing high/low tracking for stop hunt detection
+swingHigh5 = ta.highest(high, 5)[1]  // Previous 5-bar high (excluding current)
+swingLow5 = ta.lowest(low, 5)[1]     // Previous 5-bar low (excluding current)
+swingHigh10 = ta.highest(high, 10)[1]
+swingLow10 = ta.lowest(low, 10)[1]
+
+// Bullish stop hunt: price sweeps below recent low then reverses up
+bullishStopHunt = (low < swingLow5) and (close > open) and (close > (low + totalRange * 0.5))
+strongBullishStopHunt = (low < swingLow10) and (close > open) and (close > (low + totalRange * 0.6)) and (lowerWick > bodySize)
+
+// Bearish stop hunt: price sweeps above recent high then reverses down
+bearishStopHunt = (high > swingHigh5) and (close < open) and (close < (high - totalRange * 0.5))
+strongBearishStopHunt = (high > swingHigh10) and (close < open) and (close < (high - totalRange * 0.6)) and (upperWick > bodySize)
+
+// ── REVERSAL DETECTION ──
+
+recentLow = ta.lowest(low, reversalBars + 1)
+recentHigh = ta.highest(high, reversalBars + 1)
+
+checkBullishReversal() =>
+    reversed = false
+    if requireReversal and bar_index >= reversalBars
+        wasBearish = true
+        for i = 1 to reversalBars
+            if close[i] >= open[i]
+                wasBearish := false
+                break
+        isReversing = isBullishCandle and close > recentLow
+        reversed := wasBearish and isReversing
+    else
+        reversed := true
+    reversed
+
+checkBearishReversal() =>
+    reversed = false
+    if requireReversal and bar_index >= reversalBars
+        wasBullish = true
+        for i = 1 to reversalBars
+            if close[i] <= open[i]
+                wasBullish := false
+                break
+        isReversing = isBearishCandle and close < recentHigh
+        reversed := wasBullish and isReversing
+    else
+        reversed := true
+    reversed
+
+bullishReversalResult = checkBullishReversal()
+bearishReversalResult = checkBearishReversal()
+
+// ── LIQUIDATION ZONE TRACKING ──
+
+// Zone data structure with enhanced tracking
+var float[] liquidationLevels = array.new<float>()
+var int[] liquidationBars = array.new<int>()
+var bool[] liquidationWasBearish = array.new<bool>()
+var float[] liquidationImportance = array.new<float>()
+var bool[] liquidationTagged = array.new<bool>()      // Has price touched this zone?
+var int[] liquidationTagBar = array.new<int>()         // When was it tagged?
+var int lastBullishSignalBar = 0
+var int lastBearishSignalBar = 0
+
+// Calculate liquidation importance score (0-100)
+calculateLiquidationImportance() =>
+    importance = 0.0
+
+    // Volume component (0-40 points)
+    if extremeVolume
+        importance += 40.0
+    else if veryAbnormalVolume
+        importance += 32.0
+    else if abnormalVolume
+        importance += 22.0
+    else if volume > avgVolume * volumeMultiplier
+        importance += 12.0
+
+    // Liquidation size component (0-30 points)
+    if liquidationZ >= zScoreThreshold * 1.5
+        importance += 30.0
+    else if liquidationZ >= zScoreThreshold
+        importance += 22.0
+    else if liquidationZ >= zScoreThreshold * 0.7
+        importance += 14.0
+    else if liquidationSize >= minLiquidationSize * 0.5
+        importance += 8.0
+
+    // Price range component (0-20 points)
+    if totalRange > 0
+        rangeRatio = totalRange / atr14
+        if rangeRatio > 3.0
+            importance += 20.0
+        else if rangeRatio > 2.0
+            importance += 15.0
+        else if rangeRatio > 1.5
+            importance += 10.0
+        else if rangeRatio > 1.0
+            importance += 5.0
+
+    // Wick rejection component (0-10 points)
+    if totalRange > 0
+        wickRatioLocal = wickSize / totalRange
+        if wickRatioLocal > 0.7
+            importance += 10.0
+        else if wickRatioLocal > 0.5
+            importance += 7.0
+        else if wickRatioLocal > 0.35
+            importance += 4.0
+
+    math.min(100.0, importance)
+
+// Background heatmap for liquidation candles
+getHeatmapBaseColor(importance) =>
+    normalized = math.min(100.0, math.max(0.0, importance)) / 100.0
+    if normalized < 0.25
+        color.rgb(0, math.round(255 * (normalized / 0.25)), 255)
+    else if normalized < 0.5
+        color.rgb(0, 255, math.round(255 * (1 - (normalized - 0.25) / 0.25)))
+    else if normalized < 0.75
+        color.rgb(math.round(255 * ((normalized - 0.5) / 0.25)), 255, 0)
+    else
+        color.rgb(255, math.round(255 * (1 - (normalized - 0.75) / 0.25)), 0)
+
+var color heatmapBg = na
+if useHeatmapBg and isMajorLiquidation
+    heatmapBg := color.new(getHeatmapBaseColor(calculateLiquidationImportance()), 85)
+bgcolor(heatmapBg)
+
+// Calculate age-adjusted importance
+getAgeAdjustedImportance(baseImportance, barsOld) =>
+    decay = barsOld * ageDecayRate
+    adjustedImportance = baseImportance - decay
+    math.max(0.0, adjustedImportance)
+
+// ── SMART ZONE CLEANUP ──
+
+// Process zone tagging and cleanup on every bar
+if enableSmartCleanup and array.size(liquidationLevels) > 0
+    i = array.size(liquidationLevels) - 1
+    while i >= 0
+        liqLevel = array.get(liquidationLevels, i)
+        liqBar = array.get(liquidationBars, i)
+        wasBearish = array.get(liquidationWasBearish, i)
+        importance = array.get(liquidationImportance, i)
+        isTagged = array.get(liquidationTagged, i)
+        tagBar = array.get(liquidationTagBar, i)
+
+        zoneAge = bar_index - liqBar
+        tagAge = isTagged ? bar_index - tagBar : 0
+
+        shouldRemove = false
+        touchThreshold = atr14 * 0.1  // Price within 0.1 ATR of level = touched
+        sweepThreshold = atr14 * 0.3  // Price moved 0.3 ATR beyond = swept
+
+        // Check if zone is tagged (touched but not swept)
+        touched = (high >= liqLevel - touchThreshold) and (low <= liqLevel + touchThreshold)
+        if not isTagged and touched
+            array.set(liquidationTagged, i, true)
+            array.set(liquidationTagBar, i, bar_index)
+            isTagged := true
+
+        // Tag & destroy: remove immediately when price touches the level
+        if deleteOnTag and touched and bar_index > liqBar
+            shouldRemove := true
+
+        // Check for clean sweep (remove immediately)
+        if removeOnSweep
+            if wasBearish
+                // Bearish zone - swept when price closes above it
+                if close > liqLevel + sweepThreshold
+                    shouldRemove := true
+            else
+                // Bullish zone - swept when price closes below it
+                if close < liqLevel - sweepThreshold
+                    shouldRemove := true
+
+        // Calculate age-adjusted importance
+        adjustedImportance = getAgeAdjustedImportance(importance, zoneAge)
+
+        // Remove old zones based on importance
+        if not shouldRemove and zoneAge > maxZoneAge
+            if adjustedImportance < minImportanceToKeep
+                shouldRemove := true
+
+        // Remove tagged zones after decay period (unless very important)
+        if not shouldRemove and isTagged
+            if tagAge > taggedZoneDecay and adjustedImportance < 70.0
+                shouldRemove := true
+
+        // Remove if importance has decayed too much
+        if not shouldRemove and adjustedImportance < 10.0
+            shouldRemove := true
+
+        // Execute removal
+        if shouldRemove
+            array.remove(liquidationLevels, i)
+            array.remove(liquidationBars, i)
+            array.remove(liquidationWasBearish, i)
+            array.remove(liquidationImportance, i)
+            array.remove(liquidationTagged, i)
+            array.remove(liquidationTagBar, i)
+
+        i -= 1
+
+// Detect new liquidation events - ONLY record if importance meets threshold
+if isMajorLiquidation and veryAbnormalVolume
+    liqImportance = calculateLiquidationImportance()
+
+    // Only record if importance meets minimum threshold (filters noise)
+    if liqImportance >= minImportanceToRecord
+        if isBearishCandle
+            liqLevel = high
+            array.push(liquidationLevels, liqLevel)
+            array.push(liquidationBars, bar_index)
+            array.push(liquidationWasBearish, true)
+            array.push(liquidationImportance, liqImportance)
+            array.push(liquidationTagged, false)
+            array.push(liquidationTagBar, 0)
+        else
+            liqLevel = low
+            array.push(liquidationLevels, liqLevel)
+            array.push(liquidationBars, bar_index)
+            array.push(liquidationWasBearish, false)
+            array.push(liquidationImportance, liqImportance)
+            array.push(liquidationTagged, false)
+            array.push(liquidationTagBar, 0)
+
+        // Keep only recent liquidations (reduced from 30 to 20 for cleaner tracking)
+        if array.size(liquidationLevels) > 20
+            array.shift(liquidationLevels)
+            array.shift(liquidationBars)
+            array.shift(liquidationWasBearish)
+            array.shift(liquidationImportance)
+            array.shift(liquidationTagged)
+            array.shift(liquidationTagBar)
+
+// ── ENHANCED SIGNAL STRENGTH CALCULATION ──
+
+// Calculate comprehensive signal strength (0-10 scale)
+calculateSignalStrength(isBearish) =>
+    strength = 0.0
+
+    // Base strength from any liquidation event (1 pt) - ensures we get signals
+    if isSignalLiquidation
+        strength += 1.0
+
+    // 1. Volume confirmation (0-2 pts)
+    if extremeVolume
+        strength += 2.0
+    else if veryAbnormalVolume
+        strength += 1.5
+    else if abnormalVolume
+        strength += 1.0
+    else if volume > avgVolume * volumeMultiplier
+        strength += 0.5  // Even moderate volume gets some credit
+
+    // 2. Liquidation magnitude (0-2 pts)
+    if liquidationZ >= zScoreThreshold * 1.5
+        strength += 2.0
+    else if liquidationZ >= zScoreThreshold
+        strength += 1.5
+    else if liquidationZ >= zScoreThreshold * 0.7
+        strength += 1.0
+    else if liquidationSize >= minLiquidationSize * 0.5
+        strength += 0.5
+
+    // 3. Stop hunt pattern (0-2.5 pts) - very valuable signal, boosted
+    if useStopHuntFilter
+        if isBearish
+            if strongBearishStopHunt
+                strength += 2.5
+            else if bearishStopHunt
+                strength += 1.5
+        else
+            if strongBullishStopHunt
+                strength += 2.5
+            else if bullishStopHunt
+                strength += 1.5
+
+    // 4. Divergence (0-1 pts) - optional bonus
+    if useDivergence
+        if isBearish and bearishDivergence
+            strength += 1.0
+        else if not isBearish and bullishDivergence
+            strength += 1.0
+
+    // 5. Momentum confirmation (0-1 pts)
+    if useMomentumFilter
+        if isBearish
+            if rsiExtremeOB
+                strength += 1.0
+            else if rsiOverbought
+                strength += 0.5
+        else
+            if rsiExtremeOS
+                strength += 1.0
+            else if rsiOversold
+                strength += 0.5
+
+    // 6. Wick rejection (0-1.5 pts) - boosted, good wicks are important
+    if totalRange > 0
+        if isBearish
+            upperWickRatio = upperWick / totalRange
+            if upperWickRatio > 0.6
+                strength += 1.5
+            else if upperWickRatio > 0.4
+                strength += 1.0
+            else if upperWickRatio > 0.25
+                strength += 0.5
+        else
+            lowerWickRatio = lowerWick / totalRange
+            if lowerWickRatio > 0.6
+                strength += 1.5
+            else if lowerWickRatio > 0.4
+                strength += 1.0
+            else if lowerWickRatio > 0.25
+                strength += 0.5
+
+    math.min(10.0, strength)
+
+// Calculate signal strengths
+bullishSignalStrength = calculateSignalStrength(false)
+bearishSignalStrength = calculateSignalStrength(true)
+
+// ── SIGNAL GENERATION ──
+
+bullishSignal = false
+bearishSignal = false
+
+// Generate bullish signals - multiple trigger paths for more signals
+if isSignalLiquidation and isBullishCandle
+    inCooldown = bar_index - lastBullishSignalBar < signalCooldown
+    if not inCooldown
+        currentImportance = calculateLiquidationImportance()
+        signalStrength = bullishSignalStrength
+        hasReversal = bullishReversalResult
+
+        // Core conditions
+        importanceMet = currentImportance >= minImportanceForSignal
+        strengthMet = signalStrength >= minSignalStrength
+        reversalMet = not requireReversal or hasReversal
+
+        // Stop hunt is a high-confidence pattern
+        hasStopHunt = useStopHuntFilter and (bullishStopHunt or strongBullishStopHunt)
+
+        // Signal conditions (multiple paths to trigger):
+        // 1. Standard: strength + reversal met (importance optional boost)
+        // 2. Stop hunt: stop hunt pattern alone is high quality
+        // 3. Volume spike: high volume with decent wick
+        // 4. Strong wick: very strong rejection pattern
+        standardConditions = strengthMet and reversalMet
+        stopHuntConditions = hasStopHunt and signalStrength >= 1.5
+        volumeSpikeConditions = veryAbnormalVolume and signalStrength >= 1.5
+        strongWickConditions = totalRange > 0 and (lowerWick / totalRange) > 0.5 and abnormalVolume
+
+        if standardConditions or stopHuntConditions or volumeSpikeConditions or strongWickConditions
+            bullishSignal := true
+            lastBullishSignalBar := bar_index
+
+// Generate bearish signals - use more lenient signal detection
+if isSignalLiquidation and isBearishCandle
+    inCooldown = bar_index - lastBearishSignalBar < signalCooldown
+    if not inCooldown
+        currentImportance = calculateLiquidationImportance()
+        signalStrength = bearishSignalStrength
+        hasReversal = bearishReversalResult
+
+        // Core conditions
+        strengthMet = signalStrength >= minSignalStrength
+        reversalMet = not requireReversal or hasReversal
+
+        // Stop hunt is a high-confidence pattern
+        hasStopHunt = useStopHuntFilter and (bearishStopHunt or strongBearishStopHunt)
+
+        // Signal conditions (multiple paths to trigger)
+        standardConditions = strengthMet and reversalMet
+        stopHuntConditions = hasStopHunt and signalStrength >= 1.5
+        volumeSpikeConditions = veryAbnormalVolume and signalStrength >= 1.5
+        strongWickConditions = totalRange > 0 and (upperWick / totalRange) > 0.5 and abnormalVolume
+
+        if standardConditions or stopHuntConditions or volumeSpikeConditions or strongWickConditions
+            bearishSignal := true
+            lastBearishSignalBar := bar_index
+
+// Check recent liquidations for delayed reversal signals (reduced window for accuracy)
+if array.size(liquidationBars) > 0
+    lastLiqBar = array.get(liquidationBars, array.size(liquidationBars) - 1)
+    lastLiqLevel = array.get(liquidationLevels, array.size(liquidationLevels) - 1)
+    wasBearish = array.get(liquidationWasBearish, array.size(liquidationWasBearish) - 1)
+    lastImportance = array.get(liquidationImportance, array.size(liquidationImportance) - 1)
+
+    maxWindow = reversalBars + 1  // Tighter window for accuracy
+    inWindow = bar_index > lastLiqBar and bar_index <= lastLiqBar + maxWindow
+
+    // Bullish delayed signal
+    if inWindow and not bullishSignal and not wasBearish
+        inCooldown = bar_index - lastBullishSignalBar < signalCooldown
+        if not inCooldown
+            signalStrength = bullishSignalStrength
+            hasReversal = bullishReversalResult
+            importanceMet = lastImportance >= minImportanceForSignal
+            strengthMet = signalStrength >= minSignalStrength
+            reversalMet = not requireReversal or hasReversal
+            hasStopHunt = useStopHuntFilter and (bullishStopHunt or strongBullishStopHunt)
+
+            if (importanceMet and strengthMet and reversalMet) or (hasStopHunt and importanceMet)
+                bullishSignal := true
+                lastBullishSignalBar := bar_index
+
+    // Bearish delayed signal
+    if inWindow and not bearishSignal and wasBearish
+        inCooldown = bar_index - lastBearishSignalBar < signalCooldown
+        if not inCooldown
+            signalStrength = bearishSignalStrength
+            hasReversal = bearishReversalResult
+            importanceMet = lastImportance >= minImportanceForSignal
+            strengthMet = signalStrength >= minSignalStrength
+            reversalMet = not requireReversal or hasReversal
+            hasStopHunt = useStopHuntFilter and (bearishStopHunt or strongBearishStopHunt)
+
+            if (importanceMet and strengthMet and reversalMet) or (hasStopHunt and importanceMet)
+                bearishSignal := true
+                lastBearishSignalBar := bar_index
+
+// ── LIQUIDATION LINE COLOR ──
+
+getLiquidationLineColor(importance, wasBearish, isTagged) =>
+    normalized = math.min(100.0, math.max(0.0, importance)) / 100.0
+
+    // Reduce intensity if tagged (zone has been tested)
+    if isTagged
+        normalized := normalized * 0.6
+
+    if useHeatmap
+        if wasBearish
+            // Bearish = RED gradient (longs liquidated, expect bearish continuation or bounce)
+            if normalized < 0.5
+                factor = normalized / 0.5
+                color.rgb(255, math.round(150 - (50 * factor)), math.round(150 - (50 * factor)))
+            else
+                factor = (normalized - 0.5) / 0.5
+                color.rgb(255, math.round(100 - (100 * factor)), math.round(100 - (100 * factor)))
+        else
+            // Bullish = GREEN gradient (shorts liquidated, expect bullish continuation or bounce)
+            if normalized < 0.5
+                factor = normalized / 0.5
+                color.rgb(math.round(150 - (50 * factor)), 255, math.round(150 - (50 * factor)))
+            else
+                factor = (normalized - 0.5) / 0.5
+                color.rgb(math.round(100 - (100 * factor)), 255, math.round(100 - (100 * factor)))
+    else
+        // Simple mode: just use the signal colors
+        if wasBearish
+            color.new(bearishColor, isTagged ? 50 : 0)
+        else
+            color.new(bullishColor, isTagged ? 50 : 0)
+
+// ── VISUALIZATION ──
+
+// Auto-adjust for lower timeframes
+currentTF = timeframe.in_seconds() / 60
+isLowerTF = currentTF <= 15
+
+effectiveMinImportance = autoCleanup and isLowerTF ? minImportanceToShow * 1.5 : minImportanceToShow
+effectiveMaxLines = autoCleanup and isLowerTF ? math.max(3, math.round(maxLinesToShow * 0.7)) : maxLinesToShow
+
+// Track drawn line objects so we can remove them on tag
+var line[] drawnLines = array.new<line>()
+
+// Draw liquidation lines
+if showLiquidationLines and array.size(liquidationLevels) > 0
+    maxBarLookback = 500
+
+    // Build filtered list
+    filteredLevels = array.new<float>()
+    filteredBars = array.new<int>()
+    filteredImportance = array.new<float>()
+    filteredWasBearish = array.new<bool>()
+    filteredTagged = array.new<bool>()
+
+    maxFilteredItems = 100
+    sourceSize = array.size(liquidationLevels)
+
+    for i = 0 to sourceSize - 1
+        if array.size(filteredLevels) >= maxFilteredItems
+            break
+
+        liqLevel = array.get(liquidationLevels, i)
+        liqBar = array.get(liquidationBars, i)
+        importance = array.get(liquidationImportance, i)
+        wasBearish = array.get(liquidationWasBearish, i)
+        isTagged = array.get(liquidationTagged, i)
+
+        barsAgo = bar_index - liqBar
+
+        // Get age-adjusted importance for display
+        adjustedImportance = getAgeAdjustedImportance(importance, barsAgo)
+
+        // Filter by importance and drawable range
+        if adjustedImportance >= effectiveMinImportance and barsAgo <= lineLength and barsAgo <= maxBarLookback
+            // Skip tagged zones if not showing them
+            if isTagged and not showTaggedZones
+                continue
+
+            // Merge nearby lines
+            shouldAdd = true
+            mergeThreshold = close * 0.005
+
+            if mergeNearbyLines and array.size(filteredLevels) > 0
+                for j = 0 to array.size(filteredLevels) - 1
+                    existingLevel = array.get(filteredLevels, j)
+                    existingImportance = array.get(filteredImportance, j)
+
+                    if math.abs(liqLevel - existingLevel) < mergeThreshold
+                        if adjustedImportance > existingImportance
+                            array.set(filteredLevels, j, liqLevel)
+                            array.set(filteredBars, j, liqBar)
+                            array.set(filteredImportance, j, adjustedImportance)
+                            array.set(filteredWasBearish, j, wasBearish)
+                            array.set(filteredTagged, j, isTagged)
+                        shouldAdd := false
+                        break
+
+            if shouldAdd
+                array.push(filteredLevels, liqLevel)
+                array.push(filteredBars, liqBar)
+                array.push(filteredImportance, adjustedImportance)
+                array.push(filteredWasBearish, wasBearish)
+                array.push(filteredTagged, isTagged)
+
+    // Keep only top N most important
+    if array.size(filteredLevels) > effectiveMaxLines
+        // Simple selection to get top N
+        topLevels = array.new<float>()
+        topBars = array.new<int>()
+        topImportance = array.new<float>()
+        topWasBearish = array.new<bool>()
+        topTagged = array.new<bool>()
+
+        maxToSort = array.size(filteredLevels)
+        indices = array.new<int>()
+
+        for idx = 0 to maxToSort - 1
+            array.push(indices, idx)
+
+        for n = 0 to effectiveMaxLines - 1
+            if n >= array.size(indices)
+                break
+
+            maxImp = -1.0
+            maxIdx = -1
+            bestArrayIdx = -1
+
+            for idx = n to array.size(indices) - 1
+                arrayIdx = array.get(indices, idx)
+                if arrayIdx < array.size(filteredImportance)
+                    imp = array.get(filteredImportance, arrayIdx)
+                    if imp > maxImp
+                        maxImp := imp
+                        maxIdx := idx
+                        bestArrayIdx := arrayIdx
+
+            if maxIdx >= 0 and bestArrayIdx >= 0
+                tempIdx = array.get(indices, n)
+                array.set(indices, n, array.get(indices, maxIdx))
+                array.set(indices, maxIdx, tempIdx)
+
+                array.push(topLevels, array.get(filteredLevels, bestArrayIdx))
+                array.push(topBars, array.get(filteredBars, bestArrayIdx))
+                array.push(topImportance, array.get(filteredImportance, bestArrayIdx))
+                array.push(topWasBearish, array.get(filteredWasBearish, bestArrayIdx))
+                array.push(topTagged, array.get(filteredTagged, bestArrayIdx))
+
+        filteredLevels := topLevels
+        filteredBars := topBars
+        filteredImportance := topImportance
+        filteredWasBearish := topWasBearish
+        filteredTagged := topTagged
+
+    // Clear previously drawn lines to avoid clutter
+    if array.size(drawnLines) > 0
+        for i = 0 to array.size(drawnLines) - 1
+            line.delete(array.get(drawnLines, i))
+        array.clear(drawnLines)
+
+    // Draw lines
+    if array.size(filteredLevels) > 0
+        for i = 0 to array.size(filteredLevels) - 1
+            liqLevel = array.get(filteredLevels, i)
+            liqBar = array.get(filteredBars, i)
+            importance = array.get(filteredImportance, i)
+            wasBearish = array.get(filteredWasBearish, i)
+            isTagged = array.get(filteredTagged, i)
+
+            barsAgo = bar_index - liqBar
+
+            if barsAgo > maxBarLookback
+                continue
+
+            lineStartBar = math.max(bar_index - maxBarLookback, liqBar)
+            lineEndBar = math.min(bar_index + lineLength, lineStartBar + lineLength)
+
+            lineColorValue = getLiquidationLineColor(importance, wasBearish, isTagged)
+
+            // Width based on importance, reduced if tagged
+            baseWidth = isTagged ? math.max(1, lineWidth - 1) : lineWidth
+            importanceWidth = math.max(1, math.round(baseWidth * (0.5 + (importance / 100.0) * 0.5)))
+
+            // Tagged zones use dashed style, active zones use dotted
+            lineStyle = isTagged ? line.style_dashed : line.style_dotted
+
+            newLine = line.new(
+                 x1=lineStartBar,
+                 y1=liqLevel,
+                 x2=lineEndBar,
+                 y2=liqLevel,
+                 color=color.new(lineColorValue, 100 - lineOpacity),
+                 width=importanceWidth,
+                 style=lineStyle,
+                 extend=extend.right)
+            array.push(drawnLines, newLine)
+
+// Plot signals as labels with key data
+var label lastBullLabel = na
+var label lastBearLabel = na
+
+if bullishSignal
+    label.delete(lastBullLabel)
+    bullText = "LIQ\n" + str.tostring(calculateLiquidationImportance(), "#") + "%\nZ:" + str.tostring(volumeZ, "#.##")
+    lastBullLabel := label.new(bar_index, low, bullText, style=label.style_label_up, color=bullishColor, textcolor=color.black, size=size.small)
+
+if bearishSignal
+    label.delete(lastBearLabel)
+    bearText = "LIQ\n" + str.tostring(calculateLiquidationImportance(), "#") + "%\nZ:" + str.tostring(volumeZ, "#.##")
+    lastBearLabel := label.new(bar_index, high, bearText, style=label.style_label_down, color=bearishColor, textcolor=color.white, size=size.small)
+
+// ── INFO TABLE ──
+if barstate.islast and showInfoTable
+    var table info = table.new(position.top_right, 2, 10, bgcolor=color.new(#1a1a1a, 85), border_width=1, border_color=color.new(#333333, 0))
+
+    table.cell(info, 0, 0, "Liq Rev Hunter V2", bgcolor=color.new(#FF8800, 20), text_color=color.white, text_size=size.small, text_halign=text.align_center)
+    table.merge_cells(info, 0, 0, 1, 0)
+
+    table.cell(info, 0, 1, "Volume Z-Score", text_color=color.gray, text_size=size.tiny)
+    volZColor = extremeVolume ? color.red : (veryAbnormalVolume ? color.orange : (abnormalVolume ? color.yellow : color.white))
+    table.cell(info, 1, 1, str.tostring(volumeZ, "#.##"), text_color=volZColor, text_size=size.tiny)
+
+    table.cell(info, 0, 2, "Liq Size (M)", text_color=color.gray, text_size=size.tiny)
+    table.cell(info, 1, 2, str.tostring(liquidationSize, "#.##"), text_color=color.white, text_size=size.tiny)
+
+    table.cell(info, 0, 3, "Major Event", text_color=color.gray, text_size=size.tiny)
+    majorColor = isMajorLiquidation ? color.lime : color.gray
+    table.cell(info, 1, 3, isMajorLiquidation ? "✓ YES" : "✗", text_color=majorColor, text_size=size.tiny)
+
+    // Signal strength
+    currentStrength = isBullishCandle ? bullishSignalStrength : bearishSignalStrength
+    table.cell(info, 0, 4, "Signal Strength", text_color=color.gray, text_size=size.tiny)
+    strengthColor = currentStrength >= minSignalStrength ? color.lime : (currentStrength >= minSignalStrength * 0.7 ? color.yellow : color.gray)
+    table.cell(info, 1, 4, str.tostring(currentStrength, "#.#") + "/10", text_color=strengthColor, text_size=size.tiny)
+
+    // Stop hunt detection
+    table.cell(info, 0, 5, "Stop Hunt", text_color=color.gray, text_size=size.tiny)
+    hasAnyStopHunt = bullishStopHunt or strongBullishStopHunt or bearishStopHunt or strongBearishStopHunt
+    stopHuntColor = (strongBullishStopHunt or strongBearishStopHunt) ? color.lime : (hasAnyStopHunt ? color.yellow : color.gray)
+    stopHuntText = strongBullishStopHunt ? "↑ STRONG" : (strongBearishStopHunt ? "↓ STRONG" : (bullishStopHunt ? "↑ Bull" : (bearishStopHunt ? "↓ Bear" : "None")))
+    table.cell(info, 1, 5, stopHuntText, text_color=stopHuntColor, text_size=size.tiny)
+
+    // RSI
+    table.cell(info, 0, 6, "RSI", text_color=color.gray, text_size=size.tiny)
+    rsiColor = rsiExtremeOS ? color.lime : (rsiExtremeOB ? color.red : (rsiOversold ? color.green : (rsiOverbought ? color.orange : color.white)))
+    table.cell(info, 1, 6, str.tostring(rsi, "#.#"), text_color=rsiColor, text_size=size.tiny)
+
+    // Divergence
+    table.cell(info, 0, 7, "Divergence", text_color=color.gray, text_size=size.tiny)
+    divText = bullishDivergence ? "↑ Bull" : (bearishDivergence ? "↓ Bear" : "None")
+    divColor = bullishDivergence ? color.lime : (bearishDivergence ? color.red : color.gray)
+    table.cell(info, 1, 7, divText, text_color=divColor, text_size=size.tiny)
+
+    // Active zones
+    taggedCount = 0
+    totalZones = array.size(liquidationTagged)
+    if totalZones > 0
+        for idx = 0 to totalZones - 1
+            if array.get(liquidationTagged, idx)
+                taggedCount += 1
+    activeCount = array.size(liquidationLevels) - taggedCount
+
+    table.cell(info, 0, 8, "Active Zones", text_color=color.gray, text_size=size.tiny)
+    table.cell(info, 1, 8, str.tostring(activeCount), text_color=color.white, text_size=size.tiny)
+
+    table.cell(info, 0, 9, "Tagged Zones", text_color=color.gray, text_size=size.tiny)
+    table.cell(info, 1, 9, str.tostring(taggedCount), text_color=color.yellow, text_size=size.tiny)
+
+// ── ALERTS ──
+alertcondition(
+     condition=bullishSignal,
+     title="Bullish Liquidation Reversal",
+     message="🟢 BULLISH: Major short liquidation with reversal signal. Strength: {{plot_0}}")
+
+alertcondition(
+     condition=bearishSignal,
+     title="Bearish Liquidation Reversal",
+     message="🔴 BEARISH: Major long liquidation with reversal signal. Strength: {{plot_0}}")
+
+alertcondition(
+     condition=strongBullishStopHunt,
+     title="Strong Bullish Stop Hunt",
+     message="🎯 STRONG BULLISH STOP HUNT: Shorts swept and rejected!")
+
+alertcondition(
+     condition=strongBearishStopHunt,
+     title="Strong Bearish Stop Hunt",
+     message="🎯 STRONG BEARISH STOP HUNT: Longs swept and rejected!")
+
+alertcondition(
+     condition=isMajorLiquidation and abnormalVolume,
+     title="Major Liquidation Event",
+     message="⚠️ Major liquidation event detected")
