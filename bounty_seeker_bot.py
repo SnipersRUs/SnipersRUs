@@ -1273,7 +1273,7 @@ class BountySeekerBot:
         """Send bot status/heartbeat to Discord"""
         try:
             now = datetime.now(timezone.utc)
-            
+
             # Color based on status
             colors = {
                 "STARTUP": 0x00f3ff,    # Cyan
@@ -1285,14 +1285,14 @@ class BountySeekerBot:
                 "SHUTDOWN": 0x9c27b0,   # Purple
             }
             color = colors.get(status, 0x848e9c)
-            
+
             # Build fields
             fields = [
                 {"name": "Status", "value": status, "inline": True},
                 {"name": "Time (UTC)", "value": now.strftime('%H:%M:%S'), "inline": True},
                 {"name": "Watchlist", "value": f"{len(self.watchlist)} coins", "inline": True},
             ]
-            
+
             if details:
                 if "signals_found" in details:
                     fields.append({"name": "Signals Found", "value": str(details["signals_found"]), "inline": True})
@@ -1310,7 +1310,7 @@ class BountySeekerBot:
                     fields.append({"name": "Error", "value": str(details["error"])[:200], "inline": False})
                 if "message" in details:
                     fields.append({"name": "Info", "value": str(details["message"])[:200], "inline": False})
-            
+
             embed = {
                 "title": f"🤖 BOUNTY SEEKER • {status}",
                 "color": color,
@@ -1318,13 +1318,13 @@ class BountySeekerBot:
                 "fields": fields,
                 "footer": {"text": "Bounty Seeker Bot • Live Status"}
             }
-            
+
             payload = {"embeds": [embed]}
             response = requests.post(DISCORD_WEBHOOK, json=payload, timeout=10)
-            
+
             if response.status_code != 204:
                 logger.warning(f"Discord status ping returned {response.status_code}")
-                
+
         except Exception as e:
             logger.error(f"Failed to send status to Discord: {e}")
 
@@ -1360,13 +1360,13 @@ class BountySeekerBot:
                     # Make sure we don't scan twice in the same minute/hour
                     if now.minute != last_scan_minute or now.hour != last_scan_hour:
                         logger.info(f"⏰ Scan time: {now.strftime('%H:%M:%S UTC')} (30‑min interval)")
-                        
+
                         # Send scanning status to Discord
                         self.send_status_discord("SCANNING", {
                             "message": f"Starting 30-min scan at {now.strftime('%H:%M UTC')}",
                             "open_trades": self.count_open_trades()
                         })
-                        
+
                         self.write_status("SCANNING")
                         self.update_learning()  # Update parameters based on performance
                         signals = self.scan_markets()
@@ -1374,7 +1374,7 @@ class BountySeekerBot:
                         last_scan_hour = now.hour
                         self.state["last_scan_time"] = now.isoformat()
                         self.save_state()
-                        
+
                         # Send scan results to Discord
                         if signals:
                             logger.info(f"✅ Scan complete: Found {len(signals)} signals, sent to Discord")
@@ -1394,7 +1394,7 @@ class BountySeekerBot:
                                 "top_losers": self.top_losers[:3] if self.top_losers else [],
                                 "message": "No setups met criteria this scan"
                             })
-                        
+
                         self.write_status("ACTIVE", signals=signals)
 
                 # Update learning every hour

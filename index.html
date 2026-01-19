@@ -466,6 +466,15 @@
             color: var(--text-primary);
         }
 
+        .mini-list a {
+            color: inherit;
+            text-decoration: none;
+        }
+
+        .mini-list a:hover {
+            text-decoration: underline;
+        }
+
         .mini-list .pos {
             color: var(--accent-green);
         }
@@ -1962,6 +1971,17 @@
             }).join('');
         }
 
+        function normalizeBaseSymbol(symbol) {
+            if (!symbol) return '';
+            return symbol.split('/')[0].split(':')[0];
+        }
+
+        function getTradingViewLink(symbol) {
+            const base = normalizeBaseSymbol(symbol);
+            if (!base) return 'https://www.tradingview.com/';
+            return `https://www.tradingview.com/chart/?symbol=${encodeURIComponent(base)}USDT`;
+        }
+
         function renderTopMovers(gainers, losers) {
             const gainersEl = document.getElementById('topGainers');
             const losersEl = document.getElementById('topLosers');
@@ -1972,7 +1992,9 @@
                     gainersEl.innerHTML = gainers.slice(0, 5).map(c => {
                         const pctVal = Number.parseFloat(c.change_pct);
                         const pct = Number.isFinite(pctVal) ? pctVal.toFixed(2) : '0.00';
-                        return `<li>${c.symbol} <span class="pos">${pct}%</span></li>`;
+                        const link = getTradingViewLink(c.symbol);
+                        const label = normalizeBaseSymbol(c.symbol);
+                        return `<li><a href="${link}" target="_blank" rel="noopener">${label}</a> <span class="pos">${pct}%</span></li>`;
                     }).join('');
                 }
             }
@@ -1983,7 +2005,9 @@
                     losersEl.innerHTML = losers.slice(0, 5).map(c => {
                         const pctVal = Number.parseFloat(c.change_pct);
                         const pct = Number.isFinite(pctVal) ? pctVal.toFixed(2) : '0.00';
-                        return `<li>${c.symbol} <span class="neg">${pct}%</span></li>`;
+                        const link = getTradingViewLink(c.symbol);
+                        const label = normalizeBaseSymbol(c.symbol);
+                        return `<li><a href="${link}" target="_blank" rel="noopener">${label}</a> <span class="neg">${pct}%</span></li>`;
                     }).join('');
                 }
             }
