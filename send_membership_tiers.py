@@ -42,7 +42,7 @@ def send_membership_tiers():
                 "inline": False
             },
             {
-                "name": "🔹 <@bountyseeker> - $60/month",
+                "name": "🔹 <@bountyseeker> - $40/month",
                 "value": (
                     "Everything in Headhunters, PLUS:\n"
                     "• All access to me personally\n"
@@ -70,7 +70,7 @@ def send_membership_tiers():
                 "name": "How to Join",
                 "value": (
                     f"**[Headhunters ($20/month)](https://upgrade.chat/734621342069948446/p/ath)**\n"
-                    f"**[Bounty Seekers ($60/month)](https://upgrade.chat/734621342069948446/p/e4097a76-84f4-4138-a754-f0cfaae66291)**\n"
+                    f"**[Bounty Seekers ($40/month)](https://upgrade.chat/734621342069948446/p/e4097a76-84f4-4138-a754-f0cfaae66291)**\n"
                     f"**[Lifetime Membership ($333 one-time)](https://upgrade.chat/734621342069948446/p/lifetime)**"
                 ),
                 "inline": False

@@ -1034,6 +1034,123 @@
         }
         .prize-note strong { color: var(--accent-green); }
 
+        /* Breakout Scanner */
+        .breakout-section {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 60px 20px;
+        }
+
+        .breakout-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            border-bottom: 1px solid var(--glass-border);
+            padding-bottom: 16px;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .breakout-title h2 {
+            margin: 0;
+            font-size: 1.6rem;
+        }
+
+        .breakout-title p {
+            margin: 6px 0 0;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .breakout-refresh {
+            background: var(--accent-green);
+            color: #0b0e11;
+            border: none;
+            padding: 10px 18px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 700;
+            transition: opacity 0.2s ease;
+        }
+
+        .breakout-refresh:hover { opacity: 0.9; }
+
+        .breakout-hint {
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            margin-top: 6px;
+        }
+
+        .breakout-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: var(--shadow-soft);
+        }
+
+        .breakout-table th,
+        .breakout-table td {
+            padding: 14px 16px;
+            text-align: left;
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        .breakout-table th {
+            background: rgba(255, 255, 255, 0.06);
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            font-weight: 700;
+        }
+
+        .breakout-table tr:hover { background-color: rgba(255,255,255,0.03); }
+
+        .breakout-coin {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .breakout-coin img {
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+        }
+
+        .breakout-mono {
+            font-family: monospace;
+        }
+
+        .breakout-positive { color: var(--accent-green); }
+        .breakout-negative { color: var(--accent-purple); }
+
+        .breakout-link {
+            text-decoration: none;
+            color: var(--text-secondary);
+            border: 1px solid var(--glass-border);
+            padding: 6px 10px;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            margin-right: 6px;
+        }
+
+        .breakout-link:hover {
+            border-color: var(--accent-white);
+            color: var(--accent-white);
+        }
+
+        #breakout-loading {
+            text-align: center;
+            padding: 30px;
+            color: var(--text-secondary);
+            border: 1px dashed var(--glass-border);
+            border-radius: 16px;
+        }
+
         /* Canvas */
         canvas {
             display: block;
@@ -1288,6 +1405,35 @@
                 </div>
             </div>
         </div>
+    </div>
+
+    <!-- Breakout Scanner -->
+    <div class="breakout-section" id="breakout-scanner">
+        <div class="breakout-header">
+            <div class="breakout-title">
+                <h2>🎯 Breakout Scanner</h2>
+                <p>Momentum movers sorted by 24h performance. Quick sniper radar.</p>
+                <div class="breakout-hint">Data refreshed every 60 seconds.</div>
+            </div>
+            <button class="breakout-refresh" id="breakoutRefreshBtn">Scan Market</button>
+        </div>
+
+        <div id="breakout-loading">Scanning the market for targets...</div>
+
+        <table id="breakout-table" class="breakout-table" style="display:none;">
+            <thead>
+                <tr>
+                    <th>Asset</th>
+                    <th>Price (USD)</th>
+                    <th>24h Change</th>
+                    <th>Volume (24h)</th>
+                    <th>Links</th>
+                </tr>
+            </thead>
+            <tbody id="breakout-body">
+                <!-- Rows injected by JS -->
+            </tbody>
+        </table>
     </div>
 
     <!-- Active Trades Section -->
@@ -1967,7 +2113,9 @@
             list.innerHTML = coins.slice(0, 5).map(c => {
                 const pctVal = Number.parseFloat(c.change_pct);
                 const pct = Number.isFinite(pctVal) ? pctVal.toFixed(2) : '0.00';
-                return `<li>${c.symbol} <span style="float:right; color:${pctVal >= 0 ? 'var(--accent-green)' : 'var(--accent-purple)'}">${pct}%</span></li>`;
+                const link = getTradingViewLink(c.symbol);
+                const label = normalizeBaseSymbol(c.symbol);
+                return `<li><a href="${link}" target="_blank" rel="noopener">${label}</a> <span style="float:right; color:${pctVal >= 0 ? 'var(--accent-green)' : 'var(--accent-purple)'}">${pct}%</span></li>`;
             }).join('');
         }
 
@@ -2268,8 +2416,96 @@
             }
         }
 
+        function formatCompactNumber(number) {
+            return Intl.NumberFormat('en-US', {
+                notation: "compact",
+                maximumFractionDigits: 1
+            }).format(number);
+        }
+
+        async function fetchBreakoutData() {
+            const tableBody = document.getElementById('breakout-body');
+            const loading = document.getElementById('breakout-loading');
+            const table = document.getElementById('breakout-table');
+
+            if (!tableBody || !loading || !table) return;
+
+            table.style.display = 'none';
+            loading.style.display = 'block';
+            tableBody.innerHTML = '';
+
+            try {
+                const response = await fetch('https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=250&page=1&sparkline=false&price_change_percentage=24h');
+                if (!response.ok) throw new Error("CoinGecko rate limit or API down");
+                const data = await response.json();
+
+                const gainers = data
+                    .filter(coin => !['usdt', 'usdc', 'busd', 'dai', 'tusd'].includes(coin.symbol.toLowerCase()))
+                    .sort((a, b) => b.price_change_percentage_24h - a.price_change_percentage_24h)
+                    .slice(0, 20);
+
+                renderBreakoutTable(gainers);
+            } catch (error) {
+                loading.textContent = "Signal lost. (CoinGecko API limit reached. Try again in 60s.)";
+                console.error(error);
+            }
+        }
+
+        function renderBreakoutTable(coins) {
+            const tableBody = document.getElementById('breakout-body');
+            const loading = document.getElementById('breakout-loading');
+            const table = document.getElementById('breakout-table');
+
+            loading.style.display = 'none';
+            table.style.display = 'table';
+
+            coins.forEach(coin => {
+                const row = document.createElement('tr');
+                const isPositive = coin.price_change_percentage_24h >= 0;
+                const changeClass = isPositive ? 'breakout-positive' : 'breakout-negative';
+                const arrow = isPositive ? '▲' : '▼';
+                const tvLink = `https://www.tradingview.com/chart/?symbol=${encodeURIComponent(coin.symbol.toUpperCase())}USDT`;
+
+                row.innerHTML = `
+                    <td>
+                        <div class="breakout-coin">
+                            <img src="${coin.image}" alt="${coin.name}" loading="lazy">
+                            <div>
+                                <div style="font-weight:700">${coin.name}</div>
+                                <div style="color:var(--text-secondary); font-size:0.8em">
+                                    <a href="${tvLink}" target="_blank" rel="noopener" style="color:inherit; text-decoration:none;">${coin.symbol.toUpperCase()}</a>
+                                </div>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="breakout-mono">$${coin.current_price.toLocaleString()}</td>
+                    <td class="breakout-mono ${changeClass}">
+                        ${arrow} ${Math.abs(coin.price_change_percentage_24h).toFixed(2)}%
+                    </td>
+                    <td class="breakout-mono" style="color:var(--text-secondary)">
+                        $${formatCompactNumber(coin.total_volume)}
+                    </td>
+                    <td>
+                        <a href="${tvLink}" target="_blank" rel="noopener" class="breakout-link">Chart</a>
+                        <a href="https://www.coingecko.com/en/coins/${coin.id}" target="_blank" rel="noopener" class="breakout-link">Info</a>
+                    </td>
+                `;
+                tableBody.appendChild(row);
+            });
+        }
+
+        function initBreakoutScanner() {
+            const refreshBtn = document.getElementById('breakoutRefreshBtn');
+            if (refreshBtn) {
+                refreshBtn.addEventListener('click', fetchBreakoutData);
+            }
+            fetchBreakoutData();
+            setInterval(fetchBreakoutData, 60000);
+        }
+
         // Start
         init();
+        initBreakoutScanner();
 
         // ====== ARCADE GAME ======
         (function initArcadeGame() {
