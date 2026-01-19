@@ -2,9 +2,9 @@
   "status": "ACTIVE",
   "exchange": "okx",
   "watchlist_size": 10,
-  "signal_count": 3,
-  "last_scan_time": "2026-01-19T22:00:00.748290+00:00",
-  "next_scan_time": "2026-01-19T22:30:00+00:00",
+  "signal_count": 4,
+  "last_scan_time": "2026-01-19T23:30:00.756815+00:00",
+  "next_scan_time": "2026-01-20T00:00:00+00:00",
   "open_trades": [
     {
       "id": 189,
@@ -23,94 +23,103 @@
       "stop_loss": 1.36125,
       "take_profit": 1.4093749999999998,
       "entry_time": "2026-01-19T22:00:04.476593+00:00"
+    },
+    {
+      "id": 201,
+      "trade_number": 13,
+      "symbol": "AXS/USDT:USDT",
+      "entry_price": 1.6457,
+      "stop_loss": 1.629243,
+      "take_profit": 1.6868424999999998,
+      "entry_time": "2026-01-19T23:00:03.895180+00:00"
     }
   ],
   "signals": [],
   "trending_coins": [
     {
       "symbol": "RESOLV/USDT:USDT",
-      "change_pct": 28.625760649087223,
-      "volume": 181417261.0
+      "change_pct": 29.09877800407332,
+      "volume": 190441326.0
     },
     {
       "symbol": "RIVER/USDT:USDT",
-      "change_pct": 10.066037383874939,
-      "volume": 284673340.0
+      "change_pct": 12.408129593520323,
+      "volume": 285842966.0
     },
     {
       "symbol": "SHELL/USDT:USDT",
-      "change_pct": 6.829081143295607,
-      "volume": 18477192.0
+      "change_pct": 5.3267850396675485,
+      "volume": 18948008.0
+    },
+    {
+      "symbol": "GPS/USDT:USDT",
+      "change_pct": 4.9116550494407525,
+      "volume": 109133332.0
     },
     {
       "symbol": "BARD/USDT:USDT",
-      "change_pct": 4.1601866251944015,
-      "volume": 32875310.0
-    },
-    {
-      "symbol": "XTZ/USDT:USDT",
-      "change_pct": 2.7325102880658436,
-      "volume": 22507059.0
+      "change_pct": 4.0349960825280755,
+      "volume": 33028325.0
     }
   ],
   "spotlight": {
     "symbol": "RESOLV/USDT:USDT",
-    "change_pct": 28.625760649087223,
-    "volume": 181417261.0,
+    "change_pct": 29.09877800407332,
+    "volume": 190441326.0,
     "reason": "Top 24h mover"
   },
   "top_gainers": [
     {
       "symbol": "RESOLV/USDT:USDT",
-      "change_pct": 28.625760649087223,
-      "volume": 181417261.0
+      "change_pct": 29.09877800407332,
+      "volume": 190441326.0
     },
     {
       "symbol": "RIVER/USDT:USDT",
-      "change_pct": 10.066037383874939,
-      "volume": 284673340.0
+      "change_pct": 12.408129593520323,
+      "volume": 285842966.0
     },
     {
       "symbol": "SHELL/USDT:USDT",
-      "change_pct": 6.829081143295607,
-      "volume": 18477192.0
+      "change_pct": 5.3267850396675485,
+      "volume": 18948008.0
+    },
+    {
+      "symbol": "GPS/USDT:USDT",
+      "change_pct": 4.9116550494407525,
+      "volume": 109133332.0
     },
     {
       "symbol": "BARD/USDT:USDT",
-      "change_pct": 4.1601866251944015,
-      "volume": 32875310.0
-    },
-    {
-      "symbol": "XTZ/USDT:USDT",
-      "change_pct": 2.7325102880658436,
-      "volume": 22507059.0
+      "change_pct": 4.0349960825280755,
+      "volume": 33028325.0
     }
   ],
   "top_losers": [
     {
       "symbol": "LAB/USDT:USDT",
-      "change_pct": -28.32296310812797,
-      "volume": 11803742.0
+      "change_pct": -26.517571884984026,
+      "volume": 12181368.0
     },
     {
       "symbol": "BEAT/USDT:USDT",
-      "change_pct": -22.563983368198134,
-      "volume": 14739257.0
+      "change_pct": -25.113464447806354,
+      "volume": 14883824.0
+    },
+    {
+      "symbol": "FUN/USDT:USDT",
+      "change_pct": -19.079837618403246,
+      "volume": 11776790.0
     },
     {
       "symbol": "MERL/USDT:USDT",
-      "change_pct": -21.100126972610195,
-      "volume": 191394034.0
-    },
-    {
-      "symbol": "YB/USDT:USDT",
-      "change_pct": -19.704433497536947,
-      "volume": 23894691.0
+      "change_pct": -18.898735885554906,
+      "volume": 194487341.0
     },
     {
       "symbol": "LIGHT/USDT:USDT",
-      "change_pct": -17.10617626648161,
-      "volume": 37768213.0
+      "change_pct": -18.5005206525512,
+      "volume": 38521981.0
     }
   ]
 }

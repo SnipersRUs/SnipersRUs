@@ -45,7 +45,7 @@ STATE_FILE = os.path.join(DATA_DIR, "bounty_seeker_state.json")
 STATUS_FILE = "bounty_seeker_status.json"
 
 # Trading Parameters
-MIN_CONFIDENCE_SCORE = 50  # Minimum score to trigger signal (0-100) - Lowered to find more signals
+MIN_CONFIDENCE_SCORE = 40  # Minimum score to trigger signal (0-100) - Lowered to find more scalping opportunities
 TARGET_PROFIT_PCT = 2.5  # Target 2-3% gains
 STOP_LOSS_PCT = 1.0  # 1% stop loss
 RISK_REWARD_RATIO = 2.5  # 2.5:1 R:R
@@ -54,15 +54,15 @@ RISK_REWARD_RATIO = 2.5  # 2.5:1 R:R
 RSI_PERIOD = 14
 VWAP_LOOKBACK = 200
 VOLUME_LOOKBACK = 20
-DEVIATION_2SIGMA = 2.5  # 2.5σ threshold
-DEVIATION_3SIGMA = 3.0  # 3σ threshold (preferred)
+DEVIATION_2SIGMA = 2.0  # 2.0σ threshold (more sensitive)
+DEVIATION_3SIGMA = 2.5  # 2.5σ threshold (preferred, lowered from 3.0)
 GPS_LOW = 0.618  # Golden Pocket low (Fibonacci)
 GPS_HIGH = 0.65  # Golden Pocket high
 
 # Volume Spike Detection (VPSR Pro Logic)
 VOL_MA_LENGTH = 20  # Volume MA Length
-VOL_MULTIPLIER = 2.0  # Abnormal Volume Threshold
-VOL_EXTREME_MULTIPLIER = 3.5  # Extreme Volume Threshold
+VOL_MULTIPLIER = 1.5  # Abnormal Volume Threshold (lowered from 2.0 for more signals)
+VOL_EXTREME_MULTIPLIER = 2.5  # Extreme Volume Threshold (lowered from 3.5)
 
 # Market Filters
 MIN_24H_VOLUME_USD = 10000000  # $10M minimum volume
@@ -497,14 +497,14 @@ class LearningSystem:
 
         adjustments = {}
 
-        # If win rate is low, increase minimum confidence
+        # If win rate is low, increase minimum confidence (but keep it reasonable for scalping)
         if analysis['win_rate'] < 0.5:
             if analysis['avg_loser_confidence'] > 0:
-                # Losers had high confidence, need to be more selective
-                adjustments['min_confidence'] = min(85, MIN_CONFIDENCE_SCORE + 5)
+                # Losers had high confidence, need to be more selective but still allow scalping
+                adjustments['min_confidence'] = min(55, MIN_CONFIDENCE_SCORE + 5)
         elif analysis['win_rate'] > 0.7:
-            # High win rate, can be slightly more aggressive
-            adjustments['min_confidence'] = max(65, MIN_CONFIDENCE_SCORE - 5)
+            # High win rate, can be more aggressive for scalping
+            adjustments['min_confidence'] = max(35, MIN_CONFIDENCE_SCORE - 5)
 
         # Adjust GPS weight based on performance
         if analysis.get('gps_win_rate', 0) > 0.65:
@@ -964,8 +964,8 @@ class BountySeekerBot:
             is_bearish = current_price < current_open
             vol_reversal_short = is_extreme_vol and is_bearish
 
-            # Apply adjusted minimum confidence (but don't go below 45)
-            min_confidence = max(45, self.adjusted_params.get('min_confidence', MIN_CONFIDENCE_SCORE))
+            # Apply adjusted minimum confidence (but don't go below 35 for scalping)
+            min_confidence = max(35, self.adjusted_params.get('min_confidence', MIN_CONFIDENCE_SCORE))
 
             def build_signal(direction: str, score: int, reasons: List[str], in_gps_zone: bool) -> Signal:
                 if direction == "LONG":
@@ -997,13 +997,16 @@ class BountySeekerBot:
 
             if deviation_sigma <= -DEVIATION_3SIGMA:
                 long_score += 40
-                long_reasons.append("Deviation Zone -3 Sigma (Mean Reversion)")
+                long_reasons.append("Deviation Zone -2.5 Sigma (Mean Reversion)")
             elif deviation_sigma <= -DEVIATION_2SIGMA:
                 long_score += 30
-                long_reasons.append("Deviation Zone -2.5 Sigma")
+                long_reasons.append("Deviation Zone -2.0 Sigma")
             elif deviation_sigma <= -1.5:
                 long_score += 20
                 long_reasons.append("Deviation Zone -1.5 Sigma (Oversold)")
+            elif deviation_sigma <= -1.0:
+                long_score += 15
+                long_reasons.append("Deviation Zone -1.0 Sigma (Slightly Oversold)")
 
             if in_gps_long:
                 gps_weight = self.adjusted_params.get('gps_weight', 1.0)
@@ -1013,8 +1016,11 @@ class BountySeekerBot:
                 long_score += 20
                 long_reasons.append(f"Near GPS Zone ({gps_dist_long:.2f}% away)")
             elif gps_dist_long < 2.0:
-                long_score += 10
+                long_score += 15
                 long_reasons.append(f"Approaching GPS Zone ({gps_dist_long:.2f}% away)")
+            elif gps_dist_long < 3.0:
+                long_score += 10
+                long_reasons.append(f"Getting Close to GPS Zone ({gps_dist_long:.2f}% away)")
 
             if rsi < 40 and rsi > 20:
                 long_score += 20
@@ -1023,8 +1029,11 @@ class BountySeekerBot:
                 long_score += 15
                 long_reasons.append(f"RSI Extreme Oversold ({rsi:.1f})")
             elif rsi < 50:
-                long_score += 10
+                long_score += 12
                 long_reasons.append(f"RSI Below Midline ({rsi:.1f})")
+            elif rsi < 55:
+                long_score += 8
+                long_reasons.append(f"RSI Slightly Below Midline ({rsi:.1f})")
 
             if has_sfp_long:
                 sfp_weight = self.adjusted_params.get('sfp_weight', 1.0)
@@ -1044,16 +1053,22 @@ class BountySeekerBot:
                 long_score += 10
                 long_reasons.append(f"Volume Spike ({volume_ratio:.1f}x avg)")
             elif volume_ratio > 1.2:
-                long_score += 5
+                long_score += 8
                 long_reasons.append(f"Volume Above Average ({volume_ratio:.1f}x)")
+            elif volume_ratio > 1.0:
+                long_score += 5
+                long_reasons.append(f"Volume Slightly Above Average ({volume_ratio:.1f}x)")
 
             price_from_low = ((current_price - daily_low) / (daily_high - daily_low)) * 100 if (daily_high - daily_low) > 0 else 50
             if price_from_low < 20:
                 long_score += 15
                 long_reasons.append(f"Price Near Daily Low ({price_from_low:.1f}% from low)")
             elif price_from_low < 35:
-                long_score += 10
+                long_score += 12
                 long_reasons.append(f"Price in Lower Range ({price_from_low:.1f}% from low)")
+            elif price_from_low < 45:
+                long_score += 8
+                long_reasons.append(f"Price in Lower Half ({price_from_low:.1f}% from low)")
 
             # Short scoring
             short_score = 0
@@ -1061,13 +1076,16 @@ class BountySeekerBot:
 
             if deviation_sigma >= DEVIATION_3SIGMA:
                 short_score += 40
-                short_reasons.append("Deviation Zone +3 Sigma (Mean Reversion)")
+                short_reasons.append("Deviation Zone +2.5 Sigma (Mean Reversion)")
             elif deviation_sigma >= DEVIATION_2SIGMA:
                 short_score += 30
-                short_reasons.append("Deviation Zone +2.5 Sigma")
+                short_reasons.append("Deviation Zone +2.0 Sigma")
             elif deviation_sigma >= 1.5:
                 short_score += 20
                 short_reasons.append("Deviation Zone +1.5 Sigma (Overbought)")
+            elif deviation_sigma >= 1.0:
+                short_score += 15
+                short_reasons.append("Deviation Zone +1.0 Sigma (Slightly Overbought)")
 
             if in_gps_short:
                 gps_weight = self.adjusted_params.get('gps_weight', 1.0)
@@ -1077,8 +1095,11 @@ class BountySeekerBot:
                 short_score += 20
                 short_reasons.append(f"Near Upper GPS Zone ({gps_dist_short:.2f}% away)")
             elif gps_dist_short < 2.0:
-                short_score += 10
+                short_score += 15
                 short_reasons.append(f"Approaching Upper GPS Zone ({gps_dist_short:.2f}% away)")
+            elif gps_dist_short < 3.0:
+                short_score += 10
+                short_reasons.append(f"Getting Close to Upper GPS Zone ({gps_dist_short:.2f}% away)")
 
             if rsi > 60 and rsi < 80:
                 short_score += 20
@@ -1087,8 +1108,11 @@ class BountySeekerBot:
                 short_score += 15
                 short_reasons.append(f"RSI Extreme Overbought ({rsi:.1f})")
             elif rsi > 50:
-                short_score += 10
+                short_score += 12
                 short_reasons.append(f"RSI Above Midline ({rsi:.1f})")
+            elif rsi > 45:
+                short_score += 8
+                short_reasons.append(f"RSI Slightly Above Midline ({rsi:.1f})")
 
             if has_sfp_short:
                 sfp_weight = self.adjusted_params.get('sfp_weight', 1.0)
@@ -1108,16 +1132,22 @@ class BountySeekerBot:
                 short_score += 10
                 short_reasons.append(f"Volume Spike ({volume_ratio:.1f}x avg)")
             elif volume_ratio > 1.2:
-                short_score += 5
+                short_score += 8
                 short_reasons.append(f"Volume Above Average ({volume_ratio:.1f}x)")
+            elif volume_ratio > 1.0:
+                short_score += 5
+                short_reasons.append(f"Volume Slightly Above Average ({volume_ratio:.1f}x)")
 
             price_from_high = ((daily_high - current_price) / (daily_high - daily_low)) * 100 if (daily_high - daily_low) > 0 else 50
             if price_from_high < 20:
                 short_score += 15
                 short_reasons.append(f"Price Near Daily High ({price_from_high:.1f}% from high)")
             elif price_from_high < 35:
-                short_score += 10
+                short_score += 12
                 short_reasons.append(f"Price in Upper Range ({price_from_high:.1f}% from high)")
+            elif price_from_high < 45:
+                short_score += 8
+                short_reasons.append(f"Price in Upper Half ({price_from_high:.1f}% from high)")
 
             long_ok = long_score >= min_confidence
             short_ok = short_score >= min_confidence
