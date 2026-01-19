@@ -108,14 +108,15 @@
             background: var(--glass);
             border: 1px solid var(--glass-border);
             color: var(--text-primary);
-            padding: 8px 12px;
+            width: 40px;
+            height: 40px;
             border-radius: 999px;
             cursor: pointer;
-            font-size: 0.9rem;
-            display: flex;
+            font-size: 1rem;
+            display: inline-flex;
             align-items: center;
-            gap: 8px;
-            transition: background 0.2s;
+            justify-content: center;
+            transition: background 0.2s, transform 0.2s;
         }
 
         .theme-toggle:hover {
@@ -232,8 +233,8 @@
         .scanner-meta {
             background: var(--glass);
             border: 1px solid var(--glass-border);
-            border-radius: 18px;
-            padding: 14px 18px;
+            border-radius: 20px;
+            padding: 16px 20px;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -241,19 +242,26 @@
             font-size: 0.85rem;
             box-shadow: var(--shadow-soft);
             backdrop-filter: blur(10px);
+            gap: 12px;
+            flex-wrap: wrap;
         }
 
         .scanner-meta strong {
-            color: var(--accent-white);
+            color: var(--text-primary);
             font-weight: 700;
         }
 
         .distance-pill {
-            padding: 6px 10px;
+            padding: 8px 12px;
             border-radius: 999px;
-            background: rgba(255, 255, 255, 0.06);
-            border: 1px solid var(--glass-border);
+            background: linear-gradient(135deg, rgba(156, 39, 176, 0.18), rgba(14, 203, 129, 0.14));
+            border: 1px solid rgba(255, 255, 255, 0.08);
             font-family: monospace;
+            color: var(--text-primary);
+        }
+
+        [data-theme="light"] .distance-pill {
+            border: 1px solid rgba(0, 0, 0, 0.08);
         }
 
         /* Mini Chart */
@@ -617,6 +625,64 @@
             text-align: center;
         }
 
+        /* Trial Modal */
+        .trial-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.65);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            padding: 20px;
+        }
+
+        .trial-modal {
+            max-width: 520px;
+            width: 100%;
+            background: var(--bg-panel);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            padding: 28px;
+            box-shadow: var(--shadow-soft);
+            backdrop-filter: blur(12px);
+        }
+
+        .trial-title {
+            font-size: 1.6rem;
+            font-weight: 800;
+            color: var(--accent-white);
+            margin-bottom: 10px;
+        }
+
+        .trial-text {
+            color: var(--text-secondary);
+            margin-bottom: 18px;
+            line-height: 1.5;
+        }
+
+        .trial-actions {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .trial-btn {
+            padding: 10px 18px;
+            border-radius: 999px;
+            border: 1px solid var(--glass-border);
+            background: var(--accent-purple);
+            color: #fff;
+            font-weight: 700;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        .trial-btn.secondary {
+            background: transparent;
+            color: var(--text-primary);
+        }
+
         /* Footer */
         footer {
             background: rgba(15, 17, 25, 0.8);
@@ -686,15 +752,18 @@
             <a href="https://www.tradingview.com/u/RickyTSpanish/#published-scripts" target="_blank">Indicators</a>
             <button class="theme-toggle" onclick="toggleTheme()">
                 <span id="themeIcon">🌙</span>
-                <span id="themeText">Dark</span>
             </button>
         </div>
-        <a href="#membership" class="btn-join">Get Access</a>
+        <a href="https://discord.gg/qk35c4TH5z" target="_blank" class="btn-join">Join Discord</a>
     </nav>
 
     <div class="hero">
-        <h1>Check out our Bounty Seeker bot below.</h1>
-        <p>We trade with GPS Golden Pocket zones and Piv X Pro VWAPs to map clean, high‑confluence entries. This homepage runs our Bounty Seeker bot live.</p>
+        <h1>Join the Discord for Free.</h1>
+        <p>Start with our free community access, then unlock Bounty Seeker signals and tools when you are ready.</p>
+
+        <div style="margin: 24px 0;">
+            <a href="https://discord.gg/qk35c4TH5z" target="_blank" class="btn-join">Join Discord (Free)</a>
+        </div>
 
         <div class="hero-stats">
             <div class="stat-item">
@@ -775,12 +844,20 @@
                     <canvas id="miniChart"></canvas>
                 </div>
 
-                <div class="scanner-meta">
-                    <div>Next scan: <strong id="nextScanTimer">15:00</strong></div>
+        <div class="scanner-meta">
+                    <div>Bot status: <strong id="botStatus">ACTIVE</strong></div>
+                    <div>Next scan: <strong id="nextScanTimer">--:--</strong></div>
                     <div>Last scan: <strong id="lastScanAt">--</strong></div>
                     <div class="distance-pill">GPS distance: <span id="gpsDistance">--</span></div>
                     <div class="distance-pill">Support distance: <span id="supportDistance">--</span></div>
                     <div class="distance-pill">Resistance distance: <span id="resistanceDistance">--</span></div>
+            <div class="distance-pill">
+                Pair:
+                <select id="pairSelect" style="margin-left:6px; background: transparent; color: inherit; border: none;">
+                    <option value="BTC">BTC</option>
+                    <option value="SOL">SOL</option>
+                </select>
+            </div>
                 </div>
 
                 <!-- TradingView Chart Embed -->
@@ -810,20 +887,20 @@
                     <span class="info-value" id="rvolStatus">--</span>
                 </div>
                 <div class="info-row">
-                    <span class="info-label">GPS Zone</span>
-                    <span class="info-value value-neutral" id="gpsStatus">--</span>
+                    <span class="info-label">Daily GP Range</span>
+                    <span class="info-value" id="gpsStatus">--</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Daily GP Distance</span>
+                    <span class="info-value" id="dailyGpDistance">--</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Liquidity Cluster</span>
+                    <span class="info-value" id="liquidityDistance">--</span>
                 </div>
                 <div class="info-row">
                     <span class="info-label">Divergence</span>
                     <span class="info-value" id="divergenceStatus">--</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">Confluence</span>
-                    <span class="info-value" id="confluenceScore">--</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">Data Source</span>
-                    <span class="info-value" style="color: var(--accent-purple);">OKX Exchange</span>
                 </div>
             </div>
         </div>
@@ -953,8 +1030,11 @@
                     <li>Short Hunter bot access</li>
                     <li>All future bots & indicators</li>
                     <li>Full access to signals & analysis</li>
+                    <li>3-day free trial included</li>
+                    <li>1-on-1 access with Ricky Spanish</li>
+                    <li>Talk to me anytime (community DM access)</li>
                 </ul>
-                <a class="tier-link" href="https://upgrade.chat/734621342069948446" target="_blank">Join Bounty Seeker</a>
+                <a class="tier-link" href="https://upgrade.chat/734621342069948446/p/a598f604-c852-4abc-b7f9-3c4acdcd9389" target="_blank">Join Bounty Seeker</a>
             </div>
 
             <div class="tier-card">
@@ -966,7 +1046,7 @@
                     <li>All current & future indicators</li>
                     <li>Priority access to updates</li>
                 </ul>
-                <a class="tier-link" href="https://upgrade.chat/734621342069948446" target="_blank">Go Lifetime</a>
+                <a class="tier-link" href="https://upgrade.chat/734621342069948446/p/lifetime" target="_blank">Go Lifetime</a>
             </div>
         </div>
 
@@ -993,14 +1073,31 @@
         <p style="font-size: 0.85rem;">Never blindly follow bots. Do your own research and analysis. Not financial advice.</p>
     </footer>
 
+    <!-- Free Trial Modal -->
+    <div class="trial-overlay" id="trialOverlay">
+        <div class="trial-modal" role="dialog" aria-modal="true" aria-labelledby="trialTitle">
+            <div class="trial-title" id="trialTitle">3‑Day Free Trial</div>
+            <div class="trial-text">
+                Get full access to the Bounty Seeker bot and signals for 3 days. See how it works before you commit.
+            </div>
+            <div class="trial-actions">
+                <a class="trial-btn" href="https://upgrade.chat/734621342069948446/p/a598f604-c852-4abc-b7f9-3c4acdcd9389" target="_blank">Start Free Trial</a>
+                <button class="trial-btn secondary" type="button" onclick="closeTrialModal()">Maybe Later</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         // ============================================
         // OKX REAL-TIME DATA
         // ============================================
         const OKX_WS_URL = 'wss://ws.okx.com:8443/ws/v5/public';
-        const OKX_TICKER_URL = 'https://www.okx.com/api/v5/market/ticker?instId=BTC-USDT-SWAP';
+        const OKX_BASE_URL = 'https://www.okx.com/api/v5/market';
 
         let state = {
+            symbol: 'BTC',
+            instId: 'BTC-USDT-SWAP',
+            tvSymbol: 'OKX:BTCUSDT.P',
             price: null,
             prices: [],
             volume: [],
@@ -1014,6 +1111,12 @@
             lastRenderPrice: null,
             lastDirection: null,
             nextScanAt: null,
+            dailyHigh: null,
+            dailyLow: null,
+            dailyGpHigh: null,
+            dailyGpLow: null,
+            divergenceState: 'NONE',
+            divergenceLastUpdate: 0,
             theme: 'dark'
         };
 
@@ -1022,12 +1125,16 @@
         let restPollTimer = null;
         let staleCheckTimer = null;
         let chart = null;
+        let pairSelectEl = null;
 
         // ============================================
         // OKX WEBSOCKET CONNECTION
         // ============================================
         function connectOKX() {
             try {
+                if (ws) {
+                    ws.close();
+                }
                 ws = new WebSocket(OKX_WS_URL);
 
                 ws.onopen = function() {
@@ -1039,10 +1146,10 @@
                         op: 'subscribe',
                         args: [{
                             channel: 'trades',
-                            instId: 'BTC-USDT-SWAP'
+                            instId: state.instId
                         }, {
                             channel: 'tickers',
-                            instId: 'BTC-USDT-SWAP'
+                            instId: state.instId
                         }]
                     };
                     ws.send(JSON.stringify(subscribeMsg));
@@ -1251,38 +1358,37 @@
             const moneyFlow = calculateMoneyFlow(state.prices, state.volume, 14);
             const nearSupport = state.support && Math.abs(state.price - state.support) / state.price < 0.003;
             const nearResistance = state.resistance && Math.abs(state.price - state.resistance) / state.price < 0.003;
-            const gpsActive = nearSupport || nearResistance;
-            const divActive = rsi !== null && (rsi < 30 || rsi > 70);
 
             const gpsEl = document.getElementById('gpsStatus');
-            if (nearSupport) {
-                gpsEl.textContent = 'NEAR SUPPORT';
-                gpsEl.className = 'info-value value-up';
-            } else if (nearResistance) {
-                gpsEl.textContent = 'NEAR RESISTANCE';
-                gpsEl.className = 'info-value value-down';
-                    } else {
-                gpsEl.textContent = 'WATCHING';
+            if (state.dailyGpHigh && state.dailyGpLow) {
+                gpsEl.textContent = `${priceFormatter.format(state.dailyGpLow)} - ${priceFormatter.format(state.dailyGpHigh)}`;
+                gpsEl.className = 'info-value value-neutral';
+            } else {
+                gpsEl.textContent = '--';
                 gpsEl.className = 'info-value value-neutral';
             }
 
             const divEl = document.getElementById('divergenceStatus');
-            if (rsi !== null && rsi < 30) {
-                divEl.textContent = 'BULLISH (RSI)';
+            const now = Date.now();
+            let nextState = 'NONE';
+            if (rsi !== null && rsi < 30) nextState = 'BULLISH (RSI)';
+            if (rsi !== null && rsi > 70) nextState = 'BEARISH (RSI)';
+
+            if (nextState !== state.divergenceState || now - state.divergenceLastUpdate > 5000) {
+                state.divergenceState = nextState;
+                state.divergenceLastUpdate = now;
+            }
+
+            if (state.divergenceState === 'BULLISH (RSI)') {
+                divEl.textContent = state.divergenceState;
                 divEl.className = 'info-value value-up';
-            } else if (rsi !== null && rsi > 70) {
-                divEl.textContent = 'BEARISH (RSI)';
+            } else if (state.divergenceState === 'BEARISH (RSI)') {
+                divEl.textContent = state.divergenceState;
                 divEl.className = 'info-value value-down';
             } else {
                 divEl.textContent = 'NONE';
                 divEl.className = 'info-value value-neutral';
             }
-
-            // Confluence
-            const score = (gpsActive ? 1 : 0) + (divActive ? 1 : 0) + (volMultiplier > 2.0 ? 1 : 0);
-            const confEl = document.getElementById('confluenceScore');
-            confEl.textContent = `${score}/3 Laws`;
-            confEl.className = `info-value ${score >= 2 ? 'value-up' : 'value-neutral'}`;
 
             updateDistanceBadges();
         }
@@ -1291,6 +1397,8 @@
             const gpsDistanceEl = document.getElementById('gpsDistance');
             const supportDistanceEl = document.getElementById('supportDistance');
             const resistanceDistanceEl = document.getElementById('resistanceDistance');
+            const dailyGpDistanceEl = document.getElementById('dailyGpDistance');
+            const liquidityDistanceEl = document.getElementById('liquidityDistance');
 
             if (!state.price || !state.support || !state.resistance) return;
             const supportDistPct = ((state.price - state.support) / state.price) * 100;
@@ -1300,19 +1408,49 @@
             gpsDistanceEl.textContent = `${gpsDist.toFixed(2)}%`;
             supportDistanceEl.textContent = `${supportDistPct.toFixed(2)}%`;
             resistanceDistanceEl.textContent = `${resistanceDistPct.toFixed(2)}%`;
+
+            if (state.dailyGpHigh && state.dailyGpLow) {
+                const inDailyGp = state.price >= state.dailyGpLow && state.price <= state.dailyGpHigh;
+                if (inDailyGp) {
+                    dailyGpDistanceEl.textContent = 'INSIDE GP';
+                } else {
+                    const distToGp = state.price < state.dailyGpLow
+                        ? ((state.dailyGpLow - state.price) / state.price) * 100
+                        : ((state.price - state.dailyGpHigh) / state.price) * 100;
+                    dailyGpDistanceEl.textContent = `${distToGp.toFixed(2)}%`;
+                }
+            } else {
+                dailyGpDistanceEl.textContent = '--';
+            }
+
+            const liquidityDist = Math.min(Math.abs(supportDistPct), Math.abs(resistanceDistPct));
+            liquidityDistanceEl.textContent = `${liquidityDist.toFixed(2)}%`;
+        }
+
+        function getNextScanTime(now = new Date()) {
+            const next = new Date(now);
+            next.setSeconds(0, 0);
+            const minutes = next.getMinutes();
+            if (minutes < 45) {
+                next.setMinutes(45);
+            } else {
+                next.setHours(next.getHours() + 1);
+                next.setMinutes(45);
+            }
+            return next;
         }
 
         function startScanTimer() {
             if (!state.nextScanAt) {
-                state.nextScanAt = Date.now() + 15 * 60 * 1000;
+                state.nextScanAt = getNextScanTime().getTime();
             }
             setInterval(() => {
-                const now = Date.now();
-                if (now >= state.nextScanAt) {
-                    state.nextScanAt = now + 15 * 60 * 1000;
+                const now = new Date();
+                if (now.getTime() >= state.nextScanAt) {
                     runScanCheck();
+                    state.nextScanAt = getNextScanTime(now).getTime();
                 }
-                const remaining = Math.max(0, state.nextScanAt - now);
+                const remaining = Math.max(0, state.nextScanAt - now.getTime());
                 const mins = String(Math.floor(remaining / 60000)).padStart(2, '0');
                 const secs = String(Math.floor((remaining % 60000) / 1000)).padStart(2, '0');
                 const timerEl = document.getElementById('nextScanTimer');
@@ -1327,6 +1465,13 @@
             if (lastScanEl) {
                 const now = new Date();
                 lastScanEl.textContent = now.toLocaleTimeString();
+            }
+            const statusEl = document.getElementById('botStatus');
+            if (statusEl) {
+                statusEl.textContent = 'SCANNING';
+                setTimeout(() => {
+                    statusEl.textContent = 'ACTIVE';
+                }, 4000);
             }
         }
 
@@ -1352,7 +1497,7 @@
 
         async function fetchOkxTicker() {
             try {
-                const response = await fetch(OKX_TICKER_URL);
+                const response = await fetch(`${OKX_BASE_URL}/ticker?instId=${state.instId}`);
                 const result = await response.json();
                 const ticker = result.data && result.data[0];
                 if (!ticker) return;
@@ -1365,6 +1510,26 @@
                 }
             } catch (error) {
                 console.error('Failed to fetch OKX ticker:', error);
+            }
+        }
+
+        async function fetchOkxDailyCandle() {
+            try {
+                const response = await fetch(`${OKX_BASE_URL}/candles?instId=${state.instId}&bar=1D&limit=1`);
+                const result = await response.json();
+                const candle = result.data && result.data[0];
+                if (!candle) return;
+
+                const high = parseFloat(candle[2]);
+                const low = parseFloat(candle[3]);
+                if (Number.isNaN(high) || Number.isNaN(low)) return;
+
+                state.dailyHigh = high;
+                state.dailyLow = low;
+                state.dailyGpHigh = high - (high - low) * 0.618;
+                state.dailyGpLow = high - (high - low) * 0.65;
+            } catch (error) {
+                console.error('Failed to fetch OKX daily candle:', error);
             }
         }
 
@@ -1382,24 +1547,49 @@
             }, 5000);
         }
 
+        function setPair(symbol) {
+            if (symbol === 'SOL') {
+                state.symbol = 'SOL';
+                state.instId = 'SOL-USDT-SWAP';
+                state.tvSymbol = 'OKX:SOLUSDT.P';
+            } else {
+                state.symbol = 'BTC';
+                state.instId = 'BTC-USDT-SWAP';
+                state.tvSymbol = 'OKX:BTCUSDT.P';
+            }
+
+            state.prices = [];
+            state.volume = [];
+            state.lastPrice = null;
+            state.support = null;
+            state.resistance = null;
+            state.dailyHigh = null;
+            state.dailyLow = null;
+            state.dailyGpHigh = null;
+            state.dailyGpLow = null;
+            state.lastUpdate = null;
+
+            fetchOkxTicker();
+            fetchOkxDailyCandle();
+            connectOKX();
+            loadTradingViewWidget();
+        }
+
         // ============================================
         // THEME TOGGLE
         // ============================================
         function toggleTheme() {
             const body = document.body;
             const icon = document.getElementById('themeIcon');
-            const text = document.getElementById('themeText');
 
             if (state.theme === 'dark') {
                 body.setAttribute('data-theme', 'light');
                 state.theme = 'light';
                 icon.textContent = '☀️';
-                text.textContent = 'Light';
             } else {
                 body.setAttribute('data-theme', 'dark');
                 state.theme = 'dark';
                 icon.textContent = '🌙';
-                text.textContent = 'Dark';
             }
 
             localStorage.setItem('srus_theme', state.theme);
@@ -1534,12 +1724,13 @@
                 document.body.setAttribute('data-theme', savedTheme);
                 document.getElementById('themeIcon').textContent =
                     savedTheme === 'light' ? '☀️' : '🌙';
-                document.getElementById('themeText').textContent =
-                    savedTheme === 'light' ? 'Light' : 'Dark';
             }
 
             // Load initial price from REST
             fetchOkxTicker();
+            fetchOkxDailyCandle();
+
+            setInterval(fetchOkxDailyCandle, 30 * 60 * 1000);
 
             // Connect to OKX
             connectOKX();
@@ -1552,6 +1743,24 @@
 
             // TradingView embed
             loadTradingViewWidget();
+
+            // Pair select
+            pairSelectEl = document.getElementById('pairSelect');
+            if (pairSelectEl) {
+                pairSelectEl.value = state.symbol;
+                pairSelectEl.addEventListener('change', (e) => setPair(e.target.value));
+            }
+
+            // Free trial modal (15s delay)
+            setTimeout(() => {
+                const overlay = document.getElementById('trialOverlay');
+                if (overlay) overlay.style.display = 'flex';
+            }, 15000);
+        }
+
+        function closeTrialModal() {
+            const overlay = document.getElementById('trialOverlay');
+            if (overlay) overlay.style.display = 'none';
         }
 
         function loadTradingViewWidget() {
@@ -1569,7 +1778,7 @@
             script.async = true;
             script.text = JSON.stringify({
                 autosize: true,
-                symbol: 'INDEX:BTCUSD',
+                symbol: state.tvSymbol,
                 interval: '15',
                 timezone: 'Etc/UTC',
                 theme: state.theme === 'light' ? 'light' : 'dark',
