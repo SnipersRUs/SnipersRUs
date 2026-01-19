@@ -5,18 +5,32 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Snipers-R-Us | The Sniper Suite</title>
     <style>
+        /* ===== DARK THEME (DEFAULT) ===== */
         :root {
             --bg-dark: #0b0e11;
             --bg-panel: #151a21;
             --bg-card: #2b3139;
+            --bg-input: #2a2e39;
             --text-primary: #eaecef;
             --text-secondary: #848e9c;
+            --accent-white: #ffffff;
+            --accent-green: #0ecb81;     /* Bullish */
+            --accent-purple: #9c27b0;    /* Bearish */
             --accent-gold: #f0b90b;
-            --accent-green: #0ecb81;
-            --accent-red: #f6465d;
-            --accent-purple: #9c27b0;
             --border-color: #2b3139;
             --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            --transition-speed: 0.3s;
+        }
+
+        /* ===== LIGHT THEME ===== */
+        [data-theme="light"] {
+            --bg-dark: #ffffff;
+            --bg-panel: #f5f5f5;
+            --bg-card: #e8e8e8;
+            --bg-input: #d4d4d4;
+            --text-primary: #1a1a1a;
+            --text-secondary: #666666;
+            --border-color: #cccccc;
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -26,6 +40,7 @@
             color: var(--text-primary);
             font-family: var(--font-family);
             line-height: 1.6;
+            transition: background-color var(--transition-speed), color var(--transition-speed);
         }
 
         /* Navigation */
@@ -44,13 +59,13 @@
         .logo {
             font-size: 1.5rem;
             font-weight: 700;
-            color: var(--accent-gold);
+            color: var(--accent-purple);
             display: flex;
             align-items: center;
             gap: 10px;
         }
 
-        .logo span { color: var(--text-primary); }
+        .logo span { color: var(--accent-white); }
 
         .nav-links {
             display: flex;
@@ -66,12 +81,12 @@
         }
 
         .nav-links a:hover {
-            color: var(--accent-gold);
+            color: var(--accent-purple);
         }
 
         .btn-join {
-            background: var(--accent-gold);
-            color: #000;
+            background: var(--accent-purple);
+            color: #fff;
             padding: 10px 25px;
             border-radius: 4px;
             font-weight: 700;
@@ -81,6 +96,26 @@
 
         .btn-join:hover { opacity: 0.9; }
 
+        /* Theme Toggle */
+        .theme-toggle {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: background 0.2s;
+        }
+
+        .theme-toggle:hover {
+            background: var(--accent-purple);
+            color: #fff;
+        }
+
         /* Hero Section */
         .hero {
             text-align: center;
@@ -88,10 +123,14 @@
             background: linear-gradient(135deg, var(--bg-dark) 0%, #1a1f2a 100%);
         }
 
+        [data-theme="light"] .hero {
+            background: linear-gradient(135deg, #ffffff 0%, #f5f5f5 100%);
+        }
+
         .hero h1 {
             font-size: 3.5rem;
             margin-bottom: 20px;
-            background: linear-gradient(90deg, var(--accent-gold), var(--accent-green));
+            background: linear-gradient(90deg, var(--accent-purple), var(--accent-green));
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
@@ -128,10 +167,14 @@
             letter-spacing: 1px;
         }
 
-        /* Live Scanner Preview */
+        /* Live Scanner Section */
         .live-scanner-section {
             background: var(--bg-panel);
             padding: 60px 20px;
+        }
+
+        [data-theme="light"] .live-scanner-section {
+            background: #f5f5f5;
         }
 
         .section-header {
@@ -141,7 +184,7 @@
 
         .section-header h2 {
             font-size: 2rem;
-            color: var(--accent-gold);
+            color: var(--accent-purple);
             margin-bottom: 10px;
         }
 
@@ -151,7 +194,7 @@
 
         .live-badge {
             display: inline-block;
-            background: var(--accent-red);
+            background: var(--accent-green);
             color: #fff;
             padding: 4px 12px;
             border-radius: 3px;
@@ -162,7 +205,7 @@
         }
 
         @keyframes pulse {
-            0%, 100% { opacity: 1; }
+            0%, 100% { opacity:1; }
             50% { opacity: 0.5; }
         }
 
@@ -184,6 +227,10 @@
             height: 400px;
         }
 
+        [data-theme="light"] .mini-chart {
+            background: #ffffff;
+        }
+
         .chart-overlay {
             position: absolute;
             top: 15px;
@@ -195,12 +242,16 @@
             font-size: 2rem;
             font-weight: 800;
             font-family: monospace;
+            color: var(--text-primary);
         }
 
         .price-change {
             font-size: 0.9rem;
             font-weight: 600;
         }
+
+        .change-positive { color: var(--accent-green); }
+        .change-negative { color: var(--accent-purple); }
 
         /* Market Info Panel */
         .market-info {
@@ -213,6 +264,10 @@
             gap: 15px;
         }
 
+        [data-theme="light"] .market-info {
+            background: #ffffff;
+        }
+
         .info-row {
             display: flex;
             justify-content: space-between;
@@ -220,6 +275,10 @@
             padding: 12px;
             background: var(--bg-card);
             border-radius: 4px;
+        }
+
+        [data-theme="light"] .info-row {
+            background: #e8e8e8;
         }
 
         .info-label {
@@ -231,11 +290,12 @@
             font-family: monospace;
             font-weight: 700;
             font-size: 1rem;
+            color: var(--text-primary);
         }
 
         .value-up { color: var(--accent-green); }
-        .value-down { color: var(--accent-red); }
-        .value-neutral { color: var(--accent-gold); }
+        .value-down { color: var(--accent-purple); }
+        .value-neutral { color: var(--accent-white); }
 
         /* Active Trades */
         .active-trades {
@@ -243,6 +303,10 @@
             margin: 0 auto;
             background: var(--bg-panel);
             padding: 60px 20px;
+        }
+
+        [data-theme="light"] .active-trades {
+            background: #f5f5f5;
         }
 
         .trades-grid {
@@ -260,8 +324,13 @@
             border-left: 4px solid var(--accent-green);
         }
 
+        [data-theme="light"] .trade-card {
+            background: #ffffff;
+            border-color: #cccccc;
+        }
+
         .trade-card.short {
-            border-left-color: var(--accent-red);
+            border-left-color: var(--accent-purple);
         }
 
         .trade-header {
@@ -278,7 +347,7 @@
         }
 
         .direction-long { color: var(--accent-green); }
-        .direction-short { color: var(--accent-red); }
+        .direction-short { color: var(--accent-purple); }
 
         .trade-time {
             font-size: 0.8rem;
@@ -298,6 +367,10 @@
             border-radius: 4px;
         }
 
+        [data-theme="light"] .trade-detail {
+            background: #f5f5f5;
+        }
+
         .detail-label {
             font-size: 0.7rem;
             color: var(--text-secondary);
@@ -309,6 +382,7 @@
             font-family: monospace;
             font-weight: 700;
             font-size: 0.95rem;
+            color: var(--text-primary);
         }
 
         .trade-pnl {
@@ -319,8 +393,12 @@
             font-weight: 700;
         }
 
+        [data-theme="light"] .trade-pnl {
+            background: #f5f5f5;
+        }
+
         .pnl-positive { color: var(--accent-green); }
-        .pnl-negative { color: var(--accent-red); }
+        .pnl-negative { color: var(--accent-purple); }
 
         /* 3 Laws Section */
         .laws-section {
@@ -344,9 +422,14 @@
             transition: transform 0.2s;
         }
 
+        [data-theme="light"] .law-card {
+            background: #ffffff;
+            border-color: #cccccc;
+        }
+
         .law-card:hover {
             transform: translateY(-5px);
-            border-color: var(--accent-gold);
+            border-color: var(--accent-purple);
         }
 
         .law-icon {
@@ -355,7 +438,7 @@
         }
 
         .law-card h3 {
-            color: var(--accent-gold);
+            color: var(--accent-purple);
             font-size: 1.4rem;
             margin-bottom: 15px;
         }
@@ -370,16 +453,20 @@
             border-bottom: 1px solid var(--border-color);
         }
 
+        [data-theme="light"] .law-card li {
+            border-color: #e0e0e0;
+        }
+
         .law-card li::before {
             content: "•";
-            color: var(--accent-gold);
+            color: var(--accent-purple);
             margin-right: 10px;
         }
 
         /* CTA Section */
         .cta-section {
-            background: linear-gradient(135deg, var(--accent-gold), #c49400);
-            color: #000;
+            background: linear-gradient(135deg, var(--accent-purple), #7b1fa2);
+            color: #fff;
             text-align: center;
             padding: 80px 20px;
         }
@@ -398,8 +485,8 @@
         }
 
         .btn-large {
-            background: #000;
-            color: var(--accent-gold);
+            background: #fff;
+            color: var(--accent-purple);
             padding: 15px 40px;
             border-radius: 4px;
             font-size: 1.1rem;
@@ -422,8 +509,8 @@
         }
 
         .social-btn {
-            background: rgba(0,0,0,0.1);
-            color: #000;
+            background: rgba(255,255,255,0.1);
+            color: #fff;
             padding: 12px 25px;
             border-radius: 4px;
             text-decoration: none;
@@ -432,7 +519,7 @@
         }
 
         .social-btn:hover {
-            background: rgba(0,0,0,0.2);
+            background: rgba(255,255,255,0.2);
         }
 
         /* Footer */
@@ -441,6 +528,11 @@
             padding: 40px 20px;
             text-align: center;
             border-top: 1px solid var(--border-color);
+        }
+
+        [data-theme="light"] footer {
+            background: #f5f5f5;
+            border-color: #cccccc;
         }
 
         footer p {
@@ -455,6 +547,31 @@
             height: 100%;
         }
 
+        /* Connection Status */
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #666;
+        }
+
+        .status-dot.connected {
+            background: var(--accent-green);
+            box-shadow: 0 0 5px var(--accent-green);
+        }
+
+        .status-dot.disconnected {
+            background: var(--accent-purple);
+        }
+
         @media (max-width: 768px) {
             .hero h1 { font-size: 2.5rem; }
             .hero-stats { flex-direction: column; gap: 30px; }
@@ -464,7 +581,7 @@
         }
     </style>
 </head>
-<body>
+<body data-theme="dark">
     <nav>
         <div class="logo">
             SNIPERS-<span>R-US</span>
@@ -474,6 +591,10 @@
             <a href="#live">Live Scanner</a>
             <a href="#trades">Active Trades</a>
             <a href="https://www.tradingview.com/u/RickyTSpanish/#published-scripts" target="_blank">Indicators</a>
+            <button class="theme-toggle" onclick="toggleTheme()">
+                <span id="themeIcon">🌙</span>
+                <span id="themeText">Dark</span>
+            </button>
         </div>
         <a href="https://discord.gg/your-invite-link" target="_blank" class="btn-join">Join Discord</a>
     </nav>
@@ -502,15 +623,20 @@
     <div class="live-scanner-section" id="live">
         <div class="section-header">
             <h2>Live BTC Scanner <span class="live-badge">● LIVE</span></h2>
-            <p>Real-time analysis with support, resistance, and market trend detection</p>
+            <p>
+                <span class="connection-status">
+                    <span id="statusDot" class="status-dot"></span>
+                    <span id="connectionStatus">Connecting to OKX...</span>
+                </span>
+            </p>
         </div>
 
         <div class="scanner-grid">
             <!-- Mini Chart -->
             <div class="mini-chart">
                 <div class="chart-overlay">
-                    <div class="price-display" id="btcPrice">$42,000.00</div>
-                    <div class="price-change" id="btcChange">+0.00%</div>
+                    <div class="price-display" id="btcPrice">Loading...</div>
+                    <div class="price-change" id="btcChange">--</div>
                 </div>
                 <canvas id="miniChart"></canvas>
             </div>
@@ -519,31 +645,35 @@
             <div class="market-info">
                 <div class="info-row">
                     <span class="info-label">Trend</span>
-                    <span class="info-value value-neutral" id="marketTrend">NEUTRAL</span>
+                    <span class="info-value value-neutral" id="marketTrend">--</span>
                 </div>
                 <div class="info-row">
                     <span class="info-label">Support</span>
-                    <span class="info-value" id="supportLevel">$41,500</span>
+                    <span class="info-value" id="supportLevel">--</span>
                 </div>
                 <div class="info-row">
                     <span class="info-label">Resistance</span>
-                    <span class="info-value" id="resistanceLevel">$42,500</span>
+                    <span class="info-value" id="resistanceLevel">--</span>
                 </div>
                 <div class="info-row">
-                    <span class="info-label">Volume</span>
-                    <span class="info-value" id="volumeLevel">NORMAL</span>
+                    <span class="info-label">24h Volume</span>
+                    <span class="info-value" id="volumeLevel">--</span>
                 </div>
                 <div class="info-row">
                     <span class="info-label">GPS Zone</span>
-                    <span class="info-value value-neutral" id="gpsStatus">WATCHING</span>
+                    <span class="info-value value-neutral" id="gpsStatus">--</span>
                 </div>
                 <div class="info-row">
                     <span class="info-label">Divergence</span>
-                    <span class="info-value" id="divergenceStatus">NONE</span>
+                    <span class="info-value" id="divergenceStatus">--</span>
                 </div>
                 <div class="info-row">
                     <span class="info-label">Confluence</span>
-                    <span class="info-value" id="confluenceScore">0/3 Laws</span>
+                    <span class="info-value" id="confluenceScore">--</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Data Source</span>
+                    <span class="info-value" style="color: var(--accent-purple);">OKX Exchange</span>
                 </div>
             </div>
         </div>
@@ -553,7 +683,7 @@
     <div class="active-trades" id="trades">
         <div class="section-header">
             <h2>Active Trades</h2>
-            <p>Real-time trade execution and tracking</p>
+            <p>Real-time trade execution and tracking via OKX</p>
         </div>
 
         <div class="trades-grid" id="tradesContainer">
@@ -566,22 +696,22 @@
                 <div class="trade-details">
                     <div class="trade-detail">
                         <div class="detail-label">Entry</div>
-                        <div class="detail-value">$42,100</div>
+                        <div class="detail-value">$--</div>
                     </div>
                     <div class="trade-detail">
                         <div class="detail-label">Target</div>
-                        <div class="detail-value">$43,155</div>
+                        <div class="detail-value">$--</div>
                     </div>
                     <div class="trade-detail">
                         <div class="detail-label">Stop Loss</div>
-                        <div class="detail-value">$41,470</div>
+                        <div class="detail-value">$--</div>
                     </div>
                     <div class="trade-detail">
                         <div class="detail-label">Risk/Reward</div>
-                        <div class="detail-value">1:2.5</div>
+                        <div class="detail-value">--</div>
                     </div>
                 </div>
-                <div class="trade-pnl pnl-positive">+$125.00 (+0.30%)</div>
+                <div class="trade-pnl">Waiting for signals...</div>
             </div>
         </div>
     </div>
@@ -601,7 +731,7 @@
                     <li>Draw dynamic trendlines from significant highs/lows</li>
                     <li>Look for multiple line confluence</li>
                     <li>Strong price/volume reactions confirm</li>
-                    <li>Color: Green→Yellow (up), Red→Purple (down)</li>
+                    <li>Color: Purple→Green (up), Green→Purple (down)</li>
                 </ul>
             </div>
 
@@ -654,7 +784,230 @@
 
     <script>
         // ============================================
-        // CHART ENGINE FOR HOMEPAGE
+        // OKX REAL-TIME DATA
+        // ============================================
+        const OKX_WS_URL = 'wss://wspap.okx.com:8443/ws/v5/public';
+        
+        let state = {
+            price: null,
+            prices: [],
+            volume: [],
+            lastPrice: null,
+            support: null,
+            resistance: null,
+            trend: 'NEUTRAL',
+            theme: 'dark'
+        };
+
+        let ws = null;
+        let reconnectTimer = null;
+        let chart = null;
+
+        // ============================================
+        // OKX WEBSOCKET CONNECTION
+        // ============================================
+        function connectOKX() {
+            try {
+                ws = new WebSocket(OKX_WS_URL);
+                
+                ws.onopen = function() {
+                    console.log('✅ Connected to OKX WebSocket');
+                    updateConnectionStatus(true);
+                    
+                    // Subscribe to BTC-USDT perpetual trades
+                    const subscribeMsg = {
+                        op: 'subscribe',
+                        args: [{
+                            channel: 'trades',
+                            instId: 'BTC-USDT-SWAP'
+                        }]
+                    };
+                    ws.send(JSON.stringify(subscribeMsg));
+                    
+                    // Cancel reconnect timer
+                    if (reconnectTimer) {
+                        clearTimeout(reconnectTimer);
+                        reconnectTimer = null;
+                    }
+                };
+
+                ws.onmessage = function(event) {
+                    const data = JSON.parse(event.data);
+                    
+                    if (data.arg && data.arg.data && data.arg.data[0]) {
+                        const trade = data.arg.data[0];
+                        const price = parseFloat(trade[4]); // Price is at index 4
+                        const volume = parseFloat(trade[5]); // Volume is at index 5
+                        
+                        updateMarket(price, volume);
+                    }
+                };
+
+                ws.onclose = function() {
+                    console.log('❌ OKX WebSocket disconnected');
+                    updateConnectionStatus(false);
+                    
+                    // Reconnect after 5 seconds
+                    reconnectTimer = setTimeout(() => {
+                        console.log('🔄 Reconnecting to OKX...');
+                        connectOKX();
+                    }, 5000);
+                };
+
+                ws.onerror = function(error) {
+                    console.error('❌ OKX WebSocket error:', error);
+                    updateConnectionStatus(false);
+                };
+            } catch (error) {
+                console.error('Failed to connect to OKX:', error);
+                updateConnectionStatus(false);
+            }
+        }
+
+        // ============================================
+        // MARKET UPDATE LOGIC
+        // ============================================
+        function updateMarket(price, volume) {
+            // Update price state
+            state.prices.push(price);
+            state.volume.push(volume);
+            
+            // Keep last 200 candles
+            if (state.prices.length > 200) {
+                state.prices.shift();
+                state.volume.shift();
+            }
+            
+            // Calculate price change
+            if (state.lastPrice) {
+                const change = price - state.lastPrice;
+                const pctChange = (change / state.lastPrice * 100);
+                updatePriceDisplay(price, pctChange);
+            }
+            
+            state.lastPrice = price;
+            
+            // Calculate support/resistance (min/max of last 50 prices)
+            const recentPrices = state.prices.slice(-50);
+            state.support = Math.min(...recentPrices) * 0.999;
+            state.resistance = Math.max(...recentPrices) * 1.001;
+            
+            // Calculate trend
+            const priceHistory = state.prices.slice(-20);
+            if (priceHistory.length >= 20) {
+                const avgStart = priceHistory[0];
+                const avgEnd = priceHistory[priceHistory.length - 1];
+                if (avgEnd > avgStart * 1.005) {
+                    state.trend = 'BULLISH';
+                } else if (avgEnd < avgStart * 0.995) {
+                    state.trend = 'BEARISH';
+                } else {
+                    state.trend = 'NEUTRAL';
+                }
+            }
+            
+            // Update chart
+            if (chart) {
+                chart.updatePrice(price, volume);
+            }
+            
+            // Update UI
+            updateMarketInfo();
+        }
+
+        function updatePriceDisplay(price, pctChange) {
+            const priceEl = document.getElementById('btcPrice');
+            const changeEl = document.getElementById('btcChange');
+            
+            priceEl.textContent = `$${price.toFixed(2)}`;
+            changeEl.textContent = `${pctChange >= 0 ? '+' : ''}${pctChange.toFixed(2)}%`;
+            changeEl.className = `price-change ${pctChange >= 0 ? 'change-positive' : 'change-negative'}`;
+        }
+
+        function updateMarketInfo() {
+            if (!state.price) return;
+            
+            document.getElementById('marketTrend').textContent = state.trend;
+            document.getElementById('marketTrend').className = 
+                `info-value ${state.trend === 'BULLISH' ? 'value-up' : state.trend === 'BEARISH' ? 'value-down' : 'value-neutral'}`;
+            
+            document.getElementById('supportLevel').textContent = `$${state.support.toFixed(2)}`;
+            document.getElementById('resistanceLevel').textContent = `$${state.resistance.toFixed(2)}`;
+            
+            // Volume
+            const avgVolume = state.volume.slice(-20).reduce((a, b) => a + b, 0) / 20;
+            const lastVolume = state.volume[state.volume.length - 1];
+            const volMultiplier = lastVolume / avgVolume;
+            
+            const volEl = document.getElementById('volumeLevel');
+            if (volMultiplier > 2.0) {
+                volEl.textContent = 'HIGH (3x)';
+                volEl.className = 'info-value value-up';
+            } else {
+                volEl.textContent = 'NORMAL';
+                volEl.className = 'info-value value-neutral';
+            }
+            
+            // Random indicator states (for demo)
+            const gpsActive = Math.random() > 0.7;
+            const divActive = Math.random() > 0.8;
+            
+            const gpsEl = document.getElementById('gpsStatus');
+            gpsEl.textContent = gpsActive ? 'ACTIVE' : 'WATCHING';
+            gpsEl.className = `info-value ${gpsActive ? 'value-up' : 'value-neutral'}`;
+            
+            const divEl = document.getElementById('divergenceStatus');
+            divEl.textContent = divActive ? 'DETECTED' : 'NONE';
+            divEl.className = `info-value ${divActive ? 'value-up' : 'value-neutral'}`;
+            
+            // Confluence
+            const score = (gpsActive ? 1 : 0) + (divActive ? 1 : 0) + (volMultiplier > 2.0 ? 1 : 0);
+            const confEl = document.getElementById('confluenceScore');
+            confEl.textContent = `${score}/3 Laws`;
+            confEl.className = `info-value ${score >= 2 ? 'value-up' : 'value-neutral'}`;
+        }
+
+        function updateConnectionStatus(connected) {
+            const dot = document.getElementById('statusDot');
+            const text = document.getElementById('connectionStatus');
+            
+            if (connected) {
+                dot.className = 'status-dot connected';
+                text.textContent = 'Connected to OKX';
+            } else {
+                dot.className = 'status-dot disconnected';
+                text.textContent = 'Disconnected - Reconnecting...';
+            }
+        }
+
+        // ============================================
+        // THEME TOGGLE
+        // ============================================
+        function toggleTheme() {
+            const body = document.body;
+            const icon = document.getElementById('themeIcon');
+            const text = document.getElementById('themeText');
+            
+            if (state.theme === 'dark') {
+                body.setAttribute('data-theme', 'light');
+                state.theme = 'light';
+                icon.textContent = '☀️';
+                text.textContent = 'Light';
+            } else {
+                body.setAttribute('data-theme', 'dark');
+                state.theme = 'dark';
+                icon.textContent = '🌙';
+                text.textContent = 'Dark';
+            }
+            
+            // Redraw chart with new theme
+            if (chart) {
+                chart.draw();
+            }
+        }
+
+        // ============================================
+        // CHART ENGINE
         // ============================================
         class MiniChart {
             constructor(canvasId) {
@@ -662,32 +1015,24 @@
                 this.ctx = this.canvas.getContext('2d');
                 this.prices = [];
                 this.volume = [];
-                this.support = 41500;
-                this.resistance = 42500;
                 this.resize();
                 window.addEventListener('resize', () => this.resize());
-                
-                // Initialize
-                let price = 42000;
-                for (let i = 0; i < 100; i++) {
-                    this.prices.push(price);
-                    this.volume.push(Math.random() * 100 + 50);
-                    price += (Math.random() - 0.5) * 50;
-                }
             }
 
             resize() {
                 this.canvas.width = this.canvas.parentElement.clientWidth;
                 this.canvas.height = this.canvas.parentElement.clientHeight;
+                this.draw();
             }
 
-            updatePrice(newPrice) {
-                this.prices.push(newPrice);
-                if (this.prices.length > 200) this.prices.shift();
+            updatePrice(price, volume) {
+                this.prices.push(price);
+                this.volume.push(volume);
                 
-                // Update support/resistance dynamically
-                this.support = Math.min(...this.prices.slice(-50)) * 0.998;
-                this.resistance = Math.max(...this.prices.slice(-50)) * 1.002;
+                if (this.prices.length > 200) {
+                    this.prices.shift();
+                    this.volume.shift();
+                }
                 
                 this.draw();
             }
@@ -698,6 +1043,8 @@
                 
                 ctx.clearRect(0, 0, width, height);
                 
+                if (this.prices.length < 2) return;
+                
                 const minPrice = Math.min(...this.prices) * 0.995;
                 const maxPrice = Math.max(...this.prices) * 1.005;
                 const range = maxPrice - minPrice;
@@ -705,34 +1052,43 @@
                 const getY = (p) => height - ((p - minPrice) / range) * (height - 40) - 20;
                 const getX = (i) => (i / (this.prices.length - 1)) * width;
 
-                // Draw Support Line
-                const ySupport = getY(this.support);
-                ctx.strokeStyle = 'rgba(14, 203, 129, 0.5)';
-                ctx.setLineDash([5, 5]);
-                ctx.beginPath();
-                ctx.moveTo(0, ySupport);
-                ctx.lineTo(width, ySupport);
-                ctx.stroke();
+                // Support Line (Green)
+                if (state.support) {
+                    const ySupport = getY(state.support);
+                    ctx.strokeStyle = '#0ecb81';
+                    ctx.setLineDash([5, 5]);
+                    ctx.beginPath();
+                    ctx.moveTo(0, ySupport);
+                    ctx.lineTo(width, ySupport);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                    
+                    // Label
+                    ctx.fillStyle = '#0ecb81';
+                    ctx.font = '11px Arial';
+                    ctx.fillText('SUPPORT', 10, ySupport - 5);
+                }
 
-                // Draw Resistance Line
-                const yResistance = getY(this.resistance);
-                ctx.strokeStyle = 'rgba(246, 70, 93, 0.5)';
-                ctx.beginPath();
-                ctx.moveTo(0, yResistance);
-                ctx.lineTo(width, yResistance);
-                ctx.stroke();
-                ctx.setLineDash([]);
+                // Resistance Line (Purple)
+                if (state.resistance) {
+                    const yResistance = getY(state.resistance);
+                    ctx.strokeStyle = '#9c27b0';
+                    ctx.setLineDash([5, 5]);
+                    ctx.beginPath();
+                    ctx.moveTo(0, yResistance);
+                    ctx.lineTo(width, yResistance);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                    
+                    // Label
+                    ctx.fillStyle = '#9c27b0';
+                    ctx.font = '11px Arial';
+                    ctx.fillText('RESISTANCE', 10, yResistance + 15);
+                }
 
-                // Labels
-                ctx.fillStyle = '#0ecb81';
-                ctx.font = '11px Arial';
-                ctx.fillText('SUPPORT', 10, ySupport - 5);
-                ctx.fillStyle = '#f6465d';
-                ctx.fillText('RESISTANCE', 10, yResistance + 15);
-
-                // Draw price line
+                // Price Line (White in dark, Black in light)
                 ctx.beginPath();
-                ctx.strokeStyle = '#f0b90b';
+                ctx.strokeStyle = state.theme === 'dark' ? '#ffffff' : '#000000';
                 ctx.lineWidth = 2;
                 this.prices.forEach((p, i) => {
                     const x = getX(i);
@@ -747,107 +1103,35 @@
                 const lastY = getY(this.prices[this.prices.length - 1]);
                 ctx.beginPath();
                 ctx.arc(lastX, lastY, 4, 0, Math.PI * 2);
-                ctx.fillStyle = '#f0b90b';
+                ctx.fillStyle = state.theme === 'dark' ? '#ffffff' : '#000000';
                 ctx.fill();
             }
         }
 
         // ============================================
-        // STATE
+        // INITIALIZATION
         // ============================================
-        let state = {
-            price: 42000,
-            trend: 'NEUTRAL',
-            gpsActive: false,
-            divergenceActive: false,
-            volumeHigh: false,
-            confluenceCount: 0
-        };
-
-        let chart;
-
-        // ============================================
-        // UPDATE FUNCTIONS
-        // ============================================
-        function updateMarketInfo() {
-            const priceEl = document.getElementById('btcPrice');
-            const changeEl = document.getElementById('btcChange');
-            const trendEl = document.getElementById('marketTrend');
-            const supportEl = document.getElementById('supportLevel');
-            const resistanceEl = document.getElementById('resistanceLevel');
-            const volumeEl = document.getElementById('volumeLevel');
-            const gpsEl = document.getElementById('gpsStatus');
-            const divEl = document.getElementById('divergenceStatus');
-            const confEl = document.getElementById('confluenceScore');
-
-            // Price
-            const price = state.price;
-            priceEl.textContent = `$${price.toFixed(2)}`;
-            
-            const startPrice = 42000;
-            const pctChange = ((price - startPrice) / startPrice * 100).toFixed(2);
-            changeEl.textContent = `${pctChange >= 0 ? '+' : ''}${pctChange}%`;
-            priceEl.style.color = pctChange >= 0 ? 'var(--accent-green)' : 'var(--accent-red)';
-            changeEl.className = `price-change ${pctChange >= 0 ? 'value-up' : 'value-down'}`;
-
-            // Trend
-            const priceHistory = chart.prices.slice(-20);
-            const avgStart = priceHistory[0];
-            const avgEnd = priceHistory[priceHistory.length - 1];
-            state.trend = avgEnd > avgStart ? 'BULLISH' : avgEnd < avgStart ? 'BEARISH' : 'NEUTRAL';
-            
-            trendEl.textContent = state.trend;
-            trendEl.className = `info-value ${state.trend === 'BULLISH' ? 'value-up' : state.trend === 'BEARISH' ? 'value-down' : 'value-neutral'}`;
-
-            // Support/Resistance
-            supportEl.textContent = `$${chart.support.toFixed(0)}`;
-            resistanceEl.textContent = `$${chart.resistance.toFixed(0)}`;
-
-            // Volume
-            volumeEl.textContent = state.volumeHigh ? 'HIGH (3x)' : 'NORMAL';
-            volumeEl.className = `info-value ${state.volumeHigh ? 'value-up' : 'value-neutral'}`;
-
-            // GPS
-            gpsEl.textContent = state.gpsActive ? 'ACTIVE' : 'WATCHING';
-            gpsEl.className = `info-value ${state.gpsActive ? 'value-up' : 'value-neutral'}`;
-
-            // Divergence
-            divEl.textContent = state.divergenceActive ? 'DETECTED' : 'NONE';
-            divEl.className = `info-value ${state.divergenceActive ? 'value-up' : 'value-neutral'}`;
-
-            // Confluence
-            state.confluenceCount = (state.gpsActive ? 1 : 0) + 
-                                (state.divergenceActive ? 1 : 0) + 
-                                (state.volumeHigh ? 1 : 0);
-            confEl.textContent = `${state.confluenceCount}/3 Laws`;
-            confEl.className = `info-value ${state.confluenceCount >= 2 ? 'value-up' : 'value-neutral'}`;
-        }
-
-        // ============================================
-        // SIMULATION LOOP
-        // ============================================
-        function startSimulation() {
+        function init() {
+            // Initialize chart
             chart = new MiniChart('miniChart');
-
-            // Update every 3 seconds
-            setInterval(() => {
-                const change = (Math.random() - 0.5) * 50;
-                state.price += change;
-                
-                // Randomly activate indicators
-                state.gpsActive = Math.random() > 0.7;
-                state.divergenceActive = Math.random() > 0.8;
-                state.volumeHigh = Math.random() > 0.6;
-                
-                chart.updatePrice(state.price);
-                updateMarketInfo();
-            }, 3000);
+            
+            // Load saved theme
+            const savedTheme = localStorage.getItem('srus_theme');
+            if (savedTheme) {
+                state.theme = savedTheme;
+                document.body.setAttribute('data-theme', savedTheme);
+                document.getElementById('themeIcon').textContent = 
+                    savedTheme === 'light' ? '☀️' : '🌙';
+                document.getElementById('themeText').textContent = 
+                    savedTheme === 'light' ? 'Light' : 'Dark';
+            }
+            
+            // Connect to OKX
+            connectOKX();
         }
 
-        // ============================================
-        // INIT
-        // ============================================
-        startSimulation();
+        // Start
+        init();
     </script>
 </body>
 </html>
