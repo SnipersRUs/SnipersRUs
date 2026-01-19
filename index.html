@@ -4,9 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Snipers-R-Us | The Sniper Suite</title>
-    <style>
+  <style>
         /* ===== DARK THEME (DEFAULT) ===== */
-        :root {
+    :root {
             --bg-dark: #0b0e11;
             --bg-panel: #151a21;
             --bg-card: #2b3139;
@@ -41,7 +41,7 @@
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
 
-        body {
+    body {
             background-color: var(--bg-dark);
             color: var(--text-primary);
             font-family: var(--font-family);
@@ -75,7 +75,7 @@
         .logo span { color: var(--accent-white); }
 
         .nav-links {
-            display: flex;
+      display: flex;
             gap: 30px;
             align-items: center;
         }
@@ -374,7 +374,7 @@
         }
 
         .trade-header {
-            display: flex;
+      display: flex;
             justify-content: space-between;
             align-items: center;
             margin-bottom: 15px;
@@ -670,7 +670,7 @@
             .nav-links { display: none; }
             .trade-details { grid-template-columns: 1fr; }
         }
-    </style>
+  </style>
 </head>
 <body data-theme="dark">
     <nav>
@@ -689,12 +689,12 @@
                 <span id="themeText">Dark</span>
             </button>
         </div>
-        <a href="https://discord.gg/your-invite-link" target="_blank" class="btn-join">Join Discord</a>
+        <a href="#membership" class="btn-join">Get Access</a>
     </nav>
 
     <div class="hero">
-        <h1>Bounty Seeker Bot. Real‑Time BTC Trades.</h1>
-        <p>We trade with anchored and floating VWAPs aligned to GPS Golden Pocket zones for clean, high‑confluence entries. This homepage runs our Bounty Seeker bot live.</p>
+        <h1>Check out our Bounty Seeker bot below.</h1>
+        <p>We trade with GPS Golden Pocket zones and Piv X Pro VWAPs to map clean, high‑confluence entries. This homepage runs our Bounty Seeker bot live.</p>
 
         <div class="hero-stats">
             <div class="stat-item">
@@ -706,8 +706,8 @@
                 <div class="stat-label">Max Daily Drawdown</div>
             </div>
             <div class="stat-item">
-                <div class="stat-value">0×</div>
-                <div class="stat-label">No Leverage</div>
+                <div class="stat-value">Risk‑First</div>
+                <div class="stat-label">Leverage Managed</div>
             </div>
         </div>
     </div>
@@ -738,24 +738,24 @@
                     <li>Capital preservation first</li>
                     <li>Protects against overtrading</li>
                 </ul>
-            </div>
+                </div>
 
             <div class="law-card">
                 <div class="law-icon">⚖️</div>
-                <h3>No Leverage</h3>
+                <h3>Leverage Discipline</h3>
                 <ul>
-                    <li>Clean spot-style exposure</li>
-                    <li>Lower emotional pressure</li>
-                    <li>More control, less noise</li>
+                    <li>Leverage is allowed, but risk stays tight</li>
+                    <li>Drawdown limits always apply</li>
+                    <li>Position size is controlled by the plan</li>
                 </ul>
             </div>
-        </div>
+    </div>
     </div>
 
     <!-- Live Scanner Section -->
     <div class="live-scanner-section" id="live">
         <div class="section-header">
-            <h2>Live BTC Scanner <span class="live-badge">● LIVE</span></h2>
+            <h2>Bounty Seeker Bot <span class="live-badge">● LIVE</span></h2>
             <p>
                 <span class="connection-status">
                     <span id="statusDot" class="status-dot"></span>
@@ -870,7 +870,7 @@
     <div class="laws-section" id="indicators">
         <div class="section-header">
             <h2>Our Core Trading Indicators</h2>
-            <p>We trade using anchored/floating VWAPs aligned with GPS Golden Pocket zones for high‑confluence entries.</p>
+            <p>We trade with GPS Golden Pocket zones and Piv X Pro VWAPs to map confluence and timing.</p>
         </div>
 
         <div class="laws-grid">
@@ -886,23 +886,12 @@
             </div>
 
             <div class="law-card">
-                <div class="law-icon">📐</div>
-                <h3>Anchored & Floating VWAPs</h3>
-                <ul>
-                    <li>Anchored VWAPs from key pivots and zones</li>
-                    <li>Floating VWAP for mean reversion context</li>
-                    <li>Confirms bias and value areas</li>
-                    <li>Aligned with GPS for best entries</li>
-                </ul>
-            </div>
-
-            <div class="law-card">
                 <div class="law-icon">🧠</div>
-                <h3>Piv X Pro (Price + Volume Analysis)</h3>
+                <h3>Piv X Pro (Price + Volume + VWAPs)</h3>
                 <ul>
                     <li>Identifies pivots, structure shifts, and trend</li>
                     <li>Highlights high‑quality reversal zones</li>
-                    <li>Combines VWAP + divergence context</li>
+                    <li>VWAP framework for bias and value</li>
                     <li>Main structure engine for trade decisions</li>
                 </ul>
             </div>
@@ -988,9 +977,9 @@
 
     <!-- CTA Section -->
     <div class="cta-section">
-        <h2>Join the Snipers Community</h2>
-        <p>Get access to real-time signals, exclusive channels, and expert analysis. Trade with professionals.</p>
-        <a href="https://discord.gg/your-invite-link" target="_blank" class="btn-large">Join Discord Now</a>
+        <h2>Get Access to the Bots</h2>
+        <p>Unlock the Bounty Seeker and Piv X Pro workflows with real-time signals and member access.</p>
+        <a href="#membership" class="btn-large">View Membership</a>
 
         <div class="social-links">
             <a href="https://www.tradingview.com/u/RickyTSpanish/#published-scripts" target="_blank" class="social-btn">📊 TradingView</a>
@@ -1130,7 +1119,7 @@
                 const change = price - state.lastPrice;
                 const pctChange = (change / state.lastPrice * 100);
                 updatePriceDisplay(price, pctChange);
-            } else {
+                } else {
                 updatePriceDisplay(price, 0);
             }
 
@@ -1241,7 +1230,7 @@
                 const volumeMillions = (state.volume24h / 1_000_000).toFixed(1);
                 volEl.textContent = `${volumeMillions}M`;
                 volEl.className = 'info-value value-neutral';
-            } else {
+                    } else {
                 volEl.textContent = '--';
                 volEl.className = 'info-value value-neutral';
             }
@@ -1272,7 +1261,7 @@
             } else if (nearResistance) {
                 gpsEl.textContent = 'NEAR RESISTANCE';
                 gpsEl.className = 'info-value value-down';
-            } else {
+                    } else {
                 gpsEl.textContent = 'WATCHING';
                 gpsEl.className = 'info-value value-neutral';
             }
