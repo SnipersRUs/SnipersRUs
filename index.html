@@ -18,6 +18,9 @@
             --accent-purple: #9c27b0;    /* Bearish */
             --accent-gold: #f0b90b;
             --border-color: #2b3139;
+            --glass: rgba(255, 255, 255, 0.04);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --shadow-soft: 0 20px 60px rgba(0, 0, 0, 0.35);
             --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
             --transition-speed: 0.3s;
         }
@@ -31,10 +34,13 @@
             --text-primary: #1a1a1a;
             --text-secondary: #666666;
             --border-color: #cccccc;
+            --glass: rgba(0, 0, 0, 0.03);
+            --glass-border: rgba(0, 0, 0, 0.08);
+            --shadow-soft: 0 16px 50px rgba(0, 0, 0, 0.12);
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        
+
         body {
             background-color: var(--bg-dark);
             color: var(--text-primary);
@@ -45,15 +51,16 @@
 
         /* Navigation */
         nav {
-            background: var(--bg-panel);
+            background: rgba(15, 17, 25, 0.8);
             padding: 15px 30px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            border-bottom: 1px solid var(--border-color);
+            border-bottom: 1px solid var(--glass-border);
             position: sticky;
             top: 0;
             z-index: 1000;
+            backdrop-filter: blur(16px);
         }
 
         .logo {
@@ -98,11 +105,11 @@
 
         /* Theme Toggle */
         .theme-toggle {
-            background: var(--bg-card);
-            border: 1px solid var(--border-color);
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
             color: var(--text-primary);
             padding: 8px 12px;
-            border-radius: 4px;
+            border-radius: 999px;
             cursor: pointer;
             font-size: 0.9rem;
             display: flex;
@@ -120,11 +127,14 @@
         .hero {
             text-align: center;
             padding: 80px 20px;
-            background: linear-gradient(135deg, var(--bg-dark) 0%, #1a1f2a 100%);
+            background: radial-gradient(circle at top, rgba(156, 39, 176, 0.2), transparent 45%),
+                        radial-gradient(circle at 80% 20%, rgba(14, 203, 129, 0.15), transparent 40%),
+                        linear-gradient(135deg, var(--bg-dark) 0%, #121622 100%);
         }
 
         [data-theme="light"] .hero {
-            background: linear-gradient(135deg, #ffffff 0%, #f5f5f5 100%);
+            background: radial-gradient(circle at top, rgba(156, 39, 176, 0.12), transparent 45%),
+                        linear-gradient(135deg, #ffffff 0%, #f5f5f5 100%);
         }
 
         .hero h1 {
@@ -169,12 +179,8 @@
 
         /* Live Scanner Section */
         .live-scanner-section {
-            background: var(--bg-panel);
+            background: transparent;
             padding: 60px 20px;
-        }
-
-        [data-theme="light"] .live-scanner-section {
-            background: #f5f5f5;
         }
 
         .section-header {
@@ -217,18 +223,58 @@
             gap: 20px;
         }
 
-        /* Mini Chart */
-        .mini-chart {
-            background: var(--bg-dark);
-            border-radius: 8px;
-            overflow: hidden;
-            border: 1px solid var(--border-color);
-            position: relative;
-            height: 400px;
+        .scanner-left {
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
         }
 
-        [data-theme="light"] .mini-chart {
-            background: #ffffff;
+        .scanner-meta {
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            border-radius: 18px;
+            padding: 14px 18px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            box-shadow: var(--shadow-soft);
+            backdrop-filter: blur(10px);
+        }
+
+        .scanner-meta strong {
+            color: var(--accent-white);
+            font-weight: 700;
+        }
+
+        .distance-pill {
+            padding: 6px 10px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid var(--glass-border);
+            font-family: monospace;
+        }
+
+        /* Mini Chart */
+        .mini-chart {
+            background: var(--glass);
+            border-radius: 24px;
+            overflow: hidden;
+            border: 1px solid var(--glass-border);
+            position: relative;
+            height: 400px;
+            box-shadow: var(--shadow-soft);
+            backdrop-filter: blur(14px);
+        }
+
+        .tv-embed {
+            background: var(--glass);
+            border-radius: 24px;
+            border: 1px solid var(--glass-border);
+            overflow: hidden;
+            height: 460px;
+            box-shadow: var(--shadow-soft);
         }
 
         .chart-overlay {
@@ -243,11 +289,13 @@
             font-weight: 800;
             font-family: monospace;
             color: var(--text-primary);
+            transition: color 0.3s ease;
         }
 
         .price-change {
             font-size: 0.9rem;
             font-weight: 600;
+            transition: color 0.3s ease;
         }
 
         .change-positive { color: var(--accent-green); }
@@ -255,17 +303,15 @@
 
         /* Market Info Panel */
         .market-info {
-            background: var(--bg-dark);
-            border-radius: 8px;
-            border: 1px solid var(--border-color);
+            background: var(--glass);
+            border-radius: 24px;
+            border: 1px solid var(--glass-border);
             padding: 20px;
             display: flex;
             flex-direction: column;
             gap: 15px;
-        }
-
-        [data-theme="light"] .market-info {
-            background: #ffffff;
+            box-shadow: var(--shadow-soft);
+            backdrop-filter: blur(14px);
         }
 
         .info-row {
@@ -273,12 +319,13 @@
             justify-content: space-between;
             align-items: center;
             padding: 12px;
-            background: var(--bg-card);
-            border-radius: 4px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 14px;
+            border: 1px solid transparent;
         }
 
-        [data-theme="light"] .info-row {
-            background: #e8e8e8;
+        .info-row .info-value {
+            transition: color 0.3s ease, opacity 0.3s ease;
         }
 
         .info-label {
@@ -301,12 +348,8 @@
         .active-trades {
             max-width: 1400px;
             margin: 0 auto;
-            background: var(--bg-panel);
+            background: transparent;
             padding: 60px 20px;
-        }
-
-        [data-theme="light"] .active-trades {
-            background: #f5f5f5;
         }
 
         .trades-grid {
@@ -317,16 +360,13 @@
         }
 
         .trade-card {
-            background: var(--bg-card);
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
             padding: 20px;
             border-left: 4px solid var(--accent-green);
-        }
-
-        [data-theme="light"] .trade-card {
-            background: #ffffff;
-            border-color: #cccccc;
+            box-shadow: var(--shadow-soft);
+            backdrop-filter: blur(12px);
         }
 
         .trade-card.short {
@@ -362,13 +402,9 @@
         }
 
         .trade-detail {
-            background: var(--bg-input);
+            background: rgba(255, 255, 255, 0.06);
             padding: 10px;
-            border-radius: 4px;
-        }
-
-        [data-theme="light"] .trade-detail {
-            background: #f5f5f5;
+            border-radius: 12px;
         }
 
         .detail-label {
@@ -388,13 +424,9 @@
         .trade-pnl {
             text-align: center;
             padding: 12px;
-            background: var(--bg-input);
-            border-radius: 4px;
+            background: rgba(255, 255, 255, 0.06);
+            border-radius: 12px;
             font-weight: 700;
-        }
-
-        [data-theme="light"] .trade-pnl {
-            background: #f5f5f5;
         }
 
         .pnl-positive { color: var(--accent-green); }
@@ -415,16 +447,13 @@
         }
 
         .law-card {
-            background: var(--bg-panel);
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
             padding: 30px;
             transition: transform 0.2s;
-        }
-
-        [data-theme="light"] .law-card {
-            background: #ffffff;
-            border-color: #cccccc;
+            box-shadow: var(--shadow-soft);
+            backdrop-filter: blur(12px);
         }
 
         .law-card:hover {
@@ -451,10 +480,6 @@
         .law-card li {
             padding: 8px 0;
             border-bottom: 1px solid var(--border-color);
-        }
-
-        [data-theme="light"] .law-card li {
-            border-color: #e0e0e0;
         }
 
         .law-card li::before {
@@ -522,17 +547,83 @@
             background: rgba(255,255,255,0.2);
         }
 
-        /* Footer */
-        footer {
-            background: var(--bg-panel);
-            padding: 40px 20px;
-            text-align: center;
-            border-top: 1px solid var(--border-color);
+        /* Membership Tiers */
+        .tiers-section {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 80px 20px;
         }
 
-        [data-theme="light"] footer {
-            background: #f5f5f5;
-            border-color: #cccccc;
+        .tiers-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 24px;
+            margin-top: 30px;
+        }
+
+        .tier-card {
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            padding: 24px;
+            box-shadow: var(--shadow-soft);
+            backdrop-filter: blur(12px);
+        }
+
+        .tier-title {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--accent-white);
+            margin-bottom: 6px;
+        }
+
+        .tier-price {
+            font-size: 2rem;
+            font-weight: 800;
+            color: var(--accent-green);
+            margin-bottom: 16px;
+        }
+
+        .tier-list {
+            list-style: none;
+            color: var(--text-secondary);
+            margin-bottom: 18px;
+        }
+
+        .tier-list li {
+            padding: 6px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+        }
+
+        .tier-link {
+            display: inline-block;
+            padding: 10px 18px;
+            border-radius: 999px;
+            background: var(--accent-purple);
+            color: #fff;
+            text-decoration: none;
+            font-weight: 700;
+            transition: opacity 0.2s;
+        }
+
+        .tier-link:hover {
+            opacity: 0.9;
+        }
+
+        .disclaimer {
+            margin-top: 24px;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            text-align: center;
+        }
+
+        /* Footer */
+        footer {
+            background: rgba(15, 17, 25, 0.8);
+            padding: 40px 20px;
+            text-align: center;
+            border-top: 1px solid var(--glass-border);
+            backdrop-filter: blur(16px);
         }
 
         footer p {
@@ -587,9 +678,11 @@
             SNIPERS-<span>R-US</span>
         </div>
         <div class="nav-links">
-            <a href="#laws">3 Laws</a>
+            <a href="#indicators">Our Indicators</a>
+            <a href="#rules">Rules</a>
             <a href="#live">Live Scanner</a>
             <a href="#trades">Active Trades</a>
+            <a href="#membership">Membership</a>
             <a href="https://www.tradingview.com/u/RickyTSpanish/#published-scripts" target="_blank">Indicators</a>
             <button class="theme-toggle" onclick="toggleTheme()">
                 <span id="themeIcon">🌙</span>
@@ -600,21 +693,61 @@
     </nav>
 
     <div class="hero">
-        <h1>Precision Trading. Real Results.</h1>
-        <p>The home of the Sniper Suite. Join our community for real-time signals, expert analysis, and proven strategies.</p>
-        
+        <h1>Bounty Seeker Bot. Real‑Time BTC Trades.</h1>
+        <p>We trade with anchored and floating VWAPs aligned to GPS Golden Pocket zones for clean, high‑confluence entries. This homepage runs our Bounty Seeker bot live.</p>
+
         <div class="hero-stats">
             <div class="stat-item">
-                <div class="stat-value">80%+</div>
-                <div class="stat-label">Win Rate</div>
+                <div class="stat-value">1–3%</div>
+                <div class="stat-label">Target Moves</div>
             </div>
             <div class="stat-item">
-                <div class="stat-value">3 Laws</div>
-                <div class="stat-label">To Follow</div>
+                <div class="stat-value">5%</div>
+                <div class="stat-label">Max Daily Drawdown</div>
             </div>
             <div class="stat-item">
-                <div class="stat-value">1%</div>
-                <div class="stat-label">Max Risk</div>
+                <div class="stat-value">0×</div>
+                <div class="stat-label">No Leverage</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Trading Rules -->
+    <div class="laws-section" id="rules">
+        <div class="section-header">
+            <h2>Sniper Ruleset</h2>
+            <p>Simple, strict rules to keep risk controlled and entries clean.</p>
+        </div>
+
+        <div class="laws-grid">
+            <div class="law-card">
+                <div class="law-icon">🎯</div>
+                <h3>Target 1–3% Moves</h3>
+                <ul>
+                    <li>We prioritize quick, clean moves</li>
+                    <li>Take profits without chasing</li>
+                    <li>Consistency over home runs</li>
+                </ul>
+            </div>
+
+            <div class="law-card">
+                <div class="law-icon">🛡️</div>
+                <h3>Max 5% Daily Drawdown</h3>
+                <ul>
+                    <li>Trading stops when the limit is hit</li>
+                    <li>Capital preservation first</li>
+                    <li>Protects against overtrading</li>
+                </ul>
+            </div>
+
+            <div class="law-card">
+                <div class="law-icon">⚖️</div>
+                <h3>No Leverage</h3>
+                <ul>
+                    <li>Clean spot-style exposure</li>
+                    <li>Lower emotional pressure</li>
+                    <li>More control, less noise</li>
+                </ul>
             </div>
         </div>
     </div>
@@ -632,13 +765,26 @@
         </div>
 
         <div class="scanner-grid">
-            <!-- Mini Chart -->
-            <div class="mini-chart">
-                <div class="chart-overlay">
-                    <div class="price-display" id="btcPrice">Loading...</div>
-                    <div class="price-change" id="btcChange">--</div>
+            <div class="scanner-left">
+                <!-- Mini Chart -->
+                <div class="mini-chart">
+                    <div class="chart-overlay">
+                        <div class="price-display" id="btcPrice">Loading...</div>
+                        <div class="price-change" id="btcChange">--</div>
+                    </div>
+                    <canvas id="miniChart"></canvas>
                 </div>
-                <canvas id="miniChart"></canvas>
+
+                <div class="scanner-meta">
+                    <div>Next scan: <strong id="nextScanTimer">15:00</strong></div>
+                    <div>Last scan: <strong id="lastScanAt">--</strong></div>
+                    <div class="distance-pill">GPS distance: <span id="gpsDistance">--</span></div>
+                    <div class="distance-pill">Support distance: <span id="supportDistance">--</span></div>
+                    <div class="distance-pill">Resistance distance: <span id="resistanceDistance">--</span></div>
+                </div>
+
+                <!-- TradingView Chart Embed -->
+                <div class="tv-embed" id="tvEmbed"></div>
             </div>
 
             <!-- Market Info -->
@@ -658,6 +804,10 @@
                 <div class="info-row">
                     <span class="info-label">24h Volume</span>
                     <span class="info-value" id="volumeLevel">--</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">RVOL Spike</span>
+                    <span class="info-value" id="rvolStatus">--</span>
                 </div>
                 <div class="info-row">
                     <span class="info-label">GPS Zone</span>
@@ -716,51 +866,123 @@
         </div>
     </div>
 
-    <!-- 3 Laws Section -->
-    <div class="laws-section" id="laws">
+    <!-- Indicators Section -->
+    <div class="laws-section" id="indicators">
         <div class="section-header">
-            <h2>THE THREE LAWS OF SNIPING</h2>
-            <p>When all three laws align, win rate potential: <strong style="color: var(--accent-green);">80%+</strong></p>
+            <h2>Our Core Trading Indicators</h2>
+            <p>We trade using anchored/floating VWAPs aligned with GPS Golden Pocket zones for high‑confluence entries.</p>
         </div>
 
         <div class="laws-grid">
             <div class="law-card">
-                <div class="law-icon">🕸️</div>
-                <h3>1. SPIDERLINE CONFIRMATION</h3>
+                <div class="law-icon">🧭</div>
+                <h3>GPS Indicator (Golden Pocket Zones)</h3>
                 <ul>
-                    <li>Draw dynamic trendlines from significant highs/lows</li>
-                    <li>Look for multiple line confluence</li>
-                    <li>Strong price/volume reactions confirm</li>
-                    <li>Color: Purple→Green (up), Green→Purple (down)</li>
+                    <li>Tracks daily, weekly, and monthly Golden Pockets</li>
+                    <li>Major confluence levels for reversals</li>
+                    <li>Used with VWAPs to refine entry zones</li>
+                    <li>Primary map for where price wants to react</li>
                 </ul>
             </div>
 
             <div class="law-card">
-                <div class="law-icon">🔄</div>
-                <h3>2. DIVERGENCE CONFIRMATION</h3>
+                <div class="law-icon">📐</div>
+                <h3>Anchored & Floating VWAPs</h3>
                 <ul>
-                    <li>Spot regular and hidden divergences</li>
-                    <li>Confirm with clear swing points</li>
-                    <li>Strong momentum shifts validate</li>
-                    <li>Volume alignment required</li>
+                    <li>Anchored VWAPs from key pivots and zones</li>
+                    <li>Floating VWAP for mean reversion context</li>
+                    <li>Confirms bias and value areas</li>
+                    <li>Aligned with GPS for best entries</li>
+                </ul>
+            </div>
+
+            <div class="law-card">
+                <div class="law-icon">🧠</div>
+                <h3>Piv X Pro (Price + Volume Analysis)</h3>
+                <ul>
+                    <li>Identifies pivots, structure shifts, and trend</li>
+                    <li>Highlights high‑quality reversal zones</li>
+                    <li>Combines VWAP + divergence context</li>
+                    <li>Main structure engine for trade decisions</li>
                 </ul>
             </div>
 
             <div class="law-card">
                 <div class="law-icon">📊</div>
-                <h3>3. VOLUME CONFIRMATION</h3>
+                <h3>VPSR (Volume Spike Reversals)</h3>
                 <ul>
-                    <li>Only enter on 3x average volume</li>
-                    <li>Clear price action needed</li>
-                    <li>Visible institutional footprint</li>
-                    <li>Strong reaction at technical levels</li>
+                    <li>Detects abnormal volume spikes</li>
+                    <li>Flags potential reversal pressure</li>
+                    <li>Confirms liquidity events</li>
+                    <li>Pairs with GPS/VWAP for entries</li>
+                </ul>
+            </div>
+
+            <div class="law-card">
+                <div class="law-icon">🧿</div>
+                <h3>Oath Keeper (Divergence)</h3>
+                <ul>
+                    <li>Momentum + money flow divergence</li>
+                    <li>Filters false breakouts</li>
+                    <li>Confirms reversal timing</li>
+                    <li>Completes the confluence stack</li>
                 </ul>
             </div>
         </div>
 
         <div style="text-align: center; margin-top: 50px; color: var(--text-secondary);">
-            <p><strong>Entry rules:</strong> All three laws must be present. Risk 1% max per trade. Use proper stops and scale profits.</p>
-            <p style="margin-top: 15px;"><em>For full tutorials, join our Discord community.</em></p>
+            <p><strong>Trade approach:</strong> GPS zones + anchored/floating VWAPs + Piv X + VPSR + Oath Keeper = high‑probability entries.</p>
+            <p style="margin-top: 15px;"><em>We never blindly follow bots. Always do your own analysis.</em></p>
+        </div>
+    </div>
+
+    <!-- Membership Tiers -->
+    <div class="tiers-section" id="membership">
+        <div class="section-header">
+            <h2>SnipersRus Membership Tiers 🎯</h2>
+            <p>Choose the tier that matches your trading goals.</p>
+        </div>
+
+        <div class="tiers-grid">
+            <div class="tier-card">
+                <div class="tier-title">Headhunters</div>
+                <div class="tier-price">$20<span style="font-size:0.9rem; color: var(--text-secondary);">/month</span></div>
+                <ul class="tier-list">
+                    <li>Access to Piv X bot</li>
+                    <li>Access to Liquidation monitor</li>
+                    <li>Daily market analysis & trade ideas</li>
+                    <li>Member-only channels</li>
+                </ul>
+                <a class="tier-link" href="https://upgrade.chat/734621342069948446/p/ath" target="_blank">Join Headhunters</a>
+            </div>
+
+            <div class="tier-card">
+                <div class="tier-title">Bounty Seeker</div>
+                <div class="tier-price">$40<span style="font-size:0.9rem; color: var(--text-secondary);">/month</span></div>
+                <ul class="tier-list">
+                    <li>24/7 Bounty Seeker bot</li>
+                    <li>Short Hunter bot access</li>
+                    <li>All future bots & indicators</li>
+                    <li>Full access to signals & analysis</li>
+                </ul>
+                <a class="tier-link" href="https://upgrade.chat/734621342069948446" target="_blank">Join Bounty Seeker</a>
+            </div>
+
+            <div class="tier-card">
+                <div class="tier-title">Lifetime</div>
+                <div class="tier-price">$333<span style="font-size:0.9rem; color: var(--text-secondary);"> one-time</span></div>
+                <ul class="tier-list">
+                    <li>Permanent access to all content</li>
+                    <li>Never pay another monthly fee</li>
+                    <li>All current & future indicators</li>
+                    <li>Priority access to updates</li>
+                </ul>
+                <a class="tier-link" href="https://upgrade.chat/734621342069948446" target="_blank">Go Lifetime</a>
+            </div>
+        </div>
+
+        <div class="disclaimer">
+            Never blindly follow bots. Do your own research, analysis, and risk management. Not financial advice.
         </div>
     </div>
 
@@ -769,25 +991,26 @@
         <h2>Join the Snipers Community</h2>
         <p>Get access to real-time signals, exclusive channels, and expert analysis. Trade with professionals.</p>
         <a href="https://discord.gg/your-invite-link" target="_blank" class="btn-large">Join Discord Now</a>
-        
+
         <div class="social-links">
             <a href="https://www.tradingview.com/u/RickyTSpanish/#published-scripts" target="_blank" class="social-btn">📊 TradingView</a>
-            <a href="https://youtube.com/your-channel" target="_blank" class="social-btn">📺 YouTube</a>
-            <a href="https://twitter.com/your-handle" target="_blank" class="social-btn">🐦 Twitter</a>
+            <a href="https://www.youtube.com/@rickytspanish" target="_blank" class="social-btn">📺 YouTube</a>
+            <a href="https://x.com/Brypto_sniper" target="_blank" class="social-btn">🐦 X (Twitter)</a>
         </div>
     </div>
 
     <footer>
         <p>© 2025 Snipers-R-Us. All rights reserved.</p>
-        <p style="font-size: 0.85rem;">Not financial advice. For educational purposes only.</p>
+        <p style="font-size: 0.85rem;">Never blindly follow bots. Do your own research and analysis. Not financial advice.</p>
     </footer>
 
     <script>
         // ============================================
         // OKX REAL-TIME DATA
         // ============================================
-        const OKX_WS_URL = 'wss://wspap.okx.com:8443/ws/v5/public';
-        
+        const OKX_WS_URL = 'wss://ws.okx.com:8443/ws/v5/public';
+        const OKX_TICKER_URL = 'https://www.okx.com/api/v5/market/ticker?instId=BTC-USDT-SWAP';
+
         let state = {
             price: null,
             prices: [],
@@ -796,11 +1019,19 @@
             support: null,
             resistance: null,
             trend: 'NEUTRAL',
+            volume24h: null,
+            lastUpdate: null,
+            lastRenderTime: 0,
+            lastRenderPrice: null,
+            lastDirection: null,
+            nextScanAt: null,
             theme: 'dark'
         };
 
         let ws = null;
         let reconnectTimer = null;
+        let restPollTimer = null;
+        let staleCheckTimer = null;
         let chart = null;
 
         // ============================================
@@ -809,21 +1040,24 @@
         function connectOKX() {
             try {
                 ws = new WebSocket(OKX_WS_URL);
-                
+
                 ws.onopen = function() {
                     console.log('✅ Connected to OKX WebSocket');
                     updateConnectionStatus(true);
-                    
-                    // Subscribe to BTC-USDT perpetual trades
+
+                    // Subscribe to BTC-USDT perpetual trades + ticker
                     const subscribeMsg = {
                         op: 'subscribe',
                         args: [{
                             channel: 'trades',
                             instId: 'BTC-USDT-SWAP'
+                        }, {
+                            channel: 'tickers',
+                            instId: 'BTC-USDT-SWAP'
                         }]
                     };
                     ws.send(JSON.stringify(subscribeMsg));
-                    
+
                     // Cancel reconnect timer
                     if (reconnectTimer) {
                         clearTimeout(reconnectTimer);
@@ -832,21 +1066,32 @@
                 };
 
                 ws.onmessage = function(event) {
-                    const data = JSON.parse(event.data);
-                    
-                    if (data.arg && data.arg.data && data.arg.data[0]) {
-                        const trade = data.arg.data[0];
-                        const price = parseFloat(trade[4]); // Price is at index 4
-                        const volume = parseFloat(trade[5]); // Volume is at index 5
-                        
-                        updateMarket(price, volume);
+                    const payload = JSON.parse(event.data);
+                    if (!payload || !payload.data || !payload.data[0]) return;
+
+                    const message = payload.data[0];
+                    const channel = payload.arg && payload.arg.channel;
+
+                    if (channel === 'trades') {
+                        const price = parseFloat(message.px);
+                        const volume = parseFloat(message.sz);
+                        if (!Number.isNaN(price) && !Number.isNaN(volume)) {
+                            updateMarket(price, volume);
+                        }
+                    } else if (channel === 'tickers') {
+                        const price = parseFloat(message.last);
+                        const volume24h = parseFloat(message.volCcy24h);
+                        state.volume24h = Number.isNaN(volume24h) ? state.volume24h : volume24h;
+                        if (!Number.isNaN(price)) {
+                            updateMarket(price, 0);
+                        }
                     }
                 };
 
                 ws.onclose = function() {
                     console.log('❌ OKX WebSocket disconnected');
                     updateConnectionStatus(false);
-                    
+
                     // Reconnect after 5 seconds
                     reconnectTimer = setTimeout(() => {
                         console.log('🔄 Reconnecting to OKX...');
@@ -868,30 +1113,34 @@
         // MARKET UPDATE LOGIC
         // ============================================
         function updateMarket(price, volume) {
+            state.price = price;
+            state.lastUpdate = Date.now();
             // Update price state
             state.prices.push(price);
             state.volume.push(volume);
-            
+
             // Keep last 200 candles
             if (state.prices.length > 200) {
                 state.prices.shift();
                 state.volume.shift();
             }
-            
+
             // Calculate price change
             if (state.lastPrice) {
                 const change = price - state.lastPrice;
                 const pctChange = (change / state.lastPrice * 100);
                 updatePriceDisplay(price, pctChange);
+            } else {
+                updatePriceDisplay(price, 0);
             }
-            
+
             state.lastPrice = price;
-            
+
             // Calculate support/resistance (min/max of last 50 prices)
             const recentPrices = state.prices.slice(-50);
             state.support = Math.min(...recentPrices) * 0.999;
             state.resistance = Math.max(...recentPrices) * 1.001;
-            
+
             // Calculate trend
             const priceHistory = state.prices.slice(-20);
             if (priceHistory.length >= 20) {
@@ -905,79 +1154,243 @@
                     state.trend = 'NEUTRAL';
                 }
             }
-            
+
             // Update chart
             if (chart) {
                 chart.updatePrice(price, volume);
             }
-            
+
             // Update UI
             updateMarketInfo();
         }
 
+        const priceFormatter = new Intl.NumberFormat('en-US', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+
         function updatePriceDisplay(price, pctChange) {
             const priceEl = document.getElementById('btcPrice');
             const changeEl = document.getElementById('btcChange');
-            
-            priceEl.textContent = `$${price.toFixed(2)}`;
+
+            const now = Date.now();
+            const shouldRender = !state.lastRenderTime || now - state.lastRenderTime > 500;
+            const significantMove = !state.lastRenderPrice || Math.abs(price - state.lastRenderPrice) >= 0.5;
+
+            if (!shouldRender && !significantMove) return;
+
+            priceEl.textContent = `$${priceFormatter.format(price)}`;
             changeEl.textContent = `${pctChange >= 0 ? '+' : ''}${pctChange.toFixed(2)}%`;
-            changeEl.className = `price-change ${pctChange >= 0 ? 'change-positive' : 'change-negative'}`;
+
+            const direction = pctChange >= 0 ? 'up' : 'down';
+            if (direction !== state.lastDirection) {
+                changeEl.className = `price-change ${pctChange >= 0 ? 'change-positive' : 'change-negative'}`;
+                state.lastDirection = direction;
+            }
+
+            state.lastRenderTime = now;
+            state.lastRenderPrice = price;
+        }
+
+        function calculateRsi(prices, period = 14) {
+            if (prices.length < period + 1) return null;
+            let gains = 0;
+            let losses = 0;
+            for (let i = prices.length - period; i < prices.length; i++) {
+                const change = prices[i] - prices[i - 1];
+                if (change >= 0) gains += change;
+                else losses -= change;
+            }
+            if (losses === 0) return 100;
+            const rs = gains / losses;
+            return 100 - (100 / (1 + rs));
+        }
+
+        function calculateMoneyFlow(prices, volumes, period = 14) {
+            if (prices.length < period + 1 || volumes.length < period) return null;
+            let positive = 0;
+            let negative = 0;
+            for (let i = prices.length - period; i < prices.length; i++) {
+                const change = prices[i] - prices[i - 1];
+                const vol = volumes[i - 1] || 0;
+                if (change >= 0) positive += vol;
+                else negative += vol;
+            }
+            if (negative === 0) return 100;
+            return (100 * positive) / (positive + negative);
         }
 
         function updateMarketInfo() {
             if (!state.price) return;
-            
+
             document.getElementById('marketTrend').textContent = state.trend;
-            document.getElementById('marketTrend').className = 
+            document.getElementById('marketTrend').className =
                 `info-value ${state.trend === 'BULLISH' ? 'value-up' : state.trend === 'BEARISH' ? 'value-down' : 'value-neutral'}`;
-            
-            document.getElementById('supportLevel').textContent = `$${state.support.toFixed(2)}`;
-            document.getElementById('resistanceLevel').textContent = `$${state.resistance.toFixed(2)}`;
-            
+
+            document.getElementById('supportLevel').textContent = state.support ? `$${state.support.toFixed(2)}` : '--';
+            document.getElementById('resistanceLevel').textContent = state.resistance ? `$${state.resistance.toFixed(2)}` : '--';
+
             // Volume
-            const avgVolume = state.volume.slice(-20).reduce((a, b) => a + b, 0) / 20;
-            const lastVolume = state.volume[state.volume.length - 1];
-            const volMultiplier = lastVolume / avgVolume;
-            
+            const recentVolume = state.volume.slice(-20);
+            const avgVolume = recentVolume.length > 0 ? recentVolume.reduce((a, b) => a + b, 0) / recentVolume.length : 0;
+            const lastVolume = state.volume[state.volume.length - 1] || 0;
+            const volMultiplier = avgVolume > 0 ? lastVolume / avgVolume : 0;
+
             const volEl = document.getElementById('volumeLevel');
-            if (volMultiplier > 2.0) {
-                volEl.textContent = 'HIGH (3x)';
-                volEl.className = 'info-value value-up';
+            if (state.volume24h) {
+                const volumeMillions = (state.volume24h / 1_000_000).toFixed(1);
+                volEl.textContent = `${volumeMillions}M`;
+                volEl.className = 'info-value value-neutral';
             } else {
-                volEl.textContent = 'NORMAL';
+                volEl.textContent = '--';
                 volEl.className = 'info-value value-neutral';
             }
-            
-            // Random indicator states (for demo)
-            const gpsActive = Math.random() > 0.7;
-            const divActive = Math.random() > 0.8;
-            
+
+            const rvolEl = document.getElementById('rvolStatus');
+            if (volMultiplier > 2.0) {
+                rvolEl.textContent = 'HIGH (3x)';
+                rvolEl.className = 'info-value value-up';
+            } else if (volMultiplier > 1.5) {
+                rvolEl.textContent = 'ELEVATED';
+                rvolEl.className = 'info-value value-neutral';
+            } else {
+                rvolEl.textContent = 'NORMAL';
+                rvolEl.className = 'info-value value-neutral';
+            }
+
+            const rsi = calculateRsi(state.prices, 14);
+            const moneyFlow = calculateMoneyFlow(state.prices, state.volume, 14);
+            const nearSupport = state.support && Math.abs(state.price - state.support) / state.price < 0.003;
+            const nearResistance = state.resistance && Math.abs(state.price - state.resistance) / state.price < 0.003;
+            const gpsActive = nearSupport || nearResistance;
+            const divActive = rsi !== null && (rsi < 30 || rsi > 70);
+
             const gpsEl = document.getElementById('gpsStatus');
-            gpsEl.textContent = gpsActive ? 'ACTIVE' : 'WATCHING';
-            gpsEl.className = `info-value ${gpsActive ? 'value-up' : 'value-neutral'}`;
-            
+            if (nearSupport) {
+                gpsEl.textContent = 'NEAR SUPPORT';
+                gpsEl.className = 'info-value value-up';
+            } else if (nearResistance) {
+                gpsEl.textContent = 'NEAR RESISTANCE';
+                gpsEl.className = 'info-value value-down';
+            } else {
+                gpsEl.textContent = 'WATCHING';
+                gpsEl.className = 'info-value value-neutral';
+            }
+
             const divEl = document.getElementById('divergenceStatus');
-            divEl.textContent = divActive ? 'DETECTED' : 'NONE';
-            divEl.className = `info-value ${divActive ? 'value-up' : 'value-neutral'}`;
-            
+            if (rsi !== null && rsi < 30) {
+                divEl.textContent = 'BULLISH (RSI)';
+                divEl.className = 'info-value value-up';
+            } else if (rsi !== null && rsi > 70) {
+                divEl.textContent = 'BEARISH (RSI)';
+                divEl.className = 'info-value value-down';
+            } else {
+                divEl.textContent = 'NONE';
+                divEl.className = 'info-value value-neutral';
+            }
+
             // Confluence
             const score = (gpsActive ? 1 : 0) + (divActive ? 1 : 0) + (volMultiplier > 2.0 ? 1 : 0);
             const confEl = document.getElementById('confluenceScore');
             confEl.textContent = `${score}/3 Laws`;
             confEl.className = `info-value ${score >= 2 ? 'value-up' : 'value-neutral'}`;
+
+            updateDistanceBadges();
+        }
+
+        function updateDistanceBadges() {
+            const gpsDistanceEl = document.getElementById('gpsDistance');
+            const supportDistanceEl = document.getElementById('supportDistance');
+            const resistanceDistanceEl = document.getElementById('resistanceDistance');
+
+            if (!state.price || !state.support || !state.resistance) return;
+            const supportDistPct = ((state.price - state.support) / state.price) * 100;
+            const resistanceDistPct = ((state.resistance - state.price) / state.price) * 100;
+            const gpsDist = Math.min(Math.abs(supportDistPct), Math.abs(resistanceDistPct));
+
+            gpsDistanceEl.textContent = `${gpsDist.toFixed(2)}%`;
+            supportDistanceEl.textContent = `${supportDistPct.toFixed(2)}%`;
+            resistanceDistanceEl.textContent = `${resistanceDistPct.toFixed(2)}%`;
+        }
+
+        function startScanTimer() {
+            if (!state.nextScanAt) {
+                state.nextScanAt = Date.now() + 15 * 60 * 1000;
+            }
+            setInterval(() => {
+                const now = Date.now();
+                if (now >= state.nextScanAt) {
+                    state.nextScanAt = now + 15 * 60 * 1000;
+                    runScanCheck();
+                }
+                const remaining = Math.max(0, state.nextScanAt - now);
+                const mins = String(Math.floor(remaining / 60000)).padStart(2, '0');
+                const secs = String(Math.floor((remaining % 60000) / 1000)).padStart(2, '0');
+                const timerEl = document.getElementById('nextScanTimer');
+                if (timerEl) timerEl.textContent = `${mins}:${secs}`;
+            }, 1000);
+        }
+
+        function runScanCheck() {
+            // Placeholder for bot-style scan summary
+            updateDistanceBadges();
+            const lastScanEl = document.getElementById('lastScanAt');
+            if (lastScanEl) {
+                const now = new Date();
+                lastScanEl.textContent = now.toLocaleTimeString();
+            }
         }
 
         function updateConnectionStatus(connected) {
             const dot = document.getElementById('statusDot');
             const text = document.getElementById('connectionStatus');
-            
+
             if (connected) {
                 dot.className = 'status-dot connected';
                 text.textContent = 'Connected to OKX';
+                if (restPollTimer) {
+                    clearInterval(restPollTimer);
+                    restPollTimer = null;
+                }
             } else {
                 dot.className = 'status-dot disconnected';
                 text.textContent = 'Disconnected - Reconnecting...';
+                if (!restPollTimer) {
+                    restPollTimer = setInterval(fetchOkxTicker, 15000);
+                }
             }
+        }
+
+        async function fetchOkxTicker() {
+            try {
+                const response = await fetch(OKX_TICKER_URL);
+                const result = await response.json();
+                const ticker = result.data && result.data[0];
+                if (!ticker) return;
+
+                const price = parseFloat(ticker.last);
+                const volume24h = parseFloat(ticker.volCcy24h);
+                if (!Number.isNaN(price)) {
+                    state.volume24h = Number.isNaN(volume24h) ? state.volume24h : volume24h;
+                    updateMarket(price, 0);
+                }
+            } catch (error) {
+                console.error('Failed to fetch OKX ticker:', error);
+            }
+        }
+
+        function startStaleCheck() {
+            if (staleCheckTimer) return;
+            staleCheckTimer = setInterval(() => {
+                if (!state.lastUpdate) {
+                    fetchOkxTicker();
+                    return;
+                }
+                const ageMs = Date.now() - state.lastUpdate;
+                if (ageMs > 8000) {
+                    fetchOkxTicker();
+                }
+            }, 5000);
         }
 
         // ============================================
@@ -987,7 +1400,7 @@
             const body = document.body;
             const icon = document.getElementById('themeIcon');
             const text = document.getElementById('themeText');
-            
+
             if (state.theme === 'dark') {
                 body.setAttribute('data-theme', 'light');
                 state.theme = 'light';
@@ -999,11 +1412,16 @@
                 icon.textContent = '🌙';
                 text.textContent = 'Dark';
             }
-            
+
+            localStorage.setItem('srus_theme', state.theme);
+
             // Redraw chart with new theme
             if (chart) {
                 chart.draw();
             }
+
+            // Reload TradingView widget to match theme
+            loadTradingViewWidget();
         }
 
         // ============================================
@@ -1015,6 +1433,7 @@
                 this.ctx = this.canvas.getContext('2d');
                 this.prices = [];
                 this.volume = [];
+                this.lastDraw = 0;
                 this.resize();
                 window.addEventListener('resize', () => this.resize());
             }
@@ -1028,27 +1447,31 @@
             updatePrice(price, volume) {
                 this.prices.push(price);
                 this.volume.push(volume);
-                
+
                 if (this.prices.length > 200) {
                     this.prices.shift();
                     this.volume.shift();
                 }
-                
-                this.draw();
+
+                const now = Date.now();
+                if (now - this.lastDraw > 500) {
+                    this.draw();
+                    this.lastDraw = now;
+                }
             }
 
             draw() {
                 const { width, height } = this.canvas;
                 const ctx = this.ctx;
-                
+
                 ctx.clearRect(0, 0, width, height);
-                
+
                 if (this.prices.length < 2) return;
-                
+
                 const minPrice = Math.min(...this.prices) * 0.995;
                 const maxPrice = Math.max(...this.prices) * 1.005;
                 const range = maxPrice - minPrice;
-                
+
                 const getY = (p) => height - ((p - minPrice) / range) * (height - 40) - 20;
                 const getX = (i) => (i / (this.prices.length - 1)) * width;
 
@@ -1062,7 +1485,7 @@
                     ctx.lineTo(width, ySupport);
                     ctx.stroke();
                     ctx.setLineDash([]);
-                    
+
                     // Label
                     ctx.fillStyle = '#0ecb81';
                     ctx.font = '11px Arial';
@@ -1079,7 +1502,7 @@
                     ctx.lineTo(width, yResistance);
                     ctx.stroke();
                     ctx.setLineDash([]);
-                    
+
                     // Label
                     ctx.fillStyle = '#9c27b0';
                     ctx.font = '11px Arial';
@@ -1114,20 +1537,67 @@
         function init() {
             // Initialize chart
             chart = new MiniChart('miniChart');
-            
+
             // Load saved theme
             const savedTheme = localStorage.getItem('srus_theme');
             if (savedTheme) {
                 state.theme = savedTheme;
                 document.body.setAttribute('data-theme', savedTheme);
-                document.getElementById('themeIcon').textContent = 
+                document.getElementById('themeIcon').textContent =
                     savedTheme === 'light' ? '☀️' : '🌙';
-                document.getElementById('themeText').textContent = 
+                document.getElementById('themeText').textContent =
                     savedTheme === 'light' ? 'Light' : 'Dark';
             }
-            
+
+            // Load initial price from REST
+            fetchOkxTicker();
+
             // Connect to OKX
             connectOKX();
+
+            // Safety fallback if WS stalls
+            startStaleCheck();
+
+            // Scanner timer
+            startScanTimer();
+
+            // TradingView embed
+            loadTradingViewWidget();
+        }
+
+        function loadTradingViewWidget() {
+            const container = document.getElementById('tvEmbed');
+            if (!container) return;
+            container.innerHTML = `
+                <div class="tradingview-widget-container" style="height:100%;width:100%">
+                    <div class="tradingview-widget-container__widget" style="height:100%;width:100%"></div>
+                </div>
+            `;
+
+            const script = document.createElement('script');
+            script.type = 'text/javascript';
+            script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js';
+            script.async = true;
+            script.text = JSON.stringify({
+                autosize: true,
+                symbol: 'INDEX:BTCUSD',
+                interval: '15',
+                timezone: 'Etc/UTC',
+                theme: state.theme === 'light' ? 'light' : 'dark',
+                style: '1',
+                locale: 'en',
+                hide_top_toolbar: false,
+                hide_legend: false,
+                allow_symbol_change: false,
+                details: false,
+                calendar: false,
+                studies: []
+            });
+
+            const widgetContainer = container.querySelector('.tradingview-widget-container');
+            if (widgetContainer) {
+                widgetContainer.appendChild(script);
+            }
         }
 
         // Start

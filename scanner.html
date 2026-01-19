@@ -20,7 +20,7 @@
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        
+
         body {
             background-color: var(--bg-dark);
             color: var(--text-primary);
@@ -80,7 +80,7 @@
             cursor: pointer;
             font-size: 0.9rem;
         }
-        
+
         .nav-btn:hover {
             border-color: var(--accent-gold);
             color: var(--accent-gold);
@@ -299,7 +299,7 @@
             color: #fff;
             font-size: 0.9rem;
         }
-        
+
         .action-btn:hover { opacity: 0.9; }
         .action-btn.long { background: var(--accent-green); }
         .action-btn.short { background: var(--accent-red); }
@@ -498,11 +498,11 @@
             }
             state.currentUser = localStorage.getItem('srus_email') || 'user@email.com';
             state.tier = localStorage.getItem('srus_tier') || 'Basic';
-            
+
             // Update UI
             document.getElementById('userEmail').textContent = state.currentUser;
             document.getElementById('tierBadge').textContent = state.tier;
-            
+
             return true;
         }
 
@@ -521,7 +521,7 @@
                 this.prices = [];
                 this.resize();
                 window.addEventListener('resize', () => this.resize());
-                
+
                 // Initialize with 100 candles
                 let price = 42000;
                 for (let i = 0; i < 100; i++) {
@@ -545,15 +545,15 @@
             draw() {
                 const { width, height } = this.canvas;
                 const ctx = this.ctx;
-                
+
                 // Clear
                 ctx.clearRect(0, 0, width, height);
-                
+
                 // Calculate scaling
                 const minPrice = Math.min(...this.prices) * 0.998;
                 const maxPrice = Math.max(...this.prices) * 1.002;
                 const range = maxPrice - minPrice;
-                
+
                 const getY = (p) => height - ((p - minPrice) / range) * (height - 40) - 20;
                 const getX = (i) => (i / (this.prices.length - 1)) * width;
 
@@ -606,7 +606,7 @@
 
             // Simulate indicator states
             const direction = Math.random() > 0.5 ? 'long' : 'short';
-            
+
             // Randomly activate some indicators
             state.indicators.gps.active = Math.random() > 0.6;
             state.indicators.pivx.active = Math.random() > 0.7;
@@ -660,9 +660,9 @@
                     <span class="signal-type ${signal.direction}">${signal.direction.toUpperCase()}</span>
                     <span class="signal-time">${signal.time}</span>
                 </div>
-                
+
                 <div class="signal-explanation">
-                    <strong>Why This Trade:</strong> 
+                    <strong>Why This Trade:</strong>
                     ${generateExplanation(signal)}
                 </div>
 
@@ -746,10 +746,10 @@
             };
 
             state.activeTrades.push(trade);
-            
+
             // Show toast
             showToast(`${direction.toUpperCase()} trade taken at $${state.price.toFixed(2)}`, 'success');
-            
+
             // Update signal card
             const btn = signal.querySelector('.action-btn');
             btn.disabled = true;
@@ -774,10 +774,10 @@
         function showTradeHistory() {
             const panel = document.getElementById('historyPanel');
             const container = document.getElementById('tradeHistory');
-            
+
             if (panel.style.display === 'none') {
                 panel.style.display = 'block';
-                
+
                 // Render history
                 container.innerHTML = state.trades.map(trade => `
                     <div class="history-item ${trade.direction}">
@@ -805,7 +805,7 @@
             const container = document.getElementById('toastContainer');
             const toast = document.createElement('div');
             toast.className = 'toast';
-            toast.style.borderLeftColor = type === 'success' ? 'var(--accent-green)' : 
+            toast.style.borderLeftColor = type === 'success' ? 'var(--accent-green)' :
                                         type === 'error' ? 'var(--accent-red)' : 'var(--accent-gold)';
             toast.textContent = message;
             container.appendChild(toast);
@@ -817,7 +817,7 @@
         }
 
         function updateSignalCount() {
-            document.getElementById('signalCount').textContent = 
+            document.getElementById('signalCount').textContent =
                 `${state.signalsToday}/${CONFIG.maxSignalsPerDay} today`;
         }
 
@@ -835,19 +835,19 @@
             simulationInterval = setInterval(() => {
                 const change = (Math.random() - 0.5) * 50; // Smaller moves
                 state.price += change;
-                
+
                 // Update UI
-                document.getElementById('currentPrice').textContent = 
+                document.getElementById('currentPrice').textContent =
                     `$${state.price.toFixed(2)}`;
-                document.getElementById('currentPrice').style.color = 
+                document.getElementById('currentPrice').style.color =
                     change >= 0 ? 'var(--accent-green)' : 'var(--accent-red)';
-                
+
                 const percentChange = (change / state.price * 100).toFixed(2);
-                document.getElementById('priceChange').textContent = 
+                document.getElementById('priceChange').textContent =
                     `${change >= 0 ? '+' : ''}${percentChange}%`;
-                document.getElementById('priceChange').className = 
+                document.getElementById('priceChange').className =
                     `price-change ${change >= 0 ? 'price-up' : 'price-down'}`;
-                
+
                 chart.updatePrice(state.price);
             }, CONFIG.chartUpdateInterval);
 
