@@ -1,1889 +1,1233 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
-Bounty Seeker Bot - Reversal Trading Bot
-- Catches bottoms and tops using Elliott Wave 3 pullbacks
-- Uses GPS (Golden Pocket Syndicate) for optimal entry zones
-- Uses Oath Keeper for macro divergences (white circle prints)
-- Uses SFP (Smart Fibonacci Points) for 3-level confluence
-- Uses Mini VWAPs for trend analysis
-- Paper trading with $1k starting balance
-- Max 3 trades open, aggressive TP1 (1.5-2%), max 3% loss with 15x leverage
+Bounty Seeker - Reversal Sniper Bot
+Finds pure bottoms for reversal trades targeting 2-3% gains
+Strategy: GPS Zones + Deviation Bands (2.5σ-3σ) + SFP Reversals
+Exchange: Binance Futures (Best Liquidity)
+Self-Learning: Adjusts parameters based on win/loss performance
 """
+
 import os
 import json
 import time
 import sqlite3
-import logging
 import requests
-import ccxt
 import numpy as np
 import pandas as pd
 from datetime import datetime, timezone, timedelta
 from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass, asdict
-from enum import Enum
+import ccxt
+import logging
 
+# ====================== CONFIGURATION ======================
+DISCORD_WEBHOOK = "https://discord.com/api/webhooks/1432976746692612147/SLf6oNcxTZfnmt1LmGLv-asGHwi-BnR2T8XIneUr7zM1tTbsSMncMZgzytvTFiAHmpcr"
+
+# Exchange: OKX (Best Liquidity & Access)
+# Falls back to OKX if Binance is restricted
+EXCHANGE_NAME = "okx"
+EXCHANGE_CONFIG = {
+    'apiKey': os.getenv('OKX_API_KEY', ''),
+    'secret': os.getenv('OKX_SECRET', ''),
+    'password': os.getenv('OKX_PASSPHRASE', ''),
+    'options': {'defaultType': 'swap'},  # Use swap (perpetual futures)
+    'enableRateLimit': True,
+    'sandbox': False
+}
+
+# Data storage
+DATA_DIR = "data"
+os.makedirs(DATA_DIR, exist_ok=True)
+TRADES_DB = os.path.join(DATA_DIR, "bounty_seeker_trades.db")
+LEARNING_DB = os.path.join(DATA_DIR, "bounty_seeker_learning.db")
+STATE_FILE = os.path.join(DATA_DIR, "bounty_seeker_state.json")
+STATUS_FILE = "bounty_seeker_status.json"
+
+# Trading Parameters
+MIN_CONFIDENCE_SCORE = 50  # Minimum score to trigger signal (0-100) - Lowered to find more signals
+TARGET_PROFIT_PCT = 2.5  # Target 2-3% gains
+STOP_LOSS_PCT = 1.0  # 1% stop loss
+RISK_REWARD_RATIO = 2.5  # 2.5:1 R:R
+
+# Technical Parameters
+RSI_PERIOD = 14
+VWAP_LOOKBACK = 200
+VOLUME_LOOKBACK = 20
+DEVIATION_2SIGMA = 2.5  # 2.5σ threshold
+DEVIATION_3SIGMA = 3.0  # 3σ threshold (preferred)
+GPS_LOW = 0.618  # Golden Pocket low (Fibonacci)
+GPS_HIGH = 0.65  # Golden Pocket high
+
+# Volume Spike Detection (VPSR Pro Logic)
+VOL_MA_LENGTH = 20  # Volume MA Length
+VOL_MULTIPLIER = 2.0  # Abnormal Volume Threshold
+VOL_EXTREME_MULTIPLIER = 3.5  # Extreme Volume Threshold
+
+# Market Filters
+MIN_24H_VOLUME_USD = 10000000  # $10M minimum volume (to get closer to 50 coins)
+SCAN_INTERVAL_SEC = 60  # Check every minute for XX:45 window
+ACTIVE_TRADES_COOLDOWN = 300  # 5 minutes cooldown per symbol
+
+# Assets to monitor (Will be dynamically loaded - Top 50 by volume)
+WATCHLIST_SYMBOLS = []  # Populated dynamically
+WATCHLIST_UPDATE_INTERVAL = 3600  # Update watchlist every hour
+
+# Setup logging
 logging.basicConfig(
-    level=logging.INFO,  # Changed from DEBUG to INFO for production, but DEBUG messages will still show in file
-    format='%(asctime)s - %(levelname)s - %(message)s',
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
         logging.FileHandler('bounty_seeker.log'),
         logging.StreamHandler()
     ]
 )
-# Also log DEBUG to file for troubleshooting
-file_handler = logging.FileHandler('bounty_seeker.log')
-file_handler.setLevel(logging.DEBUG)
-logger = logging.getLogger("BountySeeker")
-logger.addHandler(file_handler)
-logger = logging.getLogger("BountySeeker")
+logger = logging.getLogger(__name__)
 
-# Discord webhook
-DISCORD_WEBHOOK = "https://discord.com/api/webhooks/1432976746692612147/SLf6oNcxTZfnmt1LmGLv-asGHwi-BnR2T8XIneUr7zM1tTbsSMncMZgzytvTFiAHmpcr"
-
-# Configuration
-SCAN_INTERVAL_SEC = 60 * 60  # 1 hour
-# WHITELIST: Only scan coins from screenshots
-ALLOWED_COINS = {
-    # Major coins
-    'BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'DOGE',
-    # Layer 1s & Layer 2s
-    'NEAR', 'SUI', 'APT', 'OP', 'ARB', 'SEI', 'TIA', 'INJ', 'AVAX',
-    # DeFi & Staking
-    'LDO', 'AAVE', 'PENDLE', 'ENA', 'ONDO', 'RENDER',
-    # Meme coins
-    'PEPE', 'WIF', 'SHIB', 'BONK', 'FARTCOIN', 'CHILLGUY', 'PENGU', 'POPCAT', 'GOAT',
-    # Newer/Alt coins
-    'ZK', 'EIGEN', 'ZRO', 'ETHFI', 'REZ', 'POL', 'XMR', 'PUMP', 'XPL', 'BERA',
-    'ASTER', 'DYM', 'WLD', 'VIRTUAL', 'BRETT', 'ARKM', 'ORDI', 'STX', 'JUP',
-    'ZORA', 'AVNT', 'MON', 'ZEC', 'HYPE', 'TRUMP', 'INLI',
-    # Forex pairs (from screenshots)
-    'USDJPY', 'USDTRY', 'EURUSD', 'GBPUSD', 'AUDUSD', 'USDBRL', 'USDCAD', 'USDCHF',
-    'USDINR', 'USDSEK', 'NZDUSD', 'USDSGD', 'USDCNH', 'USDMXN', 'USDZAR'
-}
-TIMEFRAMES = ["5m", "15m", "1h"]  # PivotX Pro: 5m, 15m, 1h for A+ setups
-MAX_SIGNALS_PER_HOUR = 4  # 4 trades per hour
-MAX_OPEN_TRADES = 3
-STARTING_BALANCE = 1000.0  # $1k paper trading
-LEVERAGE = 15
-TP1_PCT = 0.0175  # 1.75% (between 1.5-2%)
-TP2_PCT = 0.03  # 3% second target
-STOP_LOSS_PCT = 0.03  # Max 3% loss
-POSITION_SIZE_USD = 100.0  # $100 per trade (with 15x leverage = $1500 exposure)
-
-
-class TradeDirection(Enum):
-    LONG = "LONG"
-    SHORT = "SHORT"
-
-
-class TradeStatus(Enum):
-    ACTIVE = "ACTIVE"
-    CLOSED_TP1 = "CLOSED_TP1"
-    CLOSED_TP2 = "CLOSED_TP2"
-    CLOSED_STOP = "CLOSED_STOP"
-    CLOSED_MANUAL = "CLOSED_MANUAL"
-
-
+# ====================== DATACLASSES ======================
 @dataclass
 class Signal:
-    """Trading signal"""
+    """Trading signal data"""
     symbol: str
-    direction: TradeDirection
-    trade_kind: str  # "SCALP" or "SWING"
     entry_price: float
     stop_loss: float
-    tp1: float
-    tp2: float
-    confidence: float
-    confluence_score: float
+    take_profit: float
+    confidence_score: int
     reasons: List[str]
-    timeframe: str
+    rsi: float
+    deviation: float
+    in_gps_zone: bool
     timestamp: datetime
-    gps_touched: bool
-    oath_keeper_div: bool
-    oath_keeper_tf: str  # Timeframe where Oath Keeper divergence was detected
-    sfp_levels: int  # 1, 2, or 3 levels of SFP confluence
-    sfp_timeframes: List[str]  # Which timeframes have SFPs (e.g., ["15m", "1h", "4h"])
-    vwap_trend: str  # "BULLISH", "BEARISH", "NEUTRAL"
-    vwap_trend_tf: str  # Timeframe where VWAP trend was determined
-    wave3_tf: str  # Timeframe where Wave 3 pullback was detected
-    chart_url: str
-
+    timeframe: str = "15m"
+    tradingview_link: str = ""
+    trade_number: int = 0
 
 @dataclass
-class Trade:
-    """Active trade"""
-    id: str
-    signal_id: str
+class TradeResult:
+    """Trade outcome for learning"""
     symbol: str
-    direction: TradeDirection
     entry_price: float
-    stop_loss: float
-    tp1: float
-    tp2: float
-    position_size_usd: float
-    leverage: int
+    exit_price: float
     entry_time: datetime
-    status: TradeStatus
-    current_price: float
-    unrealized_pnl: float
-    unrealized_pnl_pct: float
+    exit_time: datetime
+    pnl_pct: float
+    was_winner: bool
+    confidence_score: int
+    reasons: List[str]
 
-
-class PaperTradingAccount:
-    """Paper trading account with SQLite storage"""
-
-    def __init__(self, db_path: str = "bounty_seeker_trades.db"):
-        self.db_path = db_path
-        self.balance = STARTING_BALANCE
-        self.starting_balance = STARTING_BALANCE
-        self.init_database()
-        self.load_state()
-
-    def init_database(self):
-        """Initialize SQLite database"""
-        conn = sqlite3.connect(self.db_path)
-        c = conn.cursor()
-
-        # Account state
-        c.execute("""CREATE TABLE IF NOT EXISTS account_state (
+# ====================== DATABASE SETUP ======================
+def init_databases():
+    """Initialize SQLite databases"""
+    # Trades database
+    conn = sqlite3.connect(TRADES_DB)
+    c = conn.cursor()
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS trades (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            balance REAL,
-            starting_balance REAL,
-            total_trades INTEGER,
-            winning_trades INTEGER,
-            losing_trades INTEGER,
-            total_pnl REAL,
-            last_updated TIMESTAMP
-        )""")
-
-        # Trades
-        c.execute("""CREATE TABLE IF NOT EXISTS trades (
-            id TEXT PRIMARY KEY,
-            symbol TEXT,
-            direction TEXT,
-            entry_price REAL,
-            stop_loss REAL,
-            tp1 REAL,
-            tp2 REAL,
-            position_size_usd REAL,
-            leverage INTEGER,
-            entry_time TIMESTAMP,
-            exit_time TIMESTAMP,
+            trade_number INTEGER,
+            symbol TEXT NOT NULL,
+            entry_price REAL NOT NULL,
+            stop_loss REAL NOT NULL,
+            take_profit REAL NOT NULL,
+            confidence_score INTEGER NOT NULL,
+            reasons TEXT,
+            entry_time TEXT NOT NULL,
+            exit_time TEXT,
             exit_price REAL,
-            status TEXT,
-            pnl REAL,
             pnl_pct REAL,
             exit_reason TEXT,
-            confluence_score REAL,
-            reasons TEXT
-        )""")
-
-        # Failed trades (to avoid repeat entries)
-        c.execute("""CREATE TABLE IF NOT EXISTS failed_trades (
-            symbol TEXT,
-            direction TEXT,
-            entry_time TIMESTAMP,
-            failure_reason TEXT,
-            PRIMARY KEY (symbol, direction, entry_time)
-        )""")
-
-        conn.commit()
-        conn.close()
-
-    def load_state(self):
-        """Load account state from database"""
-        conn = sqlite3.connect(self.db_path)
-        c = conn.cursor()
-        c.execute("SELECT balance, starting_balance FROM account_state ORDER BY id DESC LIMIT 1")
-        row = c.fetchone()
-        if row:
-            self.balance, self.starting_balance = row
-        else:
-            self.save_state()
-        conn.close()
-
-    def save_state(self):
-        """Save account state"""
-        conn = sqlite3.connect(self.db_path)
-        c = conn.cursor()
-        stats = self.get_stats()
-        c.execute("""INSERT INTO account_state
-                     (balance, starting_balance, total_trades, winning_trades, losing_trades, total_pnl, last_updated)
-                     VALUES (?, ?, ?, ?, ?, ?, ?)""",
-                  (self.balance, self.starting_balance, stats['total_trades'],
-                   stats['winning_trades'], stats['losing_trades'], stats['total_pnl'],
-                   datetime.now(timezone.utc)))
-        conn.commit()
-        conn.close()
-
-    def get_active_trades_count(self) -> int:
-        """Get count of active trades"""
-        conn = sqlite3.connect(self.db_path)
-        c = conn.cursor()
-        c.execute("SELECT COUNT(*) FROM trades WHERE status = ?", (TradeStatus.ACTIVE.value,))
-        count = c.fetchone()[0]
-        conn.close()
-        return count
-
-    def can_enter_trade(self) -> bool:
-        """Check if we can enter a new trade"""
-        return self.get_active_trades_count() < MAX_OPEN_TRADES
-
-    def has_active_trade_for_symbol(self, symbol: str, direction: TradeDirection) -> bool:
-        """Check if there's already an active trade for this symbol/direction"""
-        conn = sqlite3.connect(self.db_path)
-        c = conn.cursor()
-        c.execute("SELECT COUNT(*) FROM trades WHERE symbol = ? AND direction = ? AND status = ?",
-                  (symbol, direction.value, TradeStatus.ACTIVE.value))
-        count = c.fetchone()[0]
-        conn.close()
-        return count > 0
-
-    def enter_trade(self, signal: Signal) -> Optional[Trade]:
-        """Enter a new trade"""
-        if not self.can_enter_trade():
-            logger.warning(f"Cannot enter trade. Active trades: {self.get_active_trades_count()}")
-            return None
-
-        # STRICT CHECK: Block if this symbol/direction has ANY losing history
-        if self.is_failed_trade(signal.symbol, signal.direction):
-            logger.warning(f"🚫 BLOCKED: {signal.symbol} {signal.direction.value} - Has losing trade history. Moving on to next coin.")
-            return None
-
-        # Additional check: Block if there's an active trade for this symbol/direction
-        if self.has_active_trade_for_symbol(signal.symbol, signal.direction):
-            logger.warning(f"🚫 BLOCKED: {signal.symbol} {signal.direction.value} - Already have active trade. Moving on.")
-            return None
-
-        trade_id = f"BS_{int(time.time())}_{signal.symbol.replace('/', '_')}"
-
-        trade = Trade(
-            id=trade_id,
-            signal_id=trade_id,
-            symbol=signal.symbol,
-            direction=signal.direction,
-            entry_price=signal.entry_price,
-            stop_loss=signal.stop_loss,
-            tp1=signal.tp1,
-            tp2=signal.tp2,
-            position_size_usd=POSITION_SIZE_USD,
-            leverage=LEVERAGE,
-            entry_time=datetime.now(timezone.utc),
-            status=TradeStatus.ACTIVE,
-            current_price=signal.entry_price,
-            unrealized_pnl=0.0,
-            unrealized_pnl_pct=0.0
+            status TEXT DEFAULT 'open'
         )
-
-        # Save to database
-        conn = sqlite3.connect(self.db_path)
-        c = conn.cursor()
-        c.execute("""INSERT INTO trades
-                     (id, symbol, direction, entry_price, stop_loss, tp1, tp2,
-                      position_size_usd, leverage, entry_time, status, confluence_score, reasons)
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                  (trade.id, trade.symbol, trade.direction.value, trade.entry_price,
-                   trade.stop_loss, trade.tp1, trade.tp2, trade.position_size_usd,
-                   trade.leverage, trade.entry_time, trade.status.value,
-                   signal.confluence_score, json.dumps(signal.reasons)))
-        conn.commit()
-        conn.close()
-
-        logger.info(f"✅ ENTERED TRADE: {trade.symbol} {trade.direction.value} @ ${trade.entry_price:.6f}")
-        return trade
-
-    def update_trade(self, trade: Trade, current_price: float) -> Optional[str]:
-        """Update trade and check for exits"""
-        # Calculate unrealized P&L
-        if trade.direction == TradeDirection.LONG:
-            pnl_pct = ((current_price - trade.entry_price) / trade.entry_price) * 100
-        else:
-            pnl_pct = ((trade.entry_price - current_price) / trade.entry_price) * 100
-
-        pnl_usd = (pnl_pct / 100) * trade.position_size_usd * trade.leverage
-
-        trade.current_price = current_price
-        trade.unrealized_pnl = pnl_usd
-        trade.unrealized_pnl_pct = pnl_pct
-
-        # Check for TP1
-        if trade.direction == TradeDirection.LONG:
-            if current_price >= trade.tp1:
-                return self.close_trade(trade, current_price, TradeStatus.CLOSED_TP1, "TP1 Hit")
-        else:
-            if current_price <= trade.tp1:
-                return self.close_trade(trade, current_price, TradeStatus.CLOSED_TP1, "TP1 Hit")
-
-        # Check for TP2
-        if trade.direction == TradeDirection.LONG:
-            if current_price >= trade.tp2:
-                return self.close_trade(trade, current_price, TradeStatus.CLOSED_TP2, "TP2 Hit")
-        else:
-            if current_price <= trade.tp2:
-                return self.close_trade(trade, current_price, TradeStatus.CLOSED_TP2, "TP2 Hit")
-
-        # Check for stop loss
-        if trade.direction == TradeDirection.LONG:
-            if current_price <= trade.stop_loss:
-                self.mark_failed_trade(trade.symbol, trade.direction, "Stop Loss Hit")
-                return self.close_trade(trade, current_price, TradeStatus.CLOSED_STOP, "Stop Loss Hit")
-        else:
-            if current_price >= trade.stop_loss:
-                self.mark_failed_trade(trade.symbol, trade.direction, "Stop Loss Hit")
-                return self.close_trade(trade, current_price, TradeStatus.CLOSED_STOP, "Stop Loss Hit")
-
-        return None
-
-    def close_trade(self, trade: Trade, exit_price: float, status: TradeStatus, reason: str) -> str:
-        """Close a trade"""
-        # Calculate P&L
-        if trade.direction == TradeDirection.LONG:
-            pnl_pct = ((exit_price - trade.entry_price) / trade.entry_price) * 100
-        else:
-            pnl_pct = ((trade.entry_price - exit_price) / trade.entry_price) * 100
-
-        pnl_usd = (pnl_pct / 100) * trade.position_size_usd * trade.leverage
-        self.balance += pnl_usd
-
-        # Update database
-        conn = sqlite3.connect(self.db_path)
-        c = conn.cursor()
-        c.execute("""UPDATE trades SET
-                     exit_time = ?, exit_price = ?, status = ?, pnl = ?, pnl_pct = ?, exit_reason = ?
-                     WHERE id = ?""",
-                  (datetime.now(timezone.utc), exit_price, status.value, pnl_usd, pnl_pct, reason, trade.id))
-        conn.commit()
-        conn.close()
-
-        # IMMEDIATELY mark as failed if it's a losing trade (negative P&L) or stop loss
-        # This prevents retrying the same losing trade - NO EXCEPTIONS
-        if pnl_usd < 0 or status == TradeStatus.CLOSED_STOP:
-            self.mark_failed_trade(trade.symbol, trade.direction, f"Loss: ${pnl_usd:.2f} ({reason})")
-            logger.warning(f"🚫 PERMANENTLY MARKED {trade.symbol} {trade.direction.value} as FAILED - Will NEVER retry this trade")
-
-            # Also mark all symbol variants to be extra safe
-            base_symbol = trade.symbol.split(':')[0] if ':' in trade.symbol else trade.symbol
-            for variant in [trade.symbol, base_symbol, f"{base_symbol}:USDT", f"{base_symbol}:USDT:USDT"]:
-                if variant != trade.symbol:
-                    self.mark_failed_trade(variant, trade.direction, f"Loss: ${pnl_usd:.2f} ({reason}) - Variant of {trade.symbol}")
-
-        self.save_state()
-
-        logger.info(f"💰 CLOSED TRADE: {trade.symbol} {trade.direction.value} @ ${exit_price:.6f} | P&L: ${pnl_usd:.2f} ({pnl_pct:.2f}%) | {reason}")
-
-        # Send PNL update to Discord
-        self.send_pnl_update()
-
-        return reason
-
-    def mark_failed_trade(self, symbol: str, direction: TradeDirection, reason: str):
-        """Mark a trade as failed to avoid repeat entries - PERMANENT BLOCK"""
-        conn = sqlite3.connect(self.db_path)
-        c = conn.cursor()
-
-        # Normalize symbol for consistent blocking
-        base_symbol = symbol.split(':')[0] if ':' in symbol else symbol
-
-        # Create all possible symbol variations
-        symbol_variants = [
-            symbol,
-            base_symbol,
-            f"{base_symbol}:USDT",
-            f"{base_symbol}:USDT:USDT"
-        ]
-
-        # Mark ALL variations as failed - be thorough
-        for variant in symbol_variants:
-            c.execute("""INSERT OR REPLACE INTO failed_trades (symbol, direction, entry_time, failure_reason)
-                         VALUES (?, ?, ?, ?)""",
-                      (variant, direction.value, datetime.now(timezone.utc), f"PERMANENT BLOCK: {reason}"))
-
-        conn.commit()
-        conn.close()
-
-        logger.warning(f"🔒 PERMANENTLY BLOCKED: {symbol} {direction.value} - {reason} (all variants marked)")
-
-    def is_failed_trade(self, symbol: str, direction: TradeDirection) -> bool:
-        """STRICT CHECK: Block if this symbol/direction has ANY losing history - NO RETRIES"""
-        conn = sqlite3.connect(self.db_path)
-        c = conn.cursor()
-
-        # Normalize symbol - handle all variations
-        base_symbol = symbol.split(':')[0] if ':' in symbol else symbol
-        base_only = base_symbol.split('/')[0] if '/' in base_symbol else base_symbol
-
-        # Create all possible symbol variations to check
-        symbol_patterns = [symbol, base_symbol, f"{base_symbol}:USDT", f"{base_symbol}:USDT:USDT", f"{base_only}/USDT", f"{base_only}/USDT:USDT"]
-
-        # CHECK 1: Explicitly marked as failed
-        placeholders = ','.join(['?'] * len(symbol_patterns))
-        c.execute(f"""SELECT COUNT(*) FROM failed_trades
-                     WHERE symbol IN ({placeholders}) AND direction = ?""",
-                  (*symbol_patterns, direction.value))
-        failed_count = c.fetchone()[0]
-
-        # CHECK 2: ANY closed losing trade (negative P&L) - BLOCK IMMEDIATELY
-        c.execute(f"""SELECT COUNT(*) FROM trades
-                     WHERE symbol IN ({placeholders})
-                     AND direction = ?
-                     AND status != ?
-                     AND pnl < 0""",
-                  (*symbol_patterns, direction.value, TradeStatus.ACTIVE.value))
-        losing_count = c.fetchone()[0]
-
-        # CHECK 3: ANY stop loss hit - BLOCK IMMEDIATELY
-        c.execute(f"""SELECT COUNT(*) FROM trades
-                     WHERE symbol IN ({placeholders})
-                     AND direction = ?
-                     AND status = ?""",
-                  (*symbol_patterns, direction.value, TradeStatus.CLOSED_STOP.value))
-        stop_loss_count = c.fetchone()[0]
-
-        conn.close()
-
-        # BLOCK if ANY losing trade exists - NO EXCEPTIONS, NO RETRIES, MOVE ON TO NEXT COIN
-        is_failed = (failed_count > 0) or (losing_count > 0) or (stop_loss_count > 0)
-
-        if is_failed:
-            logger.warning(f"🚫 PERMANENTLY BLOCKED: {symbol} {direction.value} - Failed marks: {failed_count}, Losing trades: {losing_count}, Stop losses: {stop_loss_count} - MOVING ON TO NEXT COIN")
-
-        return is_failed
-
-    def get_stats(self) -> Dict:
-        """Get trading statistics"""
-        conn = sqlite3.connect(self.db_path)
-        c = conn.cursor()
-        c.execute("""SELECT
-                     COUNT(*) as total,
-                     SUM(CASE WHEN pnl > 0 THEN 1 ELSE 0 END) as wins,
-                     SUM(CASE WHEN pnl < 0 THEN 1 ELSE 0 END) as losses,
-                     SUM(pnl) as total_pnl
-                     FROM trades WHERE status != ?""", (TradeStatus.ACTIVE.value,))
-        row = c.fetchone()
-        conn.close()
-
-        if row and row[0]:
-            return {
-                'total_trades': row[0],
-                'winning_trades': row[1] or 0,
-                'losing_trades': row[2] or 0,
-                'total_pnl': row[3] or 0.0
-            }
-        return {
-            'total_trades': 0,
-            'winning_trades': 0,
-            'losing_trades': 0,
-            'total_pnl': 0.0
-        }
-
-    def get_recent_trades(self, limit: int = 10) -> List[Dict]:
-        """Get recent closed trades"""
-        conn = sqlite3.connect(self.db_path)
-        c = conn.cursor()
-        c.execute("""SELECT symbol, direction, entry_price, exit_price, pnl, pnl_pct, exit_reason, exit_time
-                     FROM trades WHERE status != ? ORDER BY exit_time DESC LIMIT ?""",
-                  (TradeStatus.ACTIVE.value, limit))
-        rows = c.fetchall()
-        conn.close()
-
-        trades = []
-        for row in rows:
-            trades.append({
-                'symbol': row[0],
-                'direction': row[1],
-                'entry_price': row[2],
-                'exit_price': row[3],
-                'pnl': row[4],
-                'pnl_pct': row[5],
-                'exit_reason': row[6],
-                'exit_time': row[7]
-            })
-        return trades
-
-    def get_active_trades(self) -> List[Trade]:
-        """Get all active trades"""
-        conn = sqlite3.connect(self.db_path)
-        c = conn.cursor()
-        c.execute("""SELECT id, symbol, direction, entry_price, stop_loss, tp1, tp2,
-                     position_size_usd, leverage, entry_time, status
-                     FROM trades WHERE status = ?""", (TradeStatus.ACTIVE.value,))
-        rows = c.fetchall()
-        conn.close()
-
-        trades = []
-        for row in rows:
-            trades.append(Trade(
-                id=row[0],
-                signal_id=row[0],
-                symbol=row[1],
-                direction=TradeDirection(row[2]),
-                entry_price=row[3],
-                stop_loss=row[4],
-                tp1=row[5],
-                tp2=row[6],
-                position_size_usd=row[7],
-                leverage=row[8],
-                entry_time=datetime.fromisoformat(row[9]),
-                status=TradeStatus(row[10]),
-                current_price=row[3],
-                unrealized_pnl=0.0,
-                unrealized_pnl_pct=0.0
-            ))
-        return trades
-
-    def send_pnl_update(self):
-        """Send PNL update to Discord after trade closes"""
-        recent_trades = self.get_recent_trades(10)
-        if not recent_trades:
-            return
-
-        stats = self.get_stats()
-
-        # Create embed
-        embed = {
-            "title": "💰 PNL Update - Last 10 Trades",
-            "color": 0x00FF00 if stats['total_pnl'] > 0 else 0xFF0000,
-            "fields": [],
-            "timestamp": datetime.now(timezone.utc).isoformat()
-        }
-
-        # Add recent trades
-        trade_text = ""
-        for trade in recent_trades[:10]:
-            emoji = "🟢" if trade['pnl'] > 0 else "🔴"
-            trade_text += f"{emoji} **{trade['symbol']}** {trade['direction']}\n"
-            trade_text += f"   Entry: ${trade['entry_price']:.6f} → Exit: ${trade['exit_price']:.6f}\n"
-            trade_text += f"   P&L: ${trade['pnl']:.2f} ({trade['pnl_pct']:.2f}%) | {trade['exit_reason']}\n\n"
-
-        embed["fields"].append({
-            "name": "Recent Trades",
-            "value": trade_text[:1024] if len(trade_text) > 1024 else trade_text,
-            "inline": False
-        })
-
-        # Add stats
-        win_rate = (stats['winning_trades'] / stats['total_trades'] * 100) if stats['total_trades'] > 0 else 0
-        embed["fields"].append({
-            "name": "Statistics",
-            "value": f"**Total Trades:** {stats['total_trades']}\n"
-                    f"**Wins:** {stats['winning_trades']} | **Losses:** {stats['losing_trades']}\n"
-                    f"**Win Rate:** {win_rate:.1f}%\n"
-                    f"**Total P&L:** ${stats['total_pnl']:.2f}\n"
-                    f"**Balance:** ${self.balance:.2f}",
-            "inline": False
-        })
-
-        # Send to Discord
-        try:
-            payload = {"embeds": [embed]}
-            r = requests.post(DISCORD_WEBHOOK, json=payload, timeout=15)
-            r.raise_for_status()
-            logger.info("📤 Sent PNL update to Discord")
-        except Exception as e:
-            logger.error(f"Failed to send PNL update: {e}")
-
-
-def tv_link(symbol: str) -> str:
-    """Generate TradingView link"""
-    base = symbol.split("/")[0] if "/" in symbol else symbol.replace("USDT", "").replace("USDC", "")
-    quote = "USDT" if "USDT" in symbol else "USDC"
-    tv_symbol = f"BINANCE:{base.upper()}{quote.upper()}"
-    return f"https://www.tradingview.com/chart/?symbol={tv_symbol}"
-
-
-class IndicatorCalculator:
-    """Calculate indicators from OHLCV data"""
-
-    @staticmethod
-    def calculate_vwap(df: pd.DataFrame) -> float:
-        """Calculate VWAP"""
-        if len(df) == 0:
-            return None
-        typical_price = (df['high'] + df['low'] + df['close']) / 3
-        pv = (typical_price * df['volume']).sum()
-        v = df['volume'].sum()
-        return pv / v if v > 0 else None
-
-    @staticmethod
-    def calculate_gps_zones(high: float, low: float) -> Dict:
-        """Calculate Golden Pocket zones (0.618 and 0.65)"""
-        range_val = high - low
-        gp_high = high - (range_val * 0.618)
-        gp_low = high - (range_val * 0.65)
-        return {'gp_high': gp_high, 'gp_low': gp_low}
-
-    @staticmethod
-    def detect_sfp(df: pd.DataFrame, timeframe: str) -> Tuple[bool, int, Optional[Dict]]:
-        """Detect SFP (Fair Value Gap) - 3-candle FVG detection"""
-        if len(df) < 3:
-            return False, 0, None
-
-        # 3-candle FVG detection (matching Pine Script logic)
-        # Bullish FVG: gap between candle[2].low and candle[0].high (candle[1] is the gap)
-        # Bearish FVG: gap between candle[2].high and candle[0].low
-
-        sfp_info = None
-
-        # Check for bullish FVG
-        if len(df) >= 3:
-            candle2_low = df['low'].iloc[-3]
-            candle0_high = df['high'].iloc[-1]
-            if candle2_low > candle0_high:
-                gap_top = candle2_low
-                gap_bottom = candle0_high
-                sfp_info = {
-                    'type': 'BULLISH',
-                    'top': gap_top,
-                    'bottom': gap_bottom,
-                    'mid': (gap_top + gap_bottom) / 2
-                }
-                return True, 1, sfp_info
-
-        # Check for bearish FVG
-        if len(df) >= 3:
-            candle2_high = df['high'].iloc[-3]
-            candle0_low = df['low'].iloc[-1]
-            if candle2_high < candle0_low:
-                gap_top = candle0_low
-                gap_bottom = candle2_high
-                sfp_info = {
-                    'type': 'BEARISH',
-                    'top': gap_top,
-                    'bottom': gap_bottom,
-                    'mid': (gap_top + gap_bottom) / 2
-                }
-                return True, 1, sfp_info
-
-        return False, 0, None
-
-    @staticmethod
-    def detect_elliott_wave3_pullback(df: pd.DataFrame, direction: str) -> bool:
-        """Detect Elliott Wave 3 pullback pattern (ABC correction)"""
-        if len(df) < 30:
-            return False
-
-        # Get recent price action (last 30 bars)
-        recent = df.tail(30)
-        highs = recent['high'].values
-        lows = recent['low'].values
-        closes = recent['close'].values
-
-        if direction == "LONG":
-            # Look for 3-wave down (ABC correction): A down, B up (retrace), C down (final)
-            min_low = np.min(lows)
-            min_low_idx = np.argmin(lows)
-
-            if min_low_idx >= 5 and min_low_idx < len(lows) - 3:
-                before_low = lows[:min_low_idx]
-                if len(before_low) >= 3:
-                    a_start = np.max(before_low[:3])
-                    a_end = np.min(before_low[-3:]) if len(before_low) >= 3 else before_low[-1]
-
-                    after_low = lows[min_low_idx+1:min_low_idx+5] if min_low_idx+5 < len(lows) else []
-                    if len(after_low) > 0:
-                        b_high = np.max(after_low)
-                        # Pattern: A down -> B up -> C down to low
-                        if a_start > a_end and b_high > min_low and min_low < a_end:
-                            return True
-
-        else:  # SHORT
-            # Look for 3-wave up (ABC correction): A up, B down (retrace), C up (final)
-            max_high = np.max(highs)
-            max_high_idx = np.argmax(highs)
-
-            if max_high_idx >= 5 and max_high_idx < len(highs) - 3:
-                before_high = highs[:max_high_idx]
-                if len(before_high) >= 3:
-                    a_start = np.min(before_high[:3])
-                    a_end = np.max(before_high[-3:]) if len(before_high) >= 3 else before_high[-1]
-
-                    after_high = highs[max_high_idx+1:max_high_idx+5] if max_high_idx+5 < len(highs) else []
-                    if len(after_high) > 0:
-                        b_low = np.min(after_high)
-                        # Pattern: A up -> B down -> C up to high
-                        if a_start < a_end and b_low < max_high and max_high > a_end:
-                            return True
-
+    ''')
+    # Ensure columns exist for upgrades
+    c.execute("PRAGMA table_info(trades)")
+    cols = {row[1] for row in c.fetchall()}
+    if "trade_number" not in cols:
+        c.execute("ALTER TABLE trades ADD COLUMN trade_number INTEGER")
+    if "exit_reason" not in cols:
+        c.execute("ALTER TABLE trades ADD COLUMN exit_reason TEXT")
+    conn.commit()
+    conn.close()
+
+    # Learning database (for self-learning)
+    conn = sqlite3.connect(LEARNING_DB)
+    c = conn.cursor()
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS performance_stats (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            date TEXT NOT NULL,
+            total_trades INTEGER DEFAULT 0,
+            winners INTEGER DEFAULT 0,
+            losers INTEGER DEFAULT 0,
+            avg_confidence_winner REAL,
+            avg_confidence_loser REAL,
+            avg_pnl_winner REAL,
+            avg_pnl_loser REAL
+        )
+    ''')
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS parameter_adjustments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp TEXT NOT NULL,
+            parameter_name TEXT NOT NULL,
+            old_value REAL,
+            new_value REAL,
+            reason TEXT
+        )
+    ''')
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS strategy_performance (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            strategy_component TEXT NOT NULL,
+            win_rate REAL,
+            avg_pnl REAL,
+            total_trades INTEGER,
+            last_updated TEXT
+        )
+    ''')
+    conn.commit()
+    conn.close()
+
+# ====================== TECHNICAL INDICATORS ======================
+def calculate_rsi(prices: List[float], period: int = 14) -> float:
+    """Calculate RSI indicator"""
+    if len(prices) < period + 1:
+        return 50.0
+    deltas = np.diff(prices[-period-1:])
+    gains = np.where(deltas > 0, deltas, 0)
+    losses = np.where(deltas < 0, -deltas, 0)
+    avg_gain = np.mean(gains)
+    avg_loss = np.mean(losses)
+    if avg_loss == 0:
+        return 100.0
+    rs = avg_gain / avg_loss
+    return 100 - (100 / (1 + rs))
+
+def calculate_vwap_and_deviation(ohlcv: List) -> Tuple[Optional[float], Optional[float], Optional[float]]:
+    """
+    Calculate VWAP and standard deviation
+    Returns: (vwap, std_dev, current_deviation_sigma)
+    """
+    if len(ohlcv) < 50:
+        return None, None, None
+
+    # Calculate VWAP
+    total_pv = 0.0
+    total_volume = 0.0
+    prices = []
+
+    for candle in ohlcv:
+        price = float(candle[4])  # Close
+        vol = float(candle[5])  # Volume
+        total_pv += price * vol
+        total_volume += vol
+        prices.append(price)
+
+    if total_volume == 0:
+        return None, None, None
+
+    vwap = total_pv / total_volume
+    current_price = prices[-1]
+
+    # Calculate standard deviation
+    price_array = np.array(prices)
+    std_dev = np.std(price_array)
+
+    if std_dev == 0:
+        return vwap, None, None
+
+    # Calculate how many sigmas away from VWAP
+    deviation_sigma = (current_price - vwap) / std_dev
+
+    return vwap, std_dev, deviation_sigma
+
+def calculate_gps_zone(high: float, low: float, current_price: float) -> Tuple[bool, float]:
+    """
+    Check if price is in Golden Pocket zone (0.618 - 0.65 retracement)
+    Returns: (is_in_zone, distance_to_zone_pct)
+    """
+    range_size = high - low
+    if range_size == 0:
+        return False, 100.0
+
+    gp_low_level = low + (range_size * GPS_LOW)
+    gp_high_level = low + (range_size * GPS_HIGH)
+
+    if gp_low_level <= current_price <= gp_high_level:
+        return True, 0.0
+
+    # Calculate distance to zone
+    if current_price < gp_low_level:
+        distance = abs(current_price - gp_low_level) / current_price * 100
+    else:
+        distance = abs(current_price - gp_high_level) / current_price * 100
+
+    return False, distance
+
+def detect_sfp_reversal(ohlcv: List) -> bool:
+    """
+    Detect Swing Failure Pattern (SFP) - price sweeps low then reverses
+    """
+    if len(ohlcv) < 5:
         return False
 
-    @staticmethod
-    def detect_oath_keeper_divergence(df: pd.DataFrame) -> bool:
-        """Detect Oath Keeper macro divergence (simplified - white circle print)"""
-        if len(df) < 20:
-            return False
+    # Get last 3 candles
+    recent = ohlcv[-3:]
+    lows = [float(c[3]) for c in recent]  # Low prices
+    closes = [float(c[4]) for c in recent]  # Close prices
 
-        # Calculate money flow
-        closes = df['close'].values
-        volumes = df['volume'].values
+    # SFP: Lower low followed by higher close (reversal)
+    if lows[0] > lows[1] and closes[1] < closes[2]:
+        # Check for wick (liquidity grab)
+        last_candle = ohlcv[-1]
+        low = float(last_candle[3])
+        close = float(last_candle[4])
+        open_price = float(last_candle[1])
+        high = float(last_candle[2])
 
-        # Simple money flow calculation
-        mf_period = 8
-        if len(closes) < mf_period + 1:
-            return False
+        # Lower wick indicates rejection
+        lower_wick = min(open_price, close) - low
+        body = abs(close - open_price)
+        if lower_wick > body * 0.5:  # Significant lower wick
+            return True
 
-        up_volume = []
-        down_volume = []
-        for i in range(1, len(closes)):
-            if closes[i] > closes[i-1]:
-                up_volume.append(volumes[i])
-                down_volume.append(0)
-            elif closes[i] < closes[i-1]:
-                up_volume.append(0)
-                down_volume.append(volumes[i])
-            else:
-                up_volume.append(0)
-                down_volume.append(0)
+    return False
 
-        if len(up_volume) < mf_period:
-            return False
+def calculate_volume_spike_metrics(ohlcv: List) -> Tuple[float, float, float, bool, bool, bool]:
+    """
+    Calculate volume spike metrics using VPSR Pro logic
+    Returns: (vol_ma, vol_stddev, volume_ratio, is_abnormal, is_extreme, is_reversal_signal)
+    """
+    if len(ohlcv) < VOL_MA_LENGTH + 1:
+        return 0.0, 0.0, 1.0, False, False, False
 
-        mf_up = np.mean(up_volume[-mf_period:])
-        mf_down = np.mean(down_volume[-mf_period:])
+    # Get volumes
+    volumes = [float(c[5]) for c in ohlcv]
+    current_volume = volumes[-1]
+    prev_volume = volumes[-2] if len(volumes) > 1 else current_volume
 
-        if mf_up + mf_down == 0:
-            return False
+    # Calculate Volume EMA (using exponential moving average)
+    vol_ema = np.mean(volumes[-VOL_MA_LENGTH:])  # Start with SMA
+    # Then apply EMA smoothing
+    alpha = 2.0 / (VOL_MA_LENGTH + 1.0)
+    for vol in volumes[-VOL_MA_LENGTH:]:
+        vol_ema = alpha * vol + (1 - alpha) * vol_ema
 
-        money_flow = 100 * mf_up / (mf_up + mf_down)
+    # Calculate standard deviation
+    vol_stddev = np.std(volumes[-VOL_MA_LENGTH:])
 
-        # Detect divergence: price makes lower low but money flow makes higher low (bullish)
-        # or price makes higher high but money flow makes lower high (bearish)
-        if len(closes) >= 10:
-            # Look for pivot points
-            recent_lows = closes[-10:]
-            recent_mf = [money_flow] * 10  # Simplified
+    # Calculate thresholds
+    dynamic_threshold = vol_ema + (vol_stddev * VOL_MULTIPLIER)
+    extreme_threshold = vol_ema + (vol_stddev * VOL_EXTREME_MULTIPLIER)
 
-            # Bullish divergence: price lower low, MF higher low
-            if closes[-1] < closes[-5] and money_flow > 50:  # Simplified check
-                return True
+    # Classifications
+    volume_ratio = current_volume / vol_ema if vol_ema > 0 else 1.0
+    is_abnormal = current_volume > dynamic_threshold
+    is_extreme = current_volume > extreme_threshold
 
-        return False
+    # Reversal Signal: Previous bar had extreme volume + current bar is bullish (reversal)
+    prev_was_extreme = prev_volume > extreme_threshold if len(volumes) > 1 else False
+    current_candle = ohlcv[-1]
+    current_is_bullish = float(current_candle[4]) > float(current_candle[1])  # Close > Open
 
-    @staticmethod
-    def check_vwap_trend(df_1h: pd.DataFrame, df_4h: pd.DataFrame, df_daily: pd.DataFrame) -> Tuple[str, float]:
-        """Check VWAP trend: bullish stack (1H < 4H < Daily) or bearish (1H > 4H > Daily)
-        Returns: (trend, strength) where strength is 0-100"""
-        vwap_1h = IndicatorCalculator.calculate_vwap(df_1h) if len(df_1h) > 0 else None
-        vwap_4h = IndicatorCalculator.calculate_vwap(df_4h) if len(df_4h) > 0 else None
-        vwap_daily = IndicatorCalculator.calculate_vwap(df_daily) if len(df_daily) > 0 else None
+    # For bottom reversals, we want extreme volume followed by bullish reversal
+    is_reversal_signal = prev_was_extreme and current_is_bullish
 
-        if not all([vwap_1h, vwap_4h, vwap_daily]):
-            return "NEUTRAL", 0.0
+    return vol_ema, vol_stddev, volume_ratio, is_abnormal, is_extreme, is_reversal_signal
 
-        # Bullish stack: 1H < 4H < Daily
-        if vwap_1h < vwap_4h < vwap_daily:
-            # Calculate strength based on separation
-            separation = ((vwap_daily - vwap_1h) / vwap_1h) * 100
-            strength = min(100, max(0, separation * 10))  # Scale to 0-100
-            return "BULLISH", strength
+# ====================== SELF-LEARNING SYSTEM ======================
+class LearningSystem:
+    """Self-learning system that adjusts parameters based on performance"""
 
-        # Bearish stack: 1H > 4H > Daily
-        if vwap_1h > vwap_4h > vwap_daily:
-            # Calculate strength based on separation
-            separation = ((vwap_1h - vwap_daily) / vwap_daily) * 100
-            strength = min(100, max(0, separation * 10))  # Scale to 0-100
-            return "BEARISH", strength
+    def __init__(self):
+        self.conn = sqlite3.connect(LEARNING_DB)
+        self.init_tables()
 
-        return "NEUTRAL", 0.0
-
-    @staticmethod
-    def detect_price_trend(df: pd.DataFrame, period: int = 50) -> str:
-        """Detect price trend using EMA and price structure"""
-        if len(df) < period:
-            return "NEUTRAL"
-
-        closes = df['close'].values
-        highs = df['high'].values
-        lows = df['low'].values
-
-        # Calculate EMA
-        ema = pd.Series(closes).ewm(span=period, adjust=False).mean().values
-
-        # Price relative to EMA
-        price_above_ema = closes[-1] > ema[-1]
-        price_below_ema = closes[-1] < ema[-1]
-
-        # EMA slope
-        ema_slope = ema[-1] - ema[-5] if len(ema) >= 5 else 0
-
-        # Price structure (higher highs/lower lows)
-        recent_highs = highs[-20:]
-        recent_lows = lows[-20:]
-
-        higher_highs = sum(1 for i in range(1, len(recent_highs)) if recent_highs[i] > recent_highs[i-1])
-        lower_lows = sum(1 for i in range(1, len(recent_lows)) if recent_lows[i] < recent_lows[i-1])
-
-        # Determine trend
-        if price_above_ema and ema_slope > 0 and higher_highs > lower_lows:
-            return "BULLISH"
-        elif price_below_ema and ema_slope < 0 and lower_lows > higher_highs:
-            return "BEARISH"
-
-        return "NEUTRAL"
-
-    @staticmethod
-    def calculate_tactical_deviation(df_daily: pd.DataFrame) -> Optional[Dict]:
-        """Calculate Tactical Deviation VWAP with ±1σ, ±2σ, ±3σ bands"""
-        if df_daily is None or len(df_daily) < 20:
-            return None
-
-        # Calculate VWAP: sum(price * volume) / sum(volume)
-        typical_price = (df_daily['high'] + df_daily['low'] + df_daily['close']) / 3.0
-        sum_pv = (typical_price * df_daily['volume']).sum()
-        sum_v = df_daily['volume'].sum()
-        sum_pv2 = ((typical_price ** 2) * df_daily['volume']).sum()
-
-        if sum_v == 0:
-            return None
-
-        vwap = sum_pv / sum_v
-
-        # Calculate variance and standard deviation
-        variance = (sum_pv2 / sum_v) - (vwap ** 2)
-        std_dev = np.sqrt(max(variance, 0))
-
-        if std_dev == 0:
-            return None
-
-        # Deviation bands: ±1σ, ±2σ, ±3σ
-        return {
-            "vwap": vwap,
-            "std_dev": std_dev,
-            "upper_1": vwap + (std_dev * 1.0),
-            "lower_1": vwap - (std_dev * 1.0),
-            "upper_2": vwap + (std_dev * 2.0),
-            "lower_2": vwap - (std_dev * 2.0),
-            "upper_3": vwap + (std_dev * 3.0),
-            "lower_3": vwap - (std_dev * 3.0),
-        }
-
-    @staticmethod
-    def get_deviation_level(price: float, deviation_data: Dict) -> Tuple[int, float]:
-        """Get deviation level (0, 1, 2, 3) and deviation percentage"""
-        if deviation_data is None:
-            return 0, 0.0
-
-        vwap = deviation_data["vwap"]
-        std_dev = deviation_data["std_dev"]
-
-        if std_dev == 0:
-            return 0, 0.0
-
-        dev_percent = ((price - vwap) / std_dev)
-
-        level = 0
-        if price >= deviation_data["upper_3"] or price <= deviation_data["lower_3"]:
-            level = 3  # ±3σ = A+ reversal
-        elif price >= deviation_data["upper_2"] or price <= deviation_data["lower_2"]:
-            level = 2  # ±2σ = Plus (add to confluence)
-        elif price >= deviation_data["upper_1"] or price <= deviation_data["lower_1"]:
-            level = 1
-
-        return level, dev_percent
-
-    @staticmethod
-    def detect_pivotx_pivots(df: pd.DataFrame, timeframe: str, atr_multiplier: float = 0.5,
-                            volume_threshold: float = 1.5, exhaustion_periods: int = 3,
-                            min_price_move: float = 2.0, atr_confirm_mult: float = 0.2) -> Dict:
-        """
-        PivotX Pro pivot detection - Updated with new logic from Pine Script
-        Includes: ATR-based dynamic pivot strength, exhaustion detection, volume spikes
-        """
-        if len(df) < 30:
-            return {
-                'pivot_high': None,
-                'pivot_low': None,
-                'has_pivot': False,
-                'pivot_type': None,
-                'atr_confirmed': False,
-                'is_aplus': False,
-                'exhaustion': None,
-                'volume_spike': False
-            }
-
-        # Calculate ATR (14-period)
-        high = df['high'].values
-        low = df['low'].values
-        close = df['close'].values
-        volume = df['volume'].values
-        open_price = df['open'].values if 'open' in df.columns else close
-
-        # True Range calculation
-        tr_list = []
-        for i in range(1, len(df)):
-            tr = max(
-                high[i] - low[i],
-                abs(high[i] - close[i-1]),
-                abs(low[i] - close[i-1])
+    def init_tables(self):
+        """Initialize learning tables if needed"""
+        c = self.conn.cursor()
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS trade_outcomes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                symbol TEXT,
+                entry_time TEXT,
+                exit_time TEXT,
+                entry_price REAL,
+                exit_price REAL,
+                pnl_pct REAL,
+                confidence_score INTEGER,
+                was_winner INTEGER,
+                reasons TEXT,
+                deviation REAL,
+                in_gps INTEGER,
+                had_sfp INTEGER
             )
-            tr_list.append(tr)
+        ''')
+        self.conn.commit()
 
-        # ATR = SMA of TR over 14 periods
-        if len(tr_list) >= 14:
-            atr = np.mean(tr_list[-14:])
-        else:
-            atr = np.mean(tr_list) if tr_list else 0.001
+    def record_trade_outcome(self, trade: TradeResult, signal: Signal):
+        """Record trade outcome for learning"""
+        c = self.conn.cursor()
+        c.execute('''
+            INSERT INTO trade_outcomes
+            (symbol, entry_time, exit_time, entry_price, exit_price, pnl_pct,
+             confidence_score, was_winner, reasons, deviation, in_gps, had_sfp)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            trade.symbol,
+            trade.entry_time.isoformat(),
+            trade.exit_time.isoformat(),
+            trade.entry_price,
+            trade.exit_price,
+            trade.pnl_pct,
+            trade.confidence_score,
+            1 if trade.was_winner else 0,
+            json.dumps(trade.reasons),
+            signal.deviation,
+            1 if signal.in_gps_zone else 0,
+            1 if 'SFP' in ' '.join(signal.reasons) else 0
+        ))
+        self.conn.commit()
 
-        # Volume spike detection
-        avg_vol = np.mean(volume[-20:]) if len(volume) >= 20 else np.mean(volume)
-        vol_spike = volume[-1] > avg_vol * volume_threshold if len(volume) > 0 else False
+    def analyze_performance(self) -> Dict:
+        """Analyze recent performance and suggest adjustments"""
+        c = self.conn.cursor()
 
-        # Determine if lower timeframe (5m or less) vs higher timeframe (15m+)
-        is_lower_tf = timeframe == "5m" or timeframe == "3m"
-        is_higher_tf = timeframe in ["15m", "1h", "4h", "1d"]
+        # Get last 50 trades
+        c.execute('''
+            SELECT was_winner, confidence_score, pnl_pct, deviation, in_gps, had_sfp
+            FROM trade_outcomes
+            ORDER BY exit_time DESC
+            LIMIT 50
+        ''')
+        results = c.fetchall()
 
-        # Dynamic Pivot Strength - matching Pine Script logic
-        # Calculate raw strength from ATR
-        if atr > 0 and close[-1] > 0:
-            # Use a simplified calculation (mintick approximation)
-            mintick_approx = close[-1] * 0.0001  # Approximate minimum tick
-            if mintick_approx > 0:
-                pivot_strength_raw = max(2, int(atr / mintick_approx * atr_multiplier))
-            else:
-                pivot_strength_raw = 5
-        else:
-            pivot_strength_raw = 5
+        if len(results) < 10:
+            return {}  # Not enough data
 
-        # Cap based on timeframe (matching Pine Script)
-        if is_lower_tf:
-            min_strength = 5  # Higher minimum for lower TFs to filter noise
-            max_strength = 15
-        else:
-            min_strength = 2
-            max_strength = 20 if is_higher_tf else 20
+        winners = [r for r in results if r[0] == 1]
+        losers = [r for r in results if r[0] == 0]
 
-        pivot_strength = max(min_strength, min(pivot_strength_raw, max_strength))
+        win_rate = len(winners) / len(results) if results else 0
 
-        # Detect pivot high and pivot low (most recent)
-        pivot_high = None
-        pivot_low = None
-        pivot_high_idx = None
-        pivot_low_idx = None
-
-        # Look for most recent pivot high (scanning backwards from end)
-        for i in range(len(high) - pivot_strength - 1, pivot_strength - 1, -1):
-            is_ph = True
-            for j in range(i - pivot_strength, i + pivot_strength + 1):
-                if j != i and j < len(high) and high[j] >= high[i]:
-                    is_ph = False
-                    break
-            if is_ph:
-                pivot_high = high[i]
-                pivot_high_idx = i
-                break
-
-        # Look for most recent pivot low (scanning backwards from end)
-        for i in range(len(low) - pivot_strength - 1, pivot_strength - 1, -1):
-            is_pl = True
-            for j in range(i - pivot_strength, i + pivot_strength + 1):
-                if j != i and j < len(low) and low[j] <= low[i]:
-                    is_pl = False
-                    break
-            if is_pl:
-                pivot_low = low[i]
-                pivot_low_idx = i
-                break
-
-        # Exhaustion Detection
-        exhaustion = None
-        if len(close) >= exhaustion_periods + 1:
-            price_change_pct = ((close[-1] - close[-exhaustion_periods-1]) / close[-exhaustion_periods-1]) * 100
-
-            # Price direction
-            price_rising = close[-1] > close[-2] if len(close) >= 2 else False
-            price_falling = close[-1] < close[-2] if len(close) >= 2 else False
-
-            # Sell exhaustion: price dropped significantly, volume spike, but not rising yet
-            if price_change_pct <= -min_price_move and vol_spike and not price_rising:
-                exhaustion = "SELL_EXHAUSTION"  # Potential reversal up
-
-            # Buy exhaustion: price rallied significantly, volume spike, but not falling yet
-            elif price_change_pct >= min_price_move and vol_spike and not price_falling:
-                exhaustion = "BUY_EXHAUSTION"  # Potential reversal down
-
-        # ATR Confirmation - price must close beyond pivot +/- (ATR * multiplier)
-        atr_confirmed_ph = False
-        atr_confirmed_pl = False
-
-        if pivot_high is not None and len(close) > 0:
-            # For pivot high: price must close below pivot - (ATR * mult)
-            atr_confirmed_ph = close[-1] < (pivot_high - (atr * atr_confirm_mult))
-
-        if pivot_low is not None and len(close) > 0:
-            # For pivot low: price must close above pivot + (ATR * mult)
-            atr_confirmed_pl = close[-1] > (pivot_low + (atr * atr_confirm_mult))
-
-        # Determine pivot type and A+ setup
-        has_pivot = (pivot_high is not None) or (pivot_low is not None)
-        pivot_type = None
-        is_aplus = False
-
-        # A+ setup: ATR-confirmed pivot (major pivot)
-        if atr_confirmed_pl:
-            pivot_type = "PIVOT_LOW"
-            is_aplus = True  # A+ setup when ATR-confirmed pivot low
-        elif atr_confirmed_ph:
-            pivot_type = "PIVOT_HIGH"
-            is_aplus = True  # A+ setup when ATR-confirmed pivot high
-        elif pivot_low is not None:
-            pivot_type = "PIVOT_LOW"
-        elif pivot_high is not None:
-            pivot_type = "PIVOT_HIGH"
-
-        return {
-            'pivot_high': pivot_high,
-            'pivot_low': pivot_low,
-            'pivot_high_idx': pivot_high_idx,
-            'pivot_low_idx': pivot_low_idx,
-            'has_pivot': has_pivot,
-            'pivot_type': pivot_type,
-            'atr_confirmed': atr_confirmed_ph or atr_confirmed_pl,
-            'is_aplus': is_aplus,
-            'timeframe': timeframe,
-            'exhaustion': exhaustion,
-            'volume_spike': vol_spike,
-            'atr': atr,
-            'pivot_strength': pivot_strength
+        analysis = {
+            'win_rate': win_rate,
+            'total_trades': len(results),
+            'winners': len(winners),
+            'losers': len(losers),
+            'avg_winner_confidence': np.mean([w[1] for w in winners]) if winners else 0,
+            'avg_loser_confidence': np.mean([l[1] for l in losers]) if losers else 0,
+            'avg_winner_pnl': np.mean([w[2] for w in winners]) if winners else 0,
+            'avg_loser_pnl': np.mean([l[2] for l in losers]) if losers else 0,
         }
 
-    @staticmethod
-    def detect_pivotx_mtf_confluence(df_5m: pd.DataFrame, df_15m: pd.DataFrame, df_1h: pd.DataFrame) -> Dict:
-        """
-        Check for PivotX Pro multi-timeframe confluence (5m, 15m, 1h)
-        Returns A+ setup if pivots align across timeframes with exhaustion signals
-        """
-        if df_5m is None or df_15m is None or df_1h is None:
-            return {
-                'is_aplus_setup': False,
-                'aplus_count': 0,
-                'has_pivot_low': False,
-                'pivot_types': [],
-                'timeframes': [],
-                'exhaustion_signals': []
-            }
-
-        pivots_5m = IndicatorCalculator.detect_pivotx_pivots(df_5m, "5m")
-        pivots_15m = IndicatorCalculator.detect_pivotx_pivots(df_15m, "15m")
-        pivots_1h = IndicatorCalculator.detect_pivotx_pivots(df_1h, "1h")
-
-        # Count A+ pivots across timeframes
-        aplus_count = 0
-        pivot_types = []
-        timeframes_with_pivots = []
-        exhaustion_signals = []
-
-        for tf_name, pivot_data in [("5m", pivots_5m), ("15m", pivots_15m), ("1h", pivots_1h)]:
-            if pivot_data['is_aplus']:
-                aplus_count += 1
-                pivot_types.append(pivot_data['pivot_type'])
-                timeframes_with_pivots.append(tf_name)
-
-            # Track exhaustion signals (especially sell exhaustion for long entries)
-            if pivot_data.get('exhaustion'):
-                exhaustion_signals.append({
-                    'timeframe': tf_name,
-                    'type': pivot_data['exhaustion']
-                })
-
-        # A+ setup: at least 2 timeframes with ATR-confirmed pivots, or 1h A+ pivot
-        # Extra boost if exhaustion signals are present
-        is_aplus_setup = (aplus_count >= 2) or (pivots_1h['is_aplus'])
-
-        # If we have sell exhaustion on 1h or multiple timeframes, it's a strong A+ setup
-        sell_exhaustion_count = sum(1 for e in exhaustion_signals if e['type'] == 'SELL_EXHAUSTION')
-        if sell_exhaustion_count >= 1 and (pivots_1h['is_aplus'] or aplus_count >= 1):
-            is_aplus_setup = True
-
-        # Prefer pivot lows for long entries (especially with sell exhaustion)
-        has_pivot_low = any(p['pivot_type'] == 'PIVOT_LOW' and p['is_aplus']
-                           for p in [pivots_5m, pivots_15m, pivots_1h])
-
-        # Extra strong: pivot low + sell exhaustion
-        has_pivot_low_exhaustion = (has_pivot_low and sell_exhaustion_count >= 1)
-
-        return {
-            'is_aplus_setup': is_aplus_setup,
-            'aplus_count': aplus_count,
-            'has_pivot_low': has_pivot_low,
-            'has_pivot_low_exhaustion': has_pivot_low_exhaustion,
-            'pivot_types': pivot_types,
-            'timeframes': timeframes_with_pivots,
-            'exhaustion_signals': exhaustion_signals,
-            'sell_exhaustion_count': sell_exhaustion_count,
-            'pivots_5m': pivots_5m,
-            'pivots_15m': pivots_15m,
-            'pivots_1h': pivots_1h
-        }
-
-
-class BountySeekerScanner:
-    """Main scanner for Bounty Seeker bot"""
-
-    def __init__(self, exchange: ccxt.Exchange):
-        self.exchange = exchange
-        self.last_scan_time = {}
-        self.signals_this_hour = []
-        self.hour_start = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0)
-
-    def get_futures_pairs(self) -> List[str]:
-        """Get whitelisted MEXC futures perpetual pairs from screenshots only"""
-        pairs = []
-        try:
-            # Get all active perpetual swap markets with USDT quote
-            for symbol, market in self.exchange.markets.items():
-                if (market.get('type') == 'swap' and
-                    market.get('active', True) and
-                    market.get('quote') == 'USDT'):
-
-                    # Extract base symbol (e.g., "BTC/USDT:USDT" -> "BTC", "EUR/USDT" -> "EUR")
-                    base_symbol = symbol.split('/')[0].split(':')[0]
-
-                    # Only include coins from the whitelist
-                    if base_symbol in ALLOWED_COINS:
-                        pairs.append(symbol)
-
-            logger.info(f"📊 Found {len(pairs)} whitelisted MEXC futures pairs (from screenshots only)")
-            logger.info(f"✅ Whitelisted coins: {sorted(ALLOWED_COINS)}")
-            return pairs
-        except Exception as e:
-            logger.error(f"Error fetching futures pairs: {e}")
-            return []
-
-    def fetch_ohlcv(self, symbol: str, timeframe: str, limit: int = 200) -> Optional[pd.DataFrame]:
-        """Fetch OHLCV data"""
-        try:
-            ohlcv = self.exchange.fetch_ohlcv(symbol, timeframe, limit=limit)
-            df = pd.DataFrame(ohlcv, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
-            df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
-            return df
-        except Exception as e:
-            logger.debug(f"Error fetching {symbol} {timeframe}: {e}")
-            return None
-
-    def scan_symbol(self, symbol: str) -> Optional[Signal]:
-        """Scan a single symbol for trading signals with PivotX Pro"""
-        try:
-            # Fetch data for multiple timeframes (including 5m for PivotX Pro)
-            df_5m = self.fetch_ohlcv(symbol, '5m', 200)
-            df_15m = self.fetch_ohlcv(symbol, '15m', 200)
-            df_1h = self.fetch_ohlcv(symbol, '1h', 200)
-            df_4h = self.fetch_ohlcv(symbol, '4h', 200)
-            df_daily = self.fetch_ohlcv(symbol, '1d', 200)
-
-            if df_15m is None or len(df_15m) < 50:
-                return None
-
-            current_price = df_15m['close'].iloc[-1]
-            current_high = df_15m['high'].iloc[-1]
-            current_low = df_15m['low'].iloc[-1]
-
-            reasons = []
-            confluence_score = 0.0
-            direction = None
-
-            # 1. Check GPS (Golden Pocket) zones
-            daily_high = df_daily['high'].max() if df_daily is not None and len(df_daily) > 0 else current_high
-            daily_low = df_daily['low'].min() if df_daily is not None and len(df_daily) > 0 else current_low
-
-            gps_zones = IndicatorCalculator.calculate_gps_zones(daily_high, daily_low)
-            gp_high = gps_zones['gp_high']
-            gp_low = gps_zones['gp_low']
-
-            gps_touched = False
-            if gp_low <= current_price <= gp_high:
-                gps_touched = True
-                confluence_score += 25
-                reasons.append("✅ Price at Golden Pocket zone (0.618-0.65)")
-
-            # 2. Check Oath Keeper divergence (macro) - check multiple timeframes
-            oath_div = False
-            oath_keeper_tf = "None"
-
-            # Check daily first (macro - highest priority)
-            if df_daily is not None and len(df_daily) >= 20:
-                oath_div = IndicatorCalculator.detect_oath_keeper_divergence(df_daily)
-                if oath_div:
-                    oath_keeper_tf = "Daily"
-                    confluence_score += 30
-                    reasons.append("✅ Macro divergence detected (Oath Keeper white circle) - **Daily timeframe**")
-
-            # Also check 4H for macro divergences
-            if not oath_div and df_4h is not None and len(df_4h) >= 20:
-                oath_div = IndicatorCalculator.detect_oath_keeper_divergence(df_4h)
-                if oath_div:
-                    oath_keeper_tf = "4H"
-                    confluence_score += 25  # Slightly less than daily
-                    reasons.append("✅ Macro divergence detected (Oath Keeper white circle) - **4H timeframe**")
-
-            # 3. Check SFP levels (15min, 1h, 4h) - 3 levels of confluence
-            sfp_levels = 0
-            sfp_details = []
-
-            for tf_name, tf_df in [('15m', df_15m), ('1h', df_1h), ('4h', df_4h)]:
-                if tf_df is not None and len(tf_df) >= 3:
-                    has_sfp, levels, sfp_info = IndicatorCalculator.detect_sfp(tf_df, tf_name)
-                    if has_sfp and sfp_info:
-                        sfp_levels += 1
-                        sfp_details.append({
-                            'timeframe': tf_name,
-                            'type': sfp_info['type'],
-                            'mid': sfp_info['mid']
-                        })
-
-            # Track which timeframes have SFPs
-            sfp_timeframes = [sfp['timeframe'] for sfp in sfp_details]
-
-            if sfp_levels >= 3:
-                confluence_score += 30
-                tf_list = ", ".join(sfp_timeframes)
-                reasons.append(f"✅ SFP 3-level confluence: {sfp_levels} levels - **Timeframes: {tf_list}**")
-            elif sfp_levels >= 2:
-                confluence_score += 20
-                tf_list = ", ".join(sfp_timeframes)
-                reasons.append(f"✅ SFP confluence: {sfp_levels} levels - **Timeframes: {tf_list}**")
-            elif sfp_levels >= 1:
-                confluence_score += 10
-                tf_list = ", ".join(sfp_timeframes)
-                reasons.append(f"✅ SFP detected: {sfp_levels} level - **Timeframe: {tf_list}**")
-
-            # 4. Check Elliott Wave 3 pullback - check multiple timeframes
-            wave3_pullback = False
-            wave3_tf = "None"
-
-            # Check 15m first
-            if df_15m is not None and len(df_15m) >= 30:
-                wave3_long = IndicatorCalculator.detect_elliott_wave3_pullback(df_15m, "LONG")
-                wave3_short = IndicatorCalculator.detect_elliott_wave3_pullback(df_15m, "SHORT")
-                if wave3_long or wave3_short:
-                    wave3_pullback = True
-                    wave3_tf = "15m"
-                    confluence_score += 15
-                    reasons.append("✅ Elliott Wave 3 pullback detected (ABC correction) - **15m timeframe**")
-
-            # Also check 1H (higher timeframe = better)
-            if not wave3_pullback and df_1h is not None and len(df_1h) >= 30:
-                wave3_long = IndicatorCalculator.detect_elliott_wave3_pullback(df_1h, "LONG")
-                wave3_short = IndicatorCalculator.detect_elliott_wave3_pullback(df_1h, "SHORT")
-                if wave3_long or wave3_short:
-                    wave3_pullback = True
-                    wave3_tf = "1H"
-                    confluence_score += 18  # Higher timeframe = more points
-                    reasons.append("✅ Elliott Wave 3 pullback detected (ABC correction) - **1H timeframe**")
-
-            # 5. Check VWAP trend (with strength) - uses 1H, 4H, Daily
-            vwap_trend, vwap_strength = IndicatorCalculator.check_vwap_trend(df_1h, df_4h, df_daily)
-            vwap_trend_tf = "1H/4H/Daily"  # VWAP stack uses multiple timeframes
-
-            # 6. Check price trend (EMA + price structure)
-            price_trend_4h = IndicatorCalculator.detect_price_trend(df_4h, 50) if df_4h is not None and len(df_4h) >= 50 else "NEUTRAL"
-            price_trend_daily = IndicatorCalculator.detect_price_trend(df_daily, 50) if df_daily is not None and len(df_daily) >= 50 else "NEUTRAL"
-
-            # Overall trend: prioritize higher timeframe
-            overall_trend = price_trend_daily if price_trend_daily != "NEUTRAL" else price_trend_4h
-            overall_trend_tf = "Daily" if price_trend_daily != "NEUTRAL" else "4H"
-            if overall_trend == "NEUTRAL":
-                overall_trend = vwap_trend  # Fallback to VWAP trend
-                overall_trend_tf = "VWAP Stack"
-
-            # Trend alignment score (for longs at bottoms, even bearish markets can have good bounces)
-            trend_aligned = False
-            if overall_trend == "BULLISH" and vwap_trend == "BULLISH":
-                trend_aligned = True
-                confluence_score += 20  # Boost for bullish alignment
-                reasons.append(f"✅ Strong BULLISH trend - VWAP stack + Price structure aligned - **Trend from: {overall_trend_tf}**")
-            elif vwap_trend == "BULLISH":
-                confluence_score += 10
-                reasons.append(f"⚠️ VWAP bullish but price trend neutral - **Trend from: {overall_trend_tf}**")
-            elif overall_trend == "BEARISH":
-                # Even in bearish markets, we can catch bounces at extreme lows
-                # Don't block, but don't add points either
-                reasons.append(f"⚠️ Bearish trend but hunting for bottom bounces - **Trend from: {overall_trend_tf}**")
-
-            # 7. Check Tactical Deviation (Daily VWAP with ±2σ and ±3σ bands) - main long filter
-            tactical_dev = IndicatorCalculator.calculate_tactical_deviation(df_daily)
-            deviation_level = 0
-            deviation_pct = 0.0
-            is_aplus_reversal = False
-
-            if tactical_dev:
-                deviation_level, deviation_pct = IndicatorCalculator.get_deviation_level(current_price, tactical_dev)
-
-                if deviation_level >= 3:  # ±3σ = A++ swing candidate
-                    is_aplus_reversal = True
-                    confluence_score += 30  # Stronger weighting
-                    reasons.append(f"✅ A++ REVERSAL: Price at ±3σ deviation ({deviation_pct:.2f}σ) - **Daily VWAP**")
-                elif deviation_level >= 2:  # ±2σ = A+ scalp candidate
-                    confluence_score += 20
-                    reasons.append(f"✅ A+ REVERSAL: Price at ±2σ deviation ({deviation_pct:.2f}σ) - **Daily VWAP**")
-
-            # 8. Check PivotX Pro pivots (5m, 15m, 1h) for A+ setups - UPDATED LOGIC
-            pivotx_confluence = None
-            pivotx_tfs = []
-            if df_5m is not None and df_15m is not None and df_1h is not None:
-                pivotx_confluence = IndicatorCalculator.detect_pivotx_mtf_confluence(df_5m, df_15m, df_1h)
-
-                if pivotx_confluence['is_aplus_setup']:
-                    # A+ setup: significant boost to confluence
-                    if pivotx_confluence['aplus_count'] >= 2:
-                        confluence_score += 40  # Multi-timeframe A+ pivot confluence (increased)
-                        tf_list = ", ".join(pivotx_confluence['timeframes'])
-                        reasons.append(f"✅ A+ PIVOTX PRO: {pivotx_confluence['aplus_count']} timeframes with ATR-confirmed pivots - **Timeframes: {tf_list}**")
-                    elif pivotx_confluence['pivots_1h']['is_aplus']:
-                        confluence_score += 30  # 1H A+ pivot is strong (increased)
-                        reasons.append(f"✅ A+ PIVOTX PRO: 1H ATR-confirmed pivot - **1H timeframe**")
-
-                    # Extra boost for pivot lows (better for long entries)
-                    if pivotx_confluence['has_pivot_low']:
-                        confluence_score += 20  # Increased boost
-                        reasons.append("✅ PivotX Pro: ATR-confirmed Pivot Low detected (optimal for long entries)")
-
-                    # EXHAUSTION SIGNALS - Strong reversal indicator
-                    if pivotx_confluence.get('sell_exhaustion_count', 0) >= 1:
-                        confluence_score += 25  # Strong boost for sell exhaustion (potential reversal up)
-                        exhaustion_tfs = [e['timeframe'] for e in pivotx_confluence.get('exhaustion_signals', [])
-                                         if e['type'] == 'SELL_EXHAUSTION']
-                        tf_list = ", ".join(exhaustion_tfs)
-                        reasons.append(f"✅ PivotX Pro: SELL EXHAUSTION detected - Potential reversal up - **Timeframes: {tf_list}**")
-
-                    # Extra strong: Pivot Low + Sell Exhaustion = Best setup
-                    if pivotx_confluence.get('has_pivot_low_exhaustion', False):
-                        confluence_score += 15  # Additional boost
-                        reasons.append("✅ PivotX Pro: A+ SETUP - Pivot Low + Sell Exhaustion (Best reversal signal)")
-
-                    pivotx_tfs = pivotx_confluence['timeframes']
-
-            # Determine direction: LONGS ONLY - RELAXED to catch bottoms
-            # Priority: PivotX Pro A+ setups can override strict requirements
-
-            # Check if we have a strong PivotX Pro A+ setup
-            has_pivotx_aplus = pivotx_confluence and pivotx_confluence.get('is_aplus_setup', False)
-            has_pivotx_exhaustion = pivotx_confluence and pivotx_confluence.get('sell_exhaustion_count', 0) >= 1
-            has_pivotx_low = pivotx_confluence and pivotx_confluence.get('has_pivot_low', False)
-
-            # GP proximity check (more lenient)
-            gp_near = gps_touched
-            if not gp_near:
-                # More lenient: within 3% of GP zone (increased from 2%)
-                gp_near = abs(current_price - gp_low) / current_price <= 0.03 or abs(current_price - gp_high) / current_price <= 0.03
-
-            # Deviation check (optional if we have strong PivotX Pro)
-            deviation_ok = deviation_level >= 1
-            strong_deviation = deviation_level >= 2
-
-            # Extra confirmation: include PivotX Pro signals
-            extra_confirm = (wave3_pullback or (sfp_levels >= 1) or oath_div or strong_deviation or
-                           has_pivotx_aplus or has_pivotx_exhaustion)
-
-            # VERY RELAXED REQUIREMENTS to catch bottoms:
-            # Priority 1: PivotX Pro A+ setup (strongest signal - minimal other requirements)
-            if has_pivotx_aplus and confluence_score >= 35:
-                direction = TradeDirection.LONG
-                if has_pivotx_exhaustion:
-                    reasons.append("✅ Long: PivotX Pro A+ with SELL EXHAUSTION - Strong reversal signal")
-                elif has_pivotx_low:
-                    reasons.append("✅ Long: PivotX Pro A+ Pivot Low - Reversal setup")
-                else:
-                    reasons.append("✅ Long: PivotX Pro A+ setup - Multi-timeframe pivot confluence")
-
-            # Priority 2: Good confluence with at least one strong signal
-            elif confluence_score >= 40 and extra_confirm:
-                direction = TradeDirection.LONG
-                if has_pivotx_aplus:
-                    reasons.append("✅ Long: PivotX Pro A+ + other confluence")
-                elif strong_deviation:
-                    reasons.append("✅ Long: Strong deviation (≥2σ) + confluence")
-                elif oath_div:
-                    reasons.append("✅ Long: Oath Keeper divergence + confluence")
-                elif wave3_pullback:
-                    reasons.append("✅ Long: Elliott Wave 3 pullback + confluence")
-                elif sfp_levels >= 1:
-                    reasons.append("✅ Long: SFP detected + confluence")
-                else:
-                    reasons.append("✅ Long: Good confluence score")
-
-            # Priority 3: Lower threshold but still need some confirmation
-            elif confluence_score >= 50 and (gp_near or deviation_ok or has_pivotx_aplus):
-                direction = TradeDirection.LONG
-                reasons.append("✅ Long: High confluence + (GP or Deviation or PivotX)")
-            else:
-                # Log rejection reasons for troubleshooting (only if score is close)
-                if confluence_score >= 30:  # Only log if it's close to passing
-                    logger.info(f"🔍 {symbol} CLOSE - Score: {confluence_score:.0f}, GP: {gp_near}, Dev: {deviation_level}, "
-                               f"PivotX A+: {has_pivotx_aplus}, Exhaustion: {has_pivotx_exhaustion}, "
-                               f"Extra: {extra_confirm} (Wave3: {wave3_pullback}, SFP: {sfp_levels}, Oath: {oath_div})")
-                return None
-
-            # Calculate entry, stop, and targets (long only)
-            entry_price = current_price
-            stop_loss = entry_price * (1 - STOP_LOSS_PCT)
-            tp1 = entry_price * (1 + TP1_PCT)
-            tp2 = entry_price * (1 + TP2_PCT)
-
-            # Adjust confidence for A+ reversals
-            base_confidence = min(confluence_score / 100.0, 1.0)
-            if is_aplus_reversal:
-                base_confidence = min(base_confidence * 1.2, 1.0)  # Boost confidence for A+ reversals
-
-            trade_kind = "SWING" if is_aplus_reversal else "SCALP"
-
-            signal = Signal(
-                symbol=symbol,
-                direction=direction,
-                trade_kind=trade_kind,
-                entry_price=entry_price,
-                stop_loss=stop_loss,
-                tp1=tp1,
-                tp2=tp2,
-                confidence=base_confidence,
-                confluence_score=confluence_score,
-                reasons=reasons,
-                timeframe="15m",
-                timestamp=datetime.now(timezone.utc),
-                gps_touched=gps_touched,
-                oath_keeper_div=oath_div,
-                oath_keeper_tf=oath_keeper_tf,
-                sfp_levels=sfp_levels,
-                sfp_timeframes=sfp_timeframes,
-                vwap_trend=overall_trend,
-                vwap_trend_tf=overall_trend_tf,
-                wave3_tf=wave3_tf,
-                chart_url=tv_link(symbol)
-            )
-
-            return signal
-
-        except Exception as e:
-            logger.debug(f"Error scanning {symbol}: {e}")
-            return None
-
-    def check_sfp_approaching(self, symbol: str) -> Optional[Dict]:
-        """Check if price is approaching an SFP (for notifications) - returns probability score"""
-        try:
-            df_15m = self.fetch_ohlcv(symbol, '15m', 50)
-            df_1h = self.fetch_ohlcv(symbol, '1h', 50)
-            df_4h = self.fetch_ohlcv(symbol, '4h', 50)
-            df_daily = self.fetch_ohlcv(symbol, '1d', 50)
-
-            if df_15m is None or len(df_15m) < 3:
-                return None
-
-            current_price = df_15m['close'].iloc[-1]
-            approaching_sfps = []
-            probability_score = 0.0
-
-            # Check SFPs across timeframes
-            for tf_name, tf_df in [('15m', df_15m), ('1h', df_1h), ('4h', df_4h)]:
-                if tf_df is not None and len(tf_df) >= 3:
-                    has_sfp, levels, sfp_info = IndicatorCalculator.detect_sfp(tf_df, tf_name)
-                    if has_sfp and sfp_info:
-                        distance_pct = abs(current_price - sfp_info['mid']) / current_price * 100
-                        if distance_pct < 1.0:  # Within 1% of SFP
-                            # Higher timeframe = higher probability
-                            tf_weight = {'15m': 1.0, '1h': 1.5, '4h': 2.0}.get(tf_name, 1.0)
-                            # Closer = higher probability
-                            distance_score = (1.0 - distance_pct / 1.0) * 100
-
-                            approaching_sfps.append({
-                                'timeframe': tf_name,
-                                'type': sfp_info['type'],
-                                'mid': sfp_info['mid'],
-                                'distance_pct': distance_pct
-                            })
-
-                            probability_score += distance_score * tf_weight
-
-            if approaching_sfps:
-                # Check for additional confluence factors
-                # GPS proximity
-                if df_daily is not None and len(df_daily) > 0:
-                    daily_high = df_daily['high'].max()
-                    daily_low = df_daily['low'].min()
-                    gps_zones = IndicatorCalculator.calculate_gps_zones(daily_high, daily_low)
-                    distance_to_gp = min(abs(current_price - gps_zones['gp_high']),
-                                        abs(current_price - gps_zones['gp_low'])) / current_price * 100
-                    if distance_to_gp < 2.0:  # Near GPS
-                        probability_score += 20
-
-                # NO VOLUME FILTER - All market caps are valid, especially smaller caps for pump potential
-                # Removed volume-based scoring to focus on all caps, not just big caps
-
-                # More SFP levels = higher probability
-                if len(approaching_sfps) >= 2:
-                    probability_score += 25
-                elif len(approaching_sfps) >= 1:
-                    probability_score += 10
-
-                return {
-                    'symbol': symbol,
-                    'current_price': current_price,
-                    'sfps': approaching_sfps,
-                    'chart_url': tv_link(symbol),
-                    'probability_score': probability_score
-                }
-            return None
-        except:
-            return None
-
-    def scan_all(self) -> Tuple[List[Signal], List[Dict]]:
-        """Scan all symbols and return signals + SFP notifications (watchlist removed)"""
-        # Check if we've hit the hourly limit
-        current_hour = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0)
-        if current_hour > self.hour_start:
-            self.signals_this_hour = []
-            self.hour_start = current_hour
-
-        if len(self.signals_this_hour) >= MAX_SIGNALS_PER_HOUR:
-            logger.info(f"Hourly signal limit reached ({MAX_SIGNALS_PER_HOUR})")
-            return [], []
-
-        pairs = self.get_futures_pairs()
-        signals = []
-
-        # Scan ALL pairs for long opportunities (no watchlist)
-        logger.info(f"🔍 Scanning {len(pairs)} pairs for long bottom opportunities...")
-        for symbol in pairs:
-            # Check if we've already signaled this symbol this hour
-            if any(s.symbol == symbol for s in self.signals_this_hour):
-                continue
-
-            signal = self.scan_symbol(symbol)
-            if signal:
-                signals.append(signal)
-                self.signals_this_hour.append(signal)
-                logger.info(f"✅ Found LONG signal: {signal.symbol} (Confluence: {signal.confluence_score:.0f})")
-
-                if len(signals) >= MAX_SIGNALS_PER_HOUR:
-                    break
-
-        # Check for SFP approaching notifications (potential setups)
-        # Get best probable SFPs (max 3, ranked by probability)
-        sfp_notifications = []
-        sfp_candidates = []
-
-        # Scan ALL pairs for SFP opportunities (no volume limit - focusing on all caps, especially smaller ones that will pump)
-        for symbol in pairs:
-            sfp_info = self.check_sfp_approaching(symbol)
-            if sfp_info:
-                sfp_candidates.append(sfp_info)
-
-        # Sort by probability score (highest first) and take top 3
-        if sfp_candidates:
-            sfp_candidates.sort(key=lambda x: x.get('probability_score', 0), reverse=True)
-            sfp_notifications = sfp_candidates[:3]  # Max 3 best probable SFPs
-
-        # Post-process: Only provide 2 scalps + 1 swing (longs only)
-        swings = [s for s in signals if s.trade_kind == "SWING"]
-        scalps = [s for s in signals if s.trade_kind == "SCALP"]
-
-        swings_sorted = sorted(swings, key=lambda x: x.confluence_score, reverse=True)
-        scalps_sorted = sorted(scalps, key=lambda x: x.confluence_score, reverse=True)
-
-        final_signals = []
-        if swings_sorted:
-            final_signals.append(swings_sorted[0])  # Top swing
-        final_signals.extend(scalps_sorted[:2])     # Top 2 scalps
-
-        logger.info(f"📊 Scan complete: {len(final_signals)} signals found ({len(swings)} swings, {len(scalps)} scalps)")
-        return final_signals, sfp_notifications
-
-
+        # Strategy component analysis
+        gps_winners = [r for r in winners if r[4] == 1]
+        gps_losers = [r for r in losers if r[4] == 1]
+        gps_win_rate = len(gps_winners) / (len(gps_winners) + len(gps_losers)) if (gps_winners or gps_losers) else 0
+
+        sfp_winners = [r for r in winners if r[5] == 1]
+        sfp_losers = [r for r in losers if r[5] == 1]
+        sfp_win_rate = len(sfp_winners) / (len(sfp_winners) + len(sfp_losers)) if (sfp_winners or sfp_losers) else 0
+
+        analysis['gps_win_rate'] = gps_win_rate
+        analysis['sfp_win_rate'] = sfp_win_rate
+
+        return analysis
+
+    def get_adjusted_parameters(self) -> Dict:
+        """Get adjusted parameters based on learning"""
+        analysis = self.analyze_performance()
+
+        if not analysis or analysis['total_trades'] < 10:
+            return {}  # Use defaults
+
+        adjustments = {}
+
+        # If win rate is low, increase minimum confidence
+        if analysis['win_rate'] < 0.5:
+            if analysis['avg_loser_confidence'] > 0:
+                # Losers had high confidence, need to be more selective
+                adjustments['min_confidence'] = min(85, MIN_CONFIDENCE_SCORE + 5)
+        elif analysis['win_rate'] > 0.7:
+            # High win rate, can be slightly more aggressive
+            adjustments['min_confidence'] = max(65, MIN_CONFIDENCE_SCORE - 5)
+
+        # Adjust GPS weight based on performance
+        if analysis.get('gps_win_rate', 0) > 0.65:
+            adjustments['gps_weight'] = 1.2  # Increase GPS importance
+        elif analysis.get('gps_win_rate', 0) < 0.45:
+            adjustments['gps_weight'] = 0.8  # Decrease GPS importance
+
+        # Adjust SFP weight
+        if analysis.get('sfp_win_rate', 0) > 0.65:
+            adjustments['sfp_weight'] = 1.2
+        elif analysis.get('sfp_win_rate', 0) < 0.45:
+            adjustments['sfp_weight'] = 0.8
+
+        return adjustments
+
+    def close(self):
+        """Close database connection"""
+        self.conn.close()
+
+# ====================== MAIN BOT CLASS ======================
 class BountySeekerBot:
-    """Main Bounty Seeker bot"""
+    """Bounty Seeker - Reversal Sniper Bot"""
 
     def __init__(self):
         self.exchange = None
-        self.scanner = None
-        self.paper_account = PaperTradingAccount()
+        self.learning = LearningSystem()
+        self.active_trades = {}  # symbol -> entry_time
+        self.state = self.load_state()
+        self.adjusted_params = {}
+        self.watchlist = []
+        self.watchlist_last_update = None
+        self.trade_counter = self.state.get("trade_counter", 0)
+        self.last_status_minute = None
         self.init_exchange()
+        self.load_top_50_watchlist()
+        self.reset_trades_if_needed()
+
+    def reset_trades_if_needed(self):
+        """Reset trades and counters (one-time)"""
+        if self.state.get("trades_reset_v2"):
+            return
+        try:
+            conn = sqlite3.connect(TRADES_DB)
+            c = conn.cursor()
+            c.execute("DELETE FROM trades")
+            conn.commit()
+            conn.close()
+            self.trade_counter = 0
+            self.active_trades = {}
+            self.state["trade_counter"] = 0
+            self.state["trades_reset_v2"] = True
+            self.save_state()
+            logger.info("🧹 Trades reset: cleared history and trade numbers restarted")
+        except Exception as e:
+            logger.error(f"Failed to reset trades: {e}")
+
+    def get_next_trade_number(self) -> int:
+        """Get the next trade number and persist it"""
+        self.trade_counter += 1
+        self.state["trade_counter"] = self.trade_counter
+        self.save_state()
+        return self.trade_counter
+
+    def get_open_trades(self) -> List[Dict]:
+        """Fetch open trades from database"""
+        conn = sqlite3.connect(TRADES_DB)
+        c = conn.cursor()
+        c.execute("""
+            SELECT id, trade_number, symbol, entry_price, stop_loss, take_profit, entry_time
+            FROM trades WHERE status = 'open'
+        """)
+        rows = c.fetchall()
+        conn.close()
+        trades = []
+        for r in rows:
+            trades.append({
+                "id": r[0],
+                "trade_number": r[1],
+                "symbol": r[2],
+                "entry_price": r[3],
+                "stop_loss": r[4],
+                "take_profit": r[5],
+                "entry_time": r[6]
+            })
+        return trades
+
+    def close_trade(self, trade_id: int, exit_price: float, exit_reason: str, entry_price: float):
+        """Close trade with P&L calculation"""
+        pnl_pct = ((exit_price - entry_price) / entry_price) * 100 if entry_price else 0.0
+        conn = sqlite3.connect(TRADES_DB)
+        c = conn.cursor()
+        c.execute("""
+            UPDATE trades
+            SET exit_time = ?, exit_price = ?, pnl_pct = ?, exit_reason = ?, status = 'closed'
+            WHERE id = ?
+        """, (
+            datetime.now(timezone.utc).isoformat(),
+            exit_price,
+            pnl_pct,
+            exit_reason,
+            trade_id
+        ))
+        conn.commit()
+        conn.close()
+        logger.info(f"✅ Trade closed: #{trade_id} {exit_reason} @ {exit_price:.4f} ({pnl_pct:.2f}%)")
+
+    def check_open_trades(self):
+        """Check open trades for TP/SL hit and close them"""
+        open_trades = self.get_open_trades()
+        for trade in open_trades:
+            try:
+                ticker = self.exchange.fetch_ticker(trade["symbol"])
+                current_price = float(ticker.get("last", 0) or ticker.get("close", 0) or 0)
+                if current_price <= 0:
+                    continue
+                if current_price <= trade["stop_loss"]:
+                    self.close_trade(trade["id"], current_price, "stop_loss", trade["entry_price"])
+                    if trade["symbol"] in self.active_trades:
+                        del self.active_trades[trade["symbol"]]
+                elif current_price >= trade["take_profit"]:
+                    self.close_trade(trade["id"], current_price, "take_profit", trade["entry_price"])
+                    if trade["symbol"] in self.active_trades:
+                        del self.active_trades[trade["symbol"]]
+            except Exception as e:
+                logger.error(f"Failed to check trade {trade.get('symbol')}: {e}")
+
+    def count_open_trades(self) -> int:
+        """Count open trades"""
+        return len(self.get_open_trades())
 
     def init_exchange(self):
-        """Initialize MEXC exchange"""
+        """Initialize OKX exchange (perpetual futures)"""
         try:
-            self.exchange = ccxt.mexc({
-                'enableRateLimit': True,
-                'options': {'defaultType': 'swap'},
-                'timeout': 30000
-            })
+            self.exchange = ccxt.okx(EXCHANGE_CONFIG)
             self.exchange.load_markets()
-            self.scanner = BountySeekerScanner(self.exchange)
-            logger.info("✅ MEXC exchange initialized")
+            logger.info("✅ OKX Futures connected")
         except Exception as e:
-            logger.error(f"❌ Failed to initialize MEXC: {e}")
-            raise
-
-    def send_sfp_notifications_batch(self, sfp_notifications: List[Dict]):
-        """Send all SFP approaching notifications in one card (top 3 most probable)"""
-        if not sfp_notifications:
-            return
-
-        embed = {
-            "title": f"🔔 SFP Approaching - Top {len(sfp_notifications)} Most Probable",
-            "color": 0xFFD700,  # Gold
-            "description": "Price approaching Smart Fibonacci Points (Fair Value Gaps) - Ranked by probability",
-            "fields": [],
-            "timestamp": datetime.now(timezone.utc).isoformat()
-        }
-
-        for idx, sfp_info in enumerate(sfp_notifications, 1):
-            prob_score = sfp_info.get('probability_score', 0)
-            sfp_text = f"**Rank #{idx}** | Probability Score: {prob_score:.0f}\n"
-            sfp_text += f"**Price:** ${sfp_info['current_price']:.6f}\n"
-            sfp_text += "**Approaching SFPs:**\n"
-
-            for sfp in sfp_info['sfps']:
-                tf_emoji = "🟢" if sfp['timeframe'] == '4h' else "🟡" if sfp['timeframe'] == '1h' else "🔵"
-                sfp_text += f"{tf_emoji} {sfp['timeframe']} {sfp['type']} - ${sfp['mid']:.6f} ({sfp['distance_pct']:.2f}% away)\n"
-
-            sfp_text += f"\n[Chart]({sfp_info['chart_url']})"
-
-            embed["fields"].append({
-                "name": f"{sfp_info['symbol']}",
-                "value": sfp_text,
-                "inline": False
-            })
-
-        embed["footer"] = {
-            "text": "Top 3 most probable SFPs based on distance, timeframe, GPS proximity, volume, and confluence"
-        }
-
-        try:
-            payload = {"embeds": [embed]}
-            r = requests.post(DISCORD_WEBHOOK, json=payload, timeout=15)
-            r.raise_for_status()
-            logger.info(f"📤 Sent {len(sfp_notifications)} SFP notifications in one card (top probable)")
-        except Exception as e:
-            logger.error(f"Failed to send SFP notifications: {e}")
-
-    def send_discord_signal(self, signal: Signal):
-        """Send signal to Discord"""
-        # Check if this is an A+ reversal (look for ±3σ in reasons)
-        is_aplus = any("A+ REVERSAL" in reason or "±3σ" in reason for reason in signal.reasons)
-        if is_aplus:
-            color = 0xFFD700  # Gold for A+ reversals
-            title = f"⭐ A+ REVERSAL: {signal.symbol} {signal.direction.value}"
-        else:
-            color = 0x00FF00 if signal.direction == TradeDirection.LONG else 0x9370DB  # Green for long, Purple for short
-            title = f"🎯 Bounty Seeker Signal: {signal.symbol} {signal.direction.value}"
-
-        embed = {
-            "title": title,
-            "color": color,
-            "fields": [
-                {
-                    "name": "Direction",
-                    "value": f"**{signal.direction.value}**",
-                    "inline": True
-                },
-                {
-                    "name": "Entry Price",
-                    "value": f"${signal.entry_price:.6f}",
-                    "inline": True
-                },
-                {
-                    "name": "Confluence Score",
-                    "value": f"{signal.confluence_score:.0f}/100",
-                    "inline": True
-                },
-                {
-                    "name": "Stop Loss",
-                    "value": f"${signal.stop_loss:.6f}",
-                    "inline": True
-                },
-                {
-                    "name": "Take Profit 1",
-                    "value": f"${signal.tp1:.6f} ({TP1_PCT*100:.2f}%)",
-                    "inline": True
-                },
-                {
-                    "name": "Take Profit 2",
-                    "value": f"${signal.tp2:.6f} ({TP2_PCT*100:.2f}%)",
-                    "inline": True
-                },
-                {
-                    "name": "Why This Trade?",
-                    "value": "\n".join(signal.reasons) if signal.reasons else "Multiple confluence factors",
-                    "inline": False
-                },
-                {
-                    "name": "Indicators & Timeframes",
-                    "value": f"GPS: {'✅' if signal.gps_touched else '❌'} (Daily)\n"
-                            f"Oath Keeper Div: {'✅' if signal.oath_keeper_div else '❌'} **{signal.oath_keeper_tf}**\n"
-                            f"SFP Levels: {signal.sfp_levels}/3 - **Timeframes: {', '.join(signal.sfp_timeframes) if signal.sfp_timeframes else 'None'}**\n"
-                            f"Wave 3 Pullback: {'✅' if signal.wave3_tf != 'None' else '❌'} **{signal.wave3_tf}**\n"
-                            f"VWAP Trend: {signal.vwap_trend} - **From: {signal.vwap_trend_tf}**\n"
-                            f"Tactical Deviation: **Daily VWAP**",
-                    "inline": False
-                }
-            ],
-            "timestamp": signal.timestamp.isoformat(),
-            "url": signal.chart_url
-        }
-
-        try:
-            payload = {"embeds": [embed]}
-            r = requests.post(DISCORD_WEBHOOK, json=payload, timeout=15)
-            r.raise_for_status()
-            logger.info(f"📤 Sent signal to Discord: {signal.symbol}")
-        except Exception as e:
-            logger.error(f"Failed to send Discord notification: {e}")
-
-
-    def send_multiple_signals(self, signals: List[Signal]):
-        """Send multiple signals in one card"""
-        if not signals:
-            return
-
-        # Use white card with colors to differentiate
-        embed = {
-            "title": f"🎯 Bounty Seeker Signals ({len(signals)} trades)",
-            "color": 0xFFFFFF,  # White
-            "fields": [],
-            "timestamp": datetime.now(timezone.utc).isoformat()
-        }
-
-        for signal in signals:
-            color_emoji = "🟢" if signal.direction == TradeDirection.LONG else "🟣"
-            field_value = f"{color_emoji} **{signal.symbol} {signal.direction.value}**\n"
-            field_value += f"Entry: ${signal.entry_price:.6f} | TP1: ${signal.tp1:.6f} ({TP1_PCT*100:.2f}%)\n"
-            field_value += f"Confluence: {signal.confluence_score:.0f}/100\n"
-            field_value += "\n".join(signal.reasons[:2])  # First 2 reasons
-            field_value += f"\n[Chart]({signal.chart_url})"
-
-            embed["fields"].append({
-                "name": f"{signal.symbol}",
-                "value": field_value,
-                "inline": False
-            })
-
-        try:
-            payload = {"embeds": [embed]}
-            r = requests.post(DISCORD_WEBHOOK, json=payload, timeout=15)
-            r.raise_for_status()
-            logger.info(f"📤 Sent {len(signals)} signals in one card")
-        except Exception as e:
-            logger.error(f"Failed to send multiple signals: {e}")
-
-    def update_active_trades(self):
-        """Update all active trades and check for exits"""
-        active_trades = self.paper_account.get_active_trades()
-
-        for trade in active_trades:
+            logger.error(f"❌ Exchange init failed: {e}")
+            # Try Binance as fallback
             try:
-                ticker = self.exchange.fetch_ticker(trade.symbol)
-                current_price = float(ticker['last'])
+                logger.info("🔄 Trying Binance as fallback...")
+                self.exchange = ccxt.binance({
+                    'options': {'defaultType': 'future'},
+                    'enableRateLimit': True
+                })
+                self.exchange.load_markets()
+                logger.info("✅ Binance Futures connected (fallback)")
+            except Exception as e2:
+                logger.error(f"❌ Both exchanges failed. Binance error: {e2}")
+                raise
 
-                exit_reason = self.paper_account.update_trade(trade, current_price)
-                if exit_reason:
-                    logger.info(f"Trade closed: {trade.symbol} - {exit_reason}")
-            except Exception as e:
-                logger.error(f"Error updating trade {trade.symbol}: {e}")
-
-    def run_scan(self):
-        """Run a single scan"""
-        logger.info("🔍 Starting Bounty Seeker scan...")
-
-        # Update active trades first
-        self.update_active_trades()
-
-        # Scan for new signals (watchlist removed)
-        signals, sfp_notifications = self.scanner.scan_all()
-
-        # Send SFP approaching notifications (batched in one card)
-        if sfp_notifications:
-            self.send_sfp_notifications_batch(sfp_notifications)
-
-        # Send signals to Discord
-        if signals:
-            if len(signals) == 1:
-                self.send_discord_signal(signals[0])
-            else:
-                self.send_multiple_signals(signals)
-
-            # Enter trades
-            for signal in signals:
-                if self.paper_account.can_enter_trade():
-                    trade = self.paper_account.enter_trade(signal)
-                    if trade:
-                        # Send entry notification
-                        self.send_trade_entry_notification(trade, signal)
-
-    def send_trade_entry_notification(self, trade: Trade, signal: Signal):
-        """Send trade entry notification"""
-        color = 0xFF0000  # Red color for all trade entries
-
-        embed = {
-            "title": f"🚨 Trade Entered: {trade.symbol} {trade.direction.value}",
-            "color": color,
-            "fields": [
-                {
-                    "name": "Entry Price",
-                    "value": f"${trade.entry_price:.6f}",
-                    "inline": True
-                },
-                {
-                    "name": "Indicator Timeframes",
-                    "value": f"Oath Keeper: **{signal.oath_keeper_tf}**\n"
-                            f"SFP: **{', '.join(signal.sfp_timeframes) if signal.sfp_timeframes else 'None'}**\n"
-                            f"Wave 3: **{signal.wave3_tf}**\n"
-                            f"Trend: **{signal.vwap_trend_tf}**",
-                    "inline": False
-                },
-                {
-                    "name": "Stop Loss",
-                    "value": f"${trade.stop_loss:.6f}",
-                    "inline": True
-                },
-                {
-                    "name": "Take Profit 1",
-                    "value": f"${trade.tp1:.6f} ({TP1_PCT*100:.2f}%)",
-                    "inline": True
-                },
-                {
-                    "name": "Position Size",
-                    "value": f"${trade.position_size_usd:.2f} @ {trade.leverage}x",
-                    "inline": True
-                },
-                {
-                    "name": "Confluence",
-                    "value": f"{signal.confluence_score:.0f}/100",
-                    "inline": True
-                },
-                {
-                    "name": "Reasons",
-                    "value": "\n".join(signal.reasons),
-                    "inline": False
-                }
-            ],
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-            "url": signal.chart_url
-        }
-
+    def get_tradingview_link(self, symbol: str) -> str:
+        """Generate TradingView link for symbol - Format: BTC/USDT (no exchange name)"""
         try:
-            payload = {"embeds": [embed]}
-            r = requests.post(DISCORD_WEBHOOK, json=payload, timeout=15)
-            r.raise_for_status()
+            # Convert OKX format (BTC/USDT:USDT) to TradingView format (BTC/USDT)
+            # Remove :USDT suffix if present, keep /USDT format
+            if '/USDT:USDT' in symbol:
+                # BTC/USDT:USDT -> BTC/USDT
+                clean_symbol = symbol.replace(':USDT', '')
+            elif '/USDT' in symbol:
+                # BTC/USDT -> BTC/USDT (already correct)
+                clean_symbol = symbol
+            elif ':USDT' in symbol:
+                # BTC:USDT -> BTC/USDT
+                base = symbol.split(':')[0]
+                clean_symbol = f"{base}/USDT"
+            else:
+                # Just BTC -> BTC/USDT
+                base = symbol.split('/')[0] if '/' in symbol else symbol
+                clean_symbol = f"{base}/USDT"
+
+            # TradingView format: symbol=BTC/USDT (no exchange name)
+            return f"https://www.tradingview.com/chart/?symbol={clean_symbol}"
         except Exception as e:
-            logger.error(f"Failed to send entry notification: {e}")
+            # Fallback: try to extract base and add /USDT
+            base = symbol.split('/')[0] if '/' in symbol else symbol.split(':')[0]
+            return f"https://www.tradingview.com/chart/?symbol={base}/USDT"
+
+    def load_top_50_watchlist(self):
+        """Load top 50 perpetual futures USDT pairs by 24h volume"""
+        try:
+            logger.info("📊 Loading top 50 coins by volume...")
+
+            # Get all swap (perpetual futures) markets
+            all_swap_pairs = []
+            for market_id, market in self.exchange.markets.items():
+                # OKX swap markets: type='swap', quote='USDT'
+                if (market.get('type') == 'swap' and
+                    market.get('quote') == 'USDT' and
+                    market.get('active', True)):
+                    all_swap_pairs.append(market_id)
+
+            if not all_swap_pairs:
+                logger.warning("⚠️ No swap pairs found, using fallback list")
+                self.watchlist = WATCHLIST_SYMBOLS if WATCHLIST_SYMBOLS else []
+                return
+
+            logger.info(f"📊 Found {len(all_swap_pairs)} swap pairs, fetching volumes...")
+
+            # Fetch tickers to get volumes
+            try:
+                tickers = self.exchange.fetch_tickers()
+            except Exception as e:
+                logger.error(f"Failed to fetch tickers: {e}")
+                # Fallback to first 50 pairs
+                self.watchlist = all_swap_pairs[:50]
+                logger.info(f"📊 Using first 50 pairs as fallback")
+                return
+
+            # Get volumes for each pair
+            symbol_volumes = []
+            for symbol in all_swap_pairs:
+                ticker = tickers.get(symbol, {})
+                # Try different volume fields
+                volume = (ticker.get('quoteVolume') or
+                         ticker.get('baseVolume') or
+                         ticker.get('info', {}).get('volCcy24h') or
+                         0)
+                try:
+                    volume = float(volume)
+                except (ValueError, TypeError):
+                    volume = 0.0
+
+                if volume >= MIN_24H_VOLUME_USD:  # Filter by minimum volume
+                    symbol_volumes.append((symbol, volume))
+
+            # Sort by volume descending
+            symbol_volumes.sort(key=lambda x: x[1], reverse=True)
+
+            # Get top 50
+            self.watchlist = [s[0] for s in symbol_volumes[:50]]
+            self.watchlist_last_update = datetime.now(timezone.utc)
+
+            # Log top 10 for verification
+            top_10_names = [s.split('/')[0] if '/' in s else s.split(':')[0] for s in self.watchlist[:10]]
+            logger.info(f"✅ Loaded top 50 coins: {', '.join(top_10_names)}... (Total: {len(self.watchlist)})")
+
+        except Exception as e:
+            logger.error(f"❌ Failed to load watchlist: {e}")
+            # Fallback to common pairs
+            self.watchlist = [
+                'BTC/USDT:USDT', 'ETH/USDT:USDT', 'SOL/USDT:USDT', 'BNB/USDT:USDT',
+                'XRP/USDT:USDT', 'ADA/USDT:USDT', 'AVAX/USDT:USDT', 'DOGE/USDT:USDT',
+                'TRX/USDT:USDT', 'LINK/USDT:USDT', 'MATIC/USDT:USDT', 'DOT/USDT:USDT',
+                'UNI/USDT:USDT', 'LTC/USDT:USDT', 'ATOM/USDT:USDT', 'ETC/USDT:USDT',
+                'ARB/USDT:USDT', 'OP/USDT:USDT', 'SUI/USDT:USDT', 'APT/USDT:USDT',
+                'INJ/USDT:USDT', 'TIA/USDT:USDT', 'SEI/USDT:USDT', 'WLD/USDT:USDT'
+            ]
+            logger.info(f"📊 Using fallback watchlist ({len(self.watchlist)} pairs)")
+
+    def should_update_watchlist(self) -> bool:
+        """Check if watchlist should be updated"""
+        if not self.watchlist_last_update:
+            return True
+        elapsed = (datetime.now(timezone.utc) - self.watchlist_last_update).total_seconds()
+        return elapsed >= WATCHLIST_UPDATE_INTERVAL
+
+    def load_state(self) -> Dict:
+        """Load bot state from file"""
+        if os.path.exists(STATE_FILE):
+            try:
+                with open(STATE_FILE, 'r') as f:
+                    return json.load(f)
+            except:
+                pass
+        return {}
+
+    def save_state(self):
+        """Save bot state to file"""
+        try:
+            with open(STATE_FILE, 'w') as f:
+                json.dump(self.state, f, indent=2)
+        except Exception as e:
+            logger.error(f"Failed to save state: {e}")
+
+    def get_next_scan_time_utc(self) -> datetime:
+        """Next scan time at XX:45 UTC"""
+        now = datetime.now(timezone.utc)
+        next_scan = now.replace(second=0, microsecond=0)
+        if next_scan.minute < 45:
+            next_scan = next_scan.replace(minute=45)
+        else:
+            next_scan = (next_scan + timedelta(hours=1)).replace(minute=45)
+        return next_scan
+
+    def write_status(self, status: str, signals: Optional[List[Signal]] = None):
+        """Write bot status to JSON for the website"""
+        try:
+            open_trades = self.get_open_trades()
+            payload = {
+                "status": status,
+                "exchange": EXCHANGE_NAME,
+                "watchlist_size": len(self.watchlist),
+                "last_scan_time": self.state.get("last_scan_time"),
+                "next_scan_time": self.get_next_scan_time_utc().isoformat(),
+                "open_trades": open_trades,
+                "signals": []
+            }
+
+            if signals:
+                payload["signals"] = [
+                    {
+                        "symbol": s.symbol,
+                        "entry_price": s.entry_price,
+                        "stop_loss": s.stop_loss,
+                        "take_profit": s.take_profit,
+                        "confidence_score": s.confidence_score,
+                        "reasons": s.reasons[:3],
+                        "rsi": s.rsi,
+                        "deviation": s.deviation,
+                        "in_gps_zone": s.in_gps_zone,
+                        "timestamp": s.timestamp.isoformat(),
+                        "tradingview_link": s.tradingview_link
+                    }
+                    for s in signals
+                ]
+
+            with open(STATUS_FILE, 'w') as f:
+                json.dump(payload, f, indent=2)
+        except Exception as e:
+            logger.error(f"Failed to write status file: {e}")
+
+    def is_scan_time(self) -> bool:
+        """Check if it's time to scan (XX:45 - 15 minutes before hour)"""
+        now = datetime.now(timezone.utc)
+        return now.minute == 45 and now.second < 5
+
+    def analyze_symbol(self, symbol: str) -> Optional[Signal]:
+        """Analyze a symbol for reversal signals"""
+        try:
+            # Fetch 15m candles
+            timeframe = '15m'
+            ohlcv = self.exchange.fetch_ohlcv(symbol, timeframe, limit=200)
+
+            if len(ohlcv) < 50:
+                return None
+
+            # Get current data
+            current_candle = ohlcv[-1]
+            current_price = float(current_candle[4])  # Close
+            high = float(current_candle[2])
+            low = float(current_candle[3])
+            volume = float(current_candle[5])
+
+            # Get daily range for GPS
+            daily_ohlcv = self.exchange.fetch_ohlcv(symbol, '1d', limit=1)
+            if daily_ohlcv:
+                daily_high = float(daily_ohlcv[-1][2])
+                daily_low = float(daily_ohlcv[-1][3])
+            else:
+                # Use recent candles to estimate daily range
+                daily_high = max([float(c[2]) for c in ohlcv[-96:]])  # Last 24h of 15m candles
+                daily_low = min([float(c[3]) for c in ohlcv[-96:]])
+
+            # Calculate indicators
+            closes = [float(c[4]) for c in ohlcv]
+            rsi = calculate_rsi(closes, RSI_PERIOD)
+            vwap, std_dev, deviation_sigma = calculate_vwap_and_deviation(ohlcv)
+            in_gps, gps_distance = calculate_gps_zone(daily_high, daily_low, current_price)
+            has_sfp = detect_sfp_reversal(ohlcv)
+
+            if vwap is None or std_dev is None or deviation_sigma is None:
+                return None
+
+            # Calculate volume spike metrics (VPSR Pro logic)
+            vol_ma, vol_stddev, volume_ratio, is_abnormal_vol, is_extreme_vol, is_vol_reversal = calculate_volume_spike_metrics(ohlcv)
+
+            # Score the signal
+            score = 0
+            reasons = []
+
+            # 1. Deviation Zone (2.5σ - 3σ) - Most important
+            if deviation_sigma <= -DEVIATION_3SIGMA:
+                score += 40
+                reasons.append(f"Deviation Zone -3 Sigma (Mean Reversion)")
+            elif deviation_sigma <= -DEVIATION_2SIGMA:
+                score += 30
+                reasons.append(f"Deviation Zone -2.5 Sigma")
+            elif deviation_sigma <= -1.5:  # More lenient - catch more opportunities
+                score += 20
+                reasons.append(f"Deviation Zone -1.5 Sigma (Oversold)")
+
+            # 2. GPS Zone (Golden Pocket)
+            if in_gps:
+                gps_weight = self.adjusted_params.get('gps_weight', 1.0)
+                score += int(30 * gps_weight)
+                reasons.append(f"Price in Daily Golden Pocket (0.618-0.65)")
+            elif gps_distance < 1.0:  # More lenient - within 1%
+                score += 20
+                reasons.append(f"Near GPS Zone ({gps_distance:.2f}% away)")
+            elif gps_distance < 2.0:  # Even more lenient
+                score += 10
+                reasons.append(f"Approaching GPS Zone ({gps_distance:.2f}% away)")
+
+            # 3. RSI Divergence - More lenient
+            if rsi < 40 and rsi > 20:  # Wider range
+                score += 20
+                reasons.append(f"RSI Oversold ({rsi:.1f})")
+            elif rsi < 30:
+                score += 15
+                reasons.append(f"RSI Extreme Oversold ({rsi:.1f})")
+            elif rsi < 50:  # Even more lenient
+                score += 10
+                reasons.append(f"RSI Below Midline ({rsi:.1f})")
+
+            # 4. SFP Reversal
+            if has_sfp:
+                sfp_weight = self.adjusted_params.get('sfp_weight', 1.0)
+                score += int(15 * sfp_weight)
+                reasons.append("SFP Reversal Detected (Sweeping Lows)")
+
+            # 5. Volume Spike Detection (VPSR Pro Logic) - High Priority
+            if is_vol_reversal:
+                # Extreme volume on previous bar + bullish reversal = strong signal
+                score += 25
+                reasons.append(f"Volume Reversal Signal (Extreme Vol + Bullish Reversal)")
+            elif is_extreme_vol:
+                # Extreme volume spike (3.5x threshold)
+                score += 20
+                reasons.append(f"Extreme Volume Spike ({volume_ratio:.1f}x - {VOL_EXTREME_MULTIPLIER}x threshold)")
+            elif is_abnormal_vol:
+                # Abnormal volume spike (2.0x threshold)
+                score += 15
+                reasons.append(f"Abnormal Volume Spike ({volume_ratio:.1f}x - {VOL_MULTIPLIER}x threshold)")
+            elif volume_ratio > 1.5:
+                # Standard volume confirmation
+                score += 10
+                reasons.append(f"Volume Spike ({volume_ratio:.1f}x average)")
+            elif volume_ratio > 1.2:  # Lower threshold
+                score += 5
+                reasons.append(f"Volume Above Average ({volume_ratio:.1f}x)")
+
+            # 6. Price near daily low (additional signal)
+            price_from_low = ((current_price - daily_low) / (daily_high - daily_low)) * 100 if (daily_high - daily_low) > 0 else 50
+            if price_from_low < 20:  # Bottom 20% of daily range
+                score += 15
+                reasons.append(f"Price Near Daily Low ({price_from_low:.1f}% from low)")
+            elif price_from_low < 35:  # Bottom 35% of daily range
+                score += 10
+                reasons.append(f"Price in Lower Range ({price_from_low:.1f}% from low)")
+
+            # Apply adjusted minimum confidence (but don't go below 45)
+            min_confidence = max(45, self.adjusted_params.get('min_confidence', MIN_CONFIDENCE_SCORE))
+
+            # Debug logging for near-misses
+            if score >= min_confidence - 10 and score < min_confidence:
+                logger.debug(f"Near miss: {symbol} - Score: {score}/{min_confidence}, Deviation: {deviation_sigma:.2f}σ, RSI: {rsi:.1f}, GPS: {in_gps}")
+
+            if score >= min_confidence:
+                # Calculate stop loss and take profit
+                stop_loss = current_price * (1 - STOP_LOSS_PCT / 100)
+                take_profit = current_price * (1 + TARGET_PROFIT_PCT / 100)
+
+                # Generate TradingView link
+                tv_link = self.get_tradingview_link(symbol)
+
+                return Signal(
+                    symbol=symbol,
+                    entry_price=current_price,
+                    stop_loss=stop_loss,
+                    take_profit=take_profit,
+                    confidence_score=score,
+                    reasons=reasons,
+                    rsi=rsi,
+                    deviation=deviation_sigma,
+                    in_gps_zone=in_gps,
+                    timestamp=datetime.now(timezone.utc),
+                    tradingview_link=tv_link
+                )
+
+            return None
+
+        except Exception as e:
+            logger.error(f"Error analyzing {symbol}: {e}")
+            return None
+
+    def send_top_picks_discord(self, picks: List[Signal]):
+        """Send top picks to Discord in a single card"""
+        try:
+            if not picks:
+                return
+
+            time_str = datetime.now(timezone.utc).strftime("%H:%M:%S UTC")
+
+            # Single orange card with all trades
+            fields = []
+            for i, signal in enumerate(picks, 1):
+                rank_emoji = ["🥇", "🥈", "🥉"][i-1] if i <= 3 else f"#{i}"
+                title = f"{rank_emoji} TRADE #{signal.trade_number} • {signal.symbol}"
+                value_lines = [
+                    f"**Entry**: ${signal.entry_price:.4f}",
+                    f"**Stop**: ${signal.stop_loss:.4f}",
+                    f"**TP**: ${signal.take_profit:.4f}",
+                    f"**Confidence**: {signal.confidence_score}/100",
+                    f"**RSI**: {signal.rsi:.1f} | **Dev**: {signal.deviation:.2f}σ",
+                    f"**Status**: EXECUTED",
+                    f"**Why**: {', '.join(signal.reasons[:3])}",
+                    f"**Chart**: [Open TradingView]({signal.tradingview_link})"
+                ]
+                fields.append({
+                    "name": title,
+                    "value": "\n".join(value_lines),
+                    "inline": False
+                })
+
+            embed = {
+                "title": f"🟧 BOUNTY ALERTS • {len(picks)} TRADE(S)",
+                "description": "Top reversal setups (15m scan). Trades are numbered and executed.",
+                "color": 0xF39C12,  # Orange
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "fields": fields,
+                "footer": {
+                    "text": f"Bounty Seeker // Reversal Sniper • {time_str}"
+                }
+            }
+
+            payload = {"embeds": [embed]}
+            response = requests.post(DISCORD_WEBHOOK, json=payload, timeout=15)
+
+            if response.status_code in (200, 201, 204):
+                symbols_str = ", ".join([s.symbol for s in picks])
+                logger.info(f"✅ Discord alert sent for top {len(picks)} picks: {symbols_str}")
+                return True
+            else:
+                logger.error(f"Discord error: {response.status_code} - {response.text}")
+                return False
+
+        except Exception as e:
+            logger.error(f"Failed to send Discord alert: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+            return False
+
+    def send_discord_alert(self, signal: Signal):
+        """Send Discord webhook alert immediately - Green card style"""
+        try:
+            # Format timestamp
+            time_str = signal.timestamp.strftime("%H:%M:%S UTC")
+
+            # Create rich embed matching HTML style
+            embed = {
+                "title": f"{signal.symbol} // REVERSAL ALERT",
+                "description": "Targeting local bottom for mean reversion bounce.",
+                "color": 0x0ecb81,  # Green (#0ecb81)
+                "timestamp": signal.timestamp.isoformat(),
+                "fields": [
+                    {
+                        "name": "ENTRY",
+                        "value": f"${signal.entry_price:.4f}",
+                        "inline": True
+                    },
+                    {
+                        "name": "STOP LOSS",
+                        "value": f"${signal.stop_loss:.4f}",
+                        "inline": True
+                    },
+                    {
+                        "name": "TAKE PROFIT",
+                        "value": f"${signal.take_profit:.4f}",
+                        "inline": True
+                    },
+                    {
+                        "name": "CONFIDENCE",
+                        "value": f"{signal.confidence_score}/100",
+                        "inline": True
+                    },
+                    {
+                        "name": "RSI",
+                        "value": f"{signal.rsi:.1f}",
+                        "inline": True
+                    },
+                    {
+                        "name": "DEVIATION",
+                        "value": f"{signal.deviation:.2f}σ",
+                        "inline": True
+                    },
+                    {
+                        "name": "Why This Trade?",
+                        "value": "\n".join([f"✅ {r}" for r in signal.reasons]),
+                        "inline": False
+                    },
+                    {
+                        "name": "📊 TradingView Chart",
+                        "value": f"[Open Chart →]({signal.tradingview_link})",
+                        "inline": False
+                    }
+                ],
+                "footer": {
+                    "text": f"Bounty Seeker // Reversal Sniper • {time_str}"
+                }
+            }
+
+            # Send immediately
+            payload = {"embeds": [embed]}
+            response = requests.post(DISCORD_WEBHOOK, json=payload, timeout=10)
+
+            if response.status_code in (200, 201, 204):
+                logger.info(f"✅ Discord alert sent for {signal.symbol} (Score: {signal.confidence_score})")
+                return True
+            else:
+                logger.error(f"Discord error: {response.status_code} - {response.text}")
+                return False
+
+        except Exception as e:
+            logger.error(f"Failed to send Discord alert: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+            return False
+
+    def save_trade(self, signal: Signal):
+        """Save trade to database"""
+        try:
+            conn = sqlite3.connect(TRADES_DB)
+            c = conn.cursor()
+            c.execute('''
+                INSERT INTO trades
+                (trade_number, symbol, entry_price, stop_loss, take_profit, confidence_score, reasons, entry_time, status)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                signal.trade_number,
+                signal.symbol,
+                signal.entry_price,
+                signal.stop_loss,
+                signal.take_profit,
+                signal.confidence_score,
+                json.dumps(signal.reasons),
+                signal.timestamp.isoformat(),
+                'open'
+            ))
+            conn.commit()
+            conn.close()
+            logger.info(f"✅ Trade executed: #{signal.trade_number} {signal.symbol} @ {signal.entry_price:.4f}")
+        except Exception as e:
+            logger.error(f"Failed to save trade: {e}")
+
+    def scan_markets(self):
+        """Scan all watchlist symbols for signals"""
+        logger.info("🔍 Scanning markets for reversal opportunities...")
+
+        # Update watchlist if needed
+        if self.should_update_watchlist():
+            logger.info("🔄 Updating watchlist...")
+            self.load_top_50_watchlist()
+
+        if not self.watchlist:
+            logger.warning("⚠️ No symbols in watchlist, skipping scan")
+            return []
+
+        # Check open trades for TP/SL
+        self.check_open_trades()
+
+        # Enforce max open trades
+        open_trades = self.count_open_trades()
+        if open_trades >= 3:
+            logger.info(f"⛔ Max open trades reached ({open_trades}/3). Waiting for TP/SL.")
+            return []
+
+        signals_found = []
+        for symbol in self.watchlist:
+            # Check cooldown
+            if symbol in self.active_trades:
+                elapsed = (datetime.now(timezone.utc) - self.active_trades[symbol]).total_seconds()
+                if elapsed < ACTIVE_TRADES_COOLDOWN:
+                    continue
+
+            # Analyze symbol
+            signal = self.analyze_symbol(symbol)
+            if signal:
+                signals_found.append(signal)
+                logger.info(f"✅ Signal found: {signal.symbol} (Score: {signal.confidence_score}) - Reasons: {', '.join(signal.reasons[:2])}")
+
+            # Rate limiting
+            time.sleep(0.3)  # Slightly faster since we're scanning more
+
+        if not signals_found:
+            logger.info("⏳ No signals found this scan")
+            return []
+
+        # Sort by confidence score (highest first)
+        signals_found.sort(key=lambda x: x.confidence_score, reverse=True)
+
+        # Get top 3 picks (or all if less than 3)
+        top_picks = signals_found[:3] if len(signals_found) >= 3 else signals_found
+
+        # Send picks to Discord (only if we have at least 1)
+        if top_picks:
+            # Assign trade numbers
+            for signal in top_picks:
+                signal.trade_number = self.get_next_trade_number()
+            logger.info(f"🎯 Found {len(signals_found)} signals, sending top {len(top_picks)} picks...")
+            self.send_top_picks_discord(top_picks)
+
+            # Save all picks to database and mark as active
+            for signal in top_picks:
+                self.save_trade(signal)
+                self.active_trades[signal.symbol] = signal.timestamp
+        else:
+            # Debug: Log why no signals found
+            logger.info(f"⏳ No signals found - Scanned {len(self.watchlist)} symbols, confidence threshold: {self.adjusted_params.get('min_confidence', MIN_CONFIDENCE_SCORE)}")
+
+        return top_picks
+
+    def update_learning(self):
+        """Update learning system with recent performance"""
+        try:
+            # Get adjusted parameters
+            self.adjusted_params = self.learning.get_adjusted_parameters()
+            if self.adjusted_params:
+                logger.info(f"🧠 Learning adjustments: {self.adjusted_params}")
+        except Exception as e:
+            logger.error(f"Learning update failed: {e}")
+
+    def send_startup_notification(self):
+        """Send startup notification to Discord - DISABLED (only send signals)"""
+        # Removed - user has HTML interface, only send signals
+        logger.info("✅ Bot started (Discord notifications disabled for startup)")
 
     def run(self):
         """Main bot loop"""
-        logger.info("🚀 Bounty Seeker Bot starting...")
-        logger.info(f"Starting balance: ${self.paper_account.balance:.2f}")
+        logger.info("🚀 Bounty Seeker Bot Started")
+        logger.info(f"📊 Monitoring {len(self.watchlist)} symbols (Top 50 by volume)")
+        logger.info("⏰ Scanning at XX:45 (15 minutes before hour)")
+        logger.info("🔕 Discord: Only sending signals (no scanning messages)")
+
+        # Startup notification disabled - user has HTML interface
+        self.send_startup_notification()
+        self.write_status("ACTIVE")
+
+        last_scan_minute = -1
+        last_scan_hour = -1
 
         while True:
             try:
-                self.run_scan()
-                logger.info(f"⏰ Next scan in {SCAN_INTERVAL_SEC // 60} minutes...")
-                time.sleep(SCAN_INTERVAL_SEC)
+                now = datetime.now(timezone.utc)
+
+                # Scan ONLY at XX:45 (15 minutes before the hour) - once per hour
+                if now.minute == 45 and now.second < 5:
+                    # Make sure we don't scan twice in the same minute/hour
+                    if now.minute != last_scan_minute or now.hour != last_scan_hour:
+                        logger.info(f"⏰ Scan time: {now.strftime('%H:%M:%S UTC')} (15 min before hour)")
+                        self.write_status("SCANNING")
+                        self.update_learning()  # Update parameters based on performance
+                        signals = self.scan_markets()
+                        last_scan_minute = now.minute
+                        last_scan_hour = now.hour
+                        self.state["last_scan_time"] = now.isoformat()
+                        self.save_state()
+                        if signals:
+                            logger.info(f"✅ Scan complete: Found {len(signals)} signals, sent to Discord")
+                        else:
+                            logger.info(f"⏳ Scan complete: No signals found")
+                        self.write_status("ACTIVE", signals=signals)
+
+                # Update learning every hour
+                if now.minute == 0 and now.second < 5:
+                    self.update_learning()
+
+                # Heartbeat status update every minute
+                if self.last_status_minute != now.minute:
+                    self.last_status_minute = now.minute
+                    self.write_status("ACTIVE")
+
+                time.sleep(1)  # Check every second
+
             except KeyboardInterrupt:
-                logger.info("Bot stopped by user")
+                logger.info("🛑 Bot stopped by user")
                 break
             except Exception as e:
-                logger.error(f"Error in main loop: {e}", exc_info=True)
-                time.sleep(60)  # Wait 1 minute before retrying
+                logger.error(f"Error in main loop: {e}")
+                time.sleep(5)
 
+        self.learning.close()
+        logger.info("👋 Bounty Seeker Bot Stopped")
 
+# ====================== MAIN ======================
 if __name__ == "__main__":
+    init_databases()
     bot = BountySeekerBot()
     bot.run()

@@ -264,14 +264,12 @@
             border: 1px solid rgba(0, 0, 0, 0.08);
         }
 
-        /* Mini Chart */
-        .mini-chart {
+        /* Price Panel */
+        .price-panel {
             background: var(--glass);
             border-radius: 24px;
-            overflow: hidden;
             border: 1px solid var(--glass-border);
-            position: relative;
-            height: 400px;
+            padding: 24px;
             box-shadow: var(--shadow-soft);
             backdrop-filter: blur(14px);
         }
@@ -285,15 +283,8 @@
             box-shadow: var(--shadow-soft);
         }
 
-        .chart-overlay {
-            position: absolute;
-            top: 15px;
-            left: 15px;
-            pointer-events: none;
-        }
-
         .price-display {
-            font-size: 2rem;
+            font-size: 2.2rem;
             font-weight: 800;
             font-family: monospace;
             color: var(--text-primary);
@@ -301,13 +292,69 @@
         }
 
         .price-change {
-            font-size: 0.9rem;
-            font-weight: 600;
+            font-size: 1rem;
+            font-weight: 700;
             transition: color 0.3s ease;
         }
 
         .change-positive { color: var(--accent-green); }
         .change-negative { color: var(--accent-purple); }
+
+        .scan-summary {
+            margin-top: 14px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+        }
+
+        .summary-pill {
+            padding: 6px 10px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid var(--glass-border);
+            font-family: monospace;
+            color: var(--text-primary);
+        }
+
+        .session-pill {
+            padding: 6px 10px;
+            border-radius: 999px;
+            background: rgba(156, 39, 176, 0.18);
+            border: 1px solid rgba(156, 39, 176, 0.3);
+            color: var(--accent-white);
+            font-weight: 700;
+        }
+
+        .spotlight-panel {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 16px;
+        }
+
+        .spotlight-card {
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            border-radius: 18px;
+            padding: 18px;
+            box-shadow: var(--shadow-soft);
+            backdrop-filter: blur(12px);
+        }
+
+        .spotlight-title {
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: var(--accent-white);
+            margin-bottom: 8px;
+        }
+
+        .spotlight-list {
+            margin: 0;
+            padding-left: 16px;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+        }
 
         /* Market Info Panel */
         .market-info {
@@ -835,13 +882,15 @@
 
         <div class="scanner-grid">
             <div class="scanner-left">
-                <!-- Mini Chart -->
-                <div class="mini-chart">
-                    <div class="chart-overlay">
-                        <div class="price-display" id="btcPrice">Loading...</div>
-                        <div class="price-change" id="btcChange">--</div>
+                <!-- Price Panel -->
+                <div class="price-panel">
+                    <div class="price-display" id="btcPrice">Loading...</div>
+                    <div class="price-change" id="btcChange">--</div>
+                    <div class="scan-summary">
+                        <span class="summary-pill">Session: <span id="sessionStatus">--</span></span>
+                        <span class="summary-pill">Signals: <span id="signalCount">--</span></span>
+                        <span class="summary-pill">Watchlist: <span id="watchlistCount">--</span></span>
                     </div>
-                    <canvas id="miniChart"></canvas>
                 </div>
 
         <div class="scanner-meta">
@@ -858,6 +907,22 @@
                     <option value="SOL">SOL</option>
                 </select>
             </div>
+                </div>
+
+                <!-- Signal Spotlight -->
+                <div class="spotlight-panel">
+                    <div class="spotlight-card">
+                        <div class="spotlight-title">Trade Spotlight</div>
+                        <div id="spotlightTrade" style="color: var(--text-secondary); font-size: 0.9rem;">Waiting for next scan...</div>
+                    </div>
+                    <div class="spotlight-card">
+                        <div class="spotlight-title">Why This Trade</div>
+                        <ul id="spotlightReasons" class="spotlight-list">
+                            <li>GPS zones + Piv X VWAPs</li>
+                            <li>Volume spikes with VPSR</li>
+                            <li>Divergence via Oath Keeper</li>
+                        </ul>
+                    </div>
                 </div>
 
                 <!-- TradingView Chart Embed -->
@@ -1124,7 +1189,6 @@
         let reconnectTimer = null;
         let restPollTimer = null;
         let staleCheckTimer = null;
-        let chart = null;
         let pairSelectEl = null;
 
         // ============================================
@@ -1249,11 +1313,6 @@
                 } else {
                     state.trend = 'NEUTRAL';
                 }
-            }
-
-            // Update chart
-            if (chart) {
-                chart.updatePrice(price, volume);
             }
 
             // Update UI
@@ -1475,6 +1534,52 @@
             }
         }
 
+        async function fetchBotStatus() {
+            try {
+                const response = await fetch(`bounty_seeker_status.json?ts=${Date.now()}`);
+                if (!response.ok) return;
+                const data = await response.json();
+                renderEngagement(data);
+            } catch (error) {
+                console.error('Failed to fetch bot status:', error);
+            }
+        }
+
+        function renderEngagement(data) {
+            const signalCountEl = document.getElementById('signalCount');
+            const watchlistCountEl = document.getElementById('watchlistCount');
+            if (signalCountEl) signalCountEl.textContent = Array.isArray(data.signals) ? data.signals.length : 0;
+            if (watchlistCountEl) watchlistCountEl.textContent = data.watchlist_size || '--';
+
+            const sessionEl = document.getElementById('sessionStatus');
+            if (sessionEl) sessionEl.textContent = getSessionStatus();
+
+            const spotlightEl = document.getElementById('spotlightTrade');
+            const reasonsEl = document.getElementById('spotlightReasons');
+            const topSignal = data.signals && data.signals.length ? data.signals[0] : null;
+
+            if (topSignal) {
+                spotlightEl.textContent = `${topSignal.symbol} • Score ${topSignal.confidence_score}/100 • Entry ${priceFormatter.format(topSignal.entry_price)}`;
+                reasonsEl.innerHTML = (topSignal.reasons || []).slice(0, 3).map(r => `<li>${r}</li>`).join('');
+            } else {
+                spotlightEl.textContent = 'Waiting for next scan...';
+                reasonsEl.innerHTML = `
+                    <li>GPS zones + Piv X VWAPs</li>
+                    <li>Volume spikes with VPSR</li>
+                    <li>Divergence via Oath Keeper</li>
+                `;
+            }
+        }
+
+        function getSessionStatus() {
+            const now = new Date();
+            const hour = now.getUTCHours();
+            if (hour >= 7 && hour < 10) return 'London';
+            if (hour >= 13 && hour < 16) return 'New York';
+            if (hour >= 0 && hour < 7) return 'Asia';
+            return 'Off-Session';
+        }
+
         function updateConnectionStatus(connected) {
             const dot = document.getElementById('statusDot');
             const text = document.getElementById('connectionStatus');
@@ -1594,129 +1699,14 @@
 
             localStorage.setItem('srus_theme', state.theme);
 
-            // Redraw chart with new theme
-            if (chart) {
-                chart.draw();
-            }
-
             // Reload TradingView widget to match theme
             loadTradingViewWidget();
-        }
-
-        // ============================================
-        // CHART ENGINE
-        // ============================================
-        class MiniChart {
-            constructor(canvasId) {
-                this.canvas = document.getElementById(canvasId);
-                this.ctx = this.canvas.getContext('2d');
-                this.prices = [];
-                this.volume = [];
-                this.lastDraw = 0;
-                this.resize();
-                window.addEventListener('resize', () => this.resize());
-            }
-
-            resize() {
-                this.canvas.width = this.canvas.parentElement.clientWidth;
-                this.canvas.height = this.canvas.parentElement.clientHeight;
-                this.draw();
-            }
-
-            updatePrice(price, volume) {
-                this.prices.push(price);
-                this.volume.push(volume);
-
-                if (this.prices.length > 200) {
-                    this.prices.shift();
-                    this.volume.shift();
-                }
-
-                const now = Date.now();
-                if (now - this.lastDraw > 500) {
-                    this.draw();
-                    this.lastDraw = now;
-                }
-            }
-
-            draw() {
-                const { width, height } = this.canvas;
-                const ctx = this.ctx;
-
-                ctx.clearRect(0, 0, width, height);
-
-                if (this.prices.length < 2) return;
-
-                const minPrice = Math.min(...this.prices) * 0.995;
-                const maxPrice = Math.max(...this.prices) * 1.005;
-                const range = maxPrice - minPrice;
-
-                const getY = (p) => height - ((p - minPrice) / range) * (height - 40) - 20;
-                const getX = (i) => (i / (this.prices.length - 1)) * width;
-
-                // Support Line (Green)
-                if (state.support) {
-                    const ySupport = getY(state.support);
-                    ctx.strokeStyle = '#0ecb81';
-                    ctx.setLineDash([5, 5]);
-                    ctx.beginPath();
-                    ctx.moveTo(0, ySupport);
-                    ctx.lineTo(width, ySupport);
-                    ctx.stroke();
-                    ctx.setLineDash([]);
-
-                    // Label
-                    ctx.fillStyle = '#0ecb81';
-                    ctx.font = '11px Arial';
-                    ctx.fillText('SUPPORT', 10, ySupport - 5);
-                }
-
-                // Resistance Line (Purple)
-                if (state.resistance) {
-                    const yResistance = getY(state.resistance);
-                    ctx.strokeStyle = '#9c27b0';
-                    ctx.setLineDash([5, 5]);
-                    ctx.beginPath();
-                    ctx.moveTo(0, yResistance);
-                    ctx.lineTo(width, yResistance);
-                    ctx.stroke();
-                    ctx.setLineDash([]);
-
-                    // Label
-                    ctx.fillStyle = '#9c27b0';
-                    ctx.font = '11px Arial';
-                    ctx.fillText('RESISTANCE', 10, yResistance + 15);
-                }
-
-                // Price Line (White in dark, Black in light)
-                ctx.beginPath();
-                ctx.strokeStyle = state.theme === 'dark' ? '#ffffff' : '#000000';
-                ctx.lineWidth = 2;
-                this.prices.forEach((p, i) => {
-                    const x = getX(i);
-                    const y = getY(p);
-                    if (i === 0) ctx.moveTo(x, y);
-                    else ctx.lineTo(x, y);
-                });
-                ctx.stroke();
-
-                // Last price dot
-                const lastX = getX(this.prices.length - 1);
-                const lastY = getY(this.prices[this.prices.length - 1]);
-                ctx.beginPath();
-                ctx.arc(lastX, lastY, 4, 0, Math.PI * 2);
-                ctx.fillStyle = state.theme === 'dark' ? '#ffffff' : '#000000';
-                ctx.fill();
-            }
         }
 
         // ============================================
         // INITIALIZATION
         // ============================================
         function init() {
-            // Initialize chart
-            chart = new MiniChart('miniChart');
-
             // Load saved theme
             const savedTheme = localStorage.getItem('srus_theme');
             if (savedTheme) {
@@ -1750,6 +1740,11 @@
                 pairSelectEl.value = state.symbol;
                 pairSelectEl.addEventListener('change', (e) => setPair(e.target.value));
             }
+
+            // Engagement panels
+            renderEngagement({ signals: [], watchlist_size: '--' });
+            fetchBotStatus();
+            setInterval(fetchBotStatus, 30000);
 
             // Free trial modal (15s delay)
             setTimeout(() => {
