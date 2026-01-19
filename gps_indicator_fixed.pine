@@ -1,0 +1,882 @@
+//@version=6
+indicator("Golden Pocket Syndicate (GPS)", overlay=true, max_lines_count=500, max_boxes_count=50, max_labels_count=50)
+
+// ========================================
+// CODE UPDATES & IMPROVEMENTS
+// ========================================
+// ✅ CRITICAL FIXES:
+//    - Fixed risk lines memory leak (now uses persistent lines with extend.right)
+//    - Added trail line cleanup to prevent exceeding line limits
+//    - Fixed previous period GP calculations (D/W/M) with proper time change detection
+//    - Added configurable ATR multipliers for risk management (Stop Loss, Target 1, Target 2)
+//
+// ✅ VISUAL IMPROVEMENTS:
+//    - All GP lines now use Cross style (plot.style_cross) with smallest thickness (linewidth=1)
+//    - Updated GP colors to match specifications:
+//      * Daily GP: Bright Green (#00FF00)
+//      * Prev Day GP: Dark Green (#006600)
+//      * Weekly GP: Orange/Gold (#FFA500)
+//      * Prev Week GP: Dark Orange/Brown (#CC6600)
+//      * Monthly GP: Magenta/Purple (#FF00FF)
+//      * Prev Month GP: Dark Purple (#8800AA)
+//
+// ✅ FEATURES:
+//    - Info table disabled by default (can be enabled in Visual Settings)
+//    - Comprehensive alert system: 22+ alert conditions covering all signal types
+//      * Grade-based signals (A+, A, B)
+//      * Order Blocks (Bullish/Bearish)
+//      * Sweeps (Low/High HQ)
+//      * Divergences (Regular & Signal types)
+//      * Market Maker signals
+//      * Strong signals & High Confluence zones
+//
+// ✅ OPTIMIZATIONS:
+//    - Optimized GP visibility checks to reduce redundant calculations
+//    - Added proper lookahead settings for security calls (no repainting)
+//    - Better error handling for previous period data
+//    - Improved signal grade assignment (defaults to B if passes filters)
+//
+// ========================================
+
+// ========== INPUTS ==========
+
+grp1 = "Core Settings"
+
+n1 = input.int(10, "WT Channel Length", group=grp1)
+
+n2 = input.int(21, "WT Average Length", group=grp1)
+
+sensitivity = input.int(3, "MM Reversal Sensitivity", minval=1, group=grp1)
+
+reversalCooldown = input.int(12, "Min Bars Between Signals", minval=5, group=grp1)
+
+liqThreshold = input.float(100.0, "Liquidity Threshold", group=grp1)
+
+grp2 = "Golden Pocket Zones"
+
+showDGP = input.bool(true,  "Daily GP",  group=grp2)
+
+showPDGP = input.bool(true,  "Prev Day GP", group=grp2)
+
+showWGP = input.bool(true,  "Weekly GP", group=grp2)
+
+showPWGP = input.bool(true,  "Prev Week GP", group=grp2)
+
+showMGP = input.bool(true,  "Monthly GP", group=grp2)
+
+showPMGP = input.bool(true,  "Prev Month GP", group=grp2)
+
+gpVisibilityRange = input.float(2.0, "GP Visibility Range %", minval=0.5, step=0.1, group=grp2)
+
+alwaysShowGP = input.bool(true, "Always Show GP Lines (brighter)", group=grp2)
+
+grp3 = "Quality Filters"
+
+minConfluence  = input.int(55, "Min Confluence Score", minval=30, maxval=100, group=grp3)
+
+requireGPTouch = input.bool(true,  "Final Signal: require GP touch/over", group=grp3)
+
+requireVolume  = input.bool(true,  "Final Signal: require High Volume", group=grp3)
+
+requireSMC     = input.bool(true,  "Final Signal: require SMC (sweep or OB)", group=grp3)
+
+showGradeLabels = input.bool(false, "Show Grade Labels", group=grp3)
+
+grp4 = "Visual Settings"
+
+showTrails     = input.bool(true,  "Show Trail Connections", group=grp4)
+
+showRiskLevels = input.bool(false, "Show Risk Lines", group=grp4)
+
+showConfluenceBg = input.bool(false, "Show Confluence Background", group=grp4)
+
+showInfoTable = input.bool(false, "Show Info Table", group=grp4)
+
+grp5 = "OBs & Sweeps – Sweet Spot"
+
+obTightenPct   = input.int(5,   "OB Tighten % (5–9 sweet spot)", minval=0, maxval=20, group=grp5)
+
+obConfirmBars  = input.int(6,   "OB: BOS within N bars", minval=1, maxval=30, group=grp5)
+
+obAtrMult      = input.float(0.75, "OB: Body ATR× base", minval=0.4, step=0.05, group=grp5)
+
+obRangeAtr     = input.float(1.00, "OB: Full Range ATR×", minval=0.5, step=0.05, group=grp5)
+
+obBodyMin      = input.float(0.42, "OB: Body% minimum", minval=0.2, maxval=0.95, step=0.01, group=grp5)
+
+obVolMult      = input.float(1.20, "OB: Volume × avg >=", minval=1.0, step=0.05, group=grp5)
+
+obRequireFVG   = input.bool(true,  "OB: Require FVG", group=grp5)
+
+obRequireGP    = input.bool(false, "OB: Near GP", group=grp5)
+
+sweepLookback   = input.int(36, "Sweep: Lookback bars", minval=12, group=grp5)
+
+sweepWickMinPct = input.float(0.65, "Sweep: Wick% ≥ (big wick)", minval=0.3, maxval=0.95, step=0.05, group=grp5)
+
+sweepBodyMaxPct = input.float(0.30, "Sweep: Body% ≤ (no trend bar)", minval=0.1, maxval=0.8, step=0.05, group=grp5)
+
+sweepVolMult    = input.float(1.35, "Sweep: Volume × avg ≥", minval=1.0, step=0.05, group=grp5)
+
+sweepAtrFrac    = input.float(0.20, "Sweep: Exceed prev extreme by ATR×", minval=0.08, maxval=0.6, step=0.01, group=grp5)
+
+sweepCooldown   = input.int(36, "Sweep: Cooldown bars", minval=5, group=grp5)
+
+sweepsMustBeAtGP = input.bool(true, "Sweeps: ONLY near/through GP (strict)", group=grp5)
+
+grp6 = "Risk Management"
+
+stopLossATRMult = input.float(1.5, "Stop Loss: ATR Multiplier", minval=0.5, step=0.1, group=grp6)
+
+target1ATRMult = input.float(2.5, "Target 1: ATR Multiplier", minval=1.0, step=0.1, group=grp6)
+
+target2ATRMult = input.float(4.0, "Target 2: ATR Multiplier", minval=2.0, step=0.1, group=grp6)
+
+// ========== CORE CALCS ==========
+
+emaShort = ta.ema(close, 50)
+
+emaLong  = ta.ema(close, 200)
+
+volAvg   = ta.sma(volume, 20)
+
+volTrend = volume > volAvg * 1.5
+
+atr      = ta.atr(14)
+
+rsi      = ta.rsi(close, 14)
+
+ap  = (high + low) / 2
+
+esa = ta.ema(ap, n1)
+
+d   = ta.ema(math.abs(ap - esa), n1)
+
+ci  = (ap - esa) / (0.015 * d)
+
+tci = ta.ema(ci, n2)
+
+wt1 = tci
+
+wt2 = ta.sma(wt1, 4)
+
+rng  = math.max(high - low, 1e-10)
+
+body = math.abs(close - open)
+
+bodyPct = body / rng
+
+wickLower = math.min(open, close) - low
+
+wickUpper = high - math.max(open, close)
+
+wickLowerPct = wickLower / rng
+
+wickUpperPct = wickUpper / rng
+
+priceVelocity = math.abs(close - close[1]) / math.max(close[1], 1e-10)
+
+clusterSize   = volume * (high - low) * priceVelocity * 2
+
+// ========== STRUCTURE ==========
+
+pivotLookback = 5
+
+pivotHigh = ta.pivothigh(high, pivotLookback, pivotLookback)
+
+pivotLow  = ta.pivotlow(low,  pivotLookback, pivotLookback)
+
+var float lastPivotHigh = na
+
+var float lastPivotLow  = na
+
+var bool  uptrend       = false
+
+if not na(pivotHigh)
+
+    lastPivotHigh := pivotHigh
+
+if not na(pivotLow)
+
+    lastPivotLow := pivotLow
+
+if not na(lastPivotHigh) and not na(lastPivotLow)
+
+    uptrend := close > lastPivotHigh
+
+// ========== GOLDEN POCKETS ==========
+
+dHigh = request.security(syminfo.tickerid, "D", high, lookahead=barmerge.lookahead_off)
+
+dLow  = request.security(syminfo.tickerid, "D", low, lookahead=barmerge.lookahead_off)
+
+dGpHigh = dHigh - (dHigh - dLow) * 0.618
+
+dGpLow  = dHigh - (dHigh - dLow) * 0.65
+
+// Fixed: Get previous day data correctly
+pdHigh_raw = request.security(syminfo.tickerid, "D", high, lookahead=barmerge.lookahead_off)
+
+pdLow_raw  = request.security(syminfo.tickerid, "D", low, lookahead=barmerge.lookahead_off)
+
+var float pdHigh = na
+
+var float pdLow = na
+
+isNewDay = ta.change(time("D")) != 0
+
+if isNewDay
+
+    pdHigh := pdHigh_raw[1]
+
+    pdLow := pdLow_raw[1]
+
+pdHigh := na(pdHigh) ? (not na(pdHigh_raw[1]) ? pdHigh_raw[1] : pdHigh_raw) : pdHigh
+
+pdLow := na(pdLow) ? (not na(pdLow_raw[1]) ? pdLow_raw[1] : pdLow_raw) : pdLow
+
+pdGpHigh = pdHigh - (pdHigh - pdLow) * 0.618
+
+pdGpLow  = pdHigh - (pdHigh - pdLow) * 0.65
+
+wHigh = request.security(syminfo.tickerid, "W", high, lookahead=barmerge.lookahead_off)
+
+wLow  = request.security(syminfo.tickerid, "W", low, lookahead=barmerge.lookahead_off)
+
+wGpHigh = wHigh - (wHigh - wLow) * 0.618
+
+wGpLow  = wHigh - (wHigh - wLow) * 0.65
+
+// Fixed: Get previous week data correctly
+pwHigh_raw = request.security(syminfo.tickerid, "W", high, lookahead=barmerge.lookahead_off)
+
+pwLow_raw  = request.security(syminfo.tickerid, "W", low, lookahead=barmerge.lookahead_off)
+
+var float pwHigh = na
+
+var float pwLow = na
+
+isNewWeek = ta.change(time("W")) != 0
+
+if isNewWeek
+
+    pwHigh := pwHigh_raw[1]
+
+    pwLow := pwLow_raw[1]
+
+pwHigh := na(pwHigh) ? (not na(pwHigh_raw[1]) ? pwHigh_raw[1] : pwHigh_raw) : pwHigh
+
+pwLow := na(pwLow) ? (not na(pwLow_raw[1]) ? pwLow_raw[1] : pwLow_raw) : pwLow
+
+pwGpHigh = pwHigh - (pwHigh - pwLow) * 0.618
+
+pwGpLow  = pwHigh - (pwHigh - pwLow) * 0.65
+
+mHigh = request.security(syminfo.tickerid, "M", high, lookahead=barmerge.lookahead_off)
+
+mLow  = request.security(syminfo.tickerid, "M", low, lookahead=barmerge.lookahead_off)
+
+mGpHigh = mHigh - (mHigh - mLow) * 0.618
+
+mGpLow  = mHigh - (mHigh - mLow) * 0.65
+
+// Fixed: Get previous month data correctly
+pmHigh_raw = request.security(syminfo.tickerid, "M", high, lookahead=barmerge.lookahead_off)
+
+pmLow_raw  = request.security(syminfo.tickerid, "M", low, lookahead=barmerge.lookahead_off)
+
+var float pmHigh = na
+
+var float pmLow = na
+
+isNewMonth = ta.change(time("M")) != 0
+
+if isNewMonth
+
+    pmHigh := pmHigh_raw[1]
+
+    pmLow := pmLow_raw[1]
+
+pmHigh := na(pmHigh) ? (not na(pmHigh_raw[1]) ? pmHigh_raw[1] : pmHigh_raw) : pmHigh
+
+pmLow := na(pmLow) ? (not na(pmLow_raw[1]) ? pmLow_raw[1] : pmLow_raw) : pmLow
+
+pmGpHigh = pmHigh - (pmHigh - pmLow) * 0.618
+
+pmGpLow  = pmHigh - (pmHigh - pmLow) * 0.65
+
+isNear(x) => math.abs(close - x) / close < gpVisibilityRange / 100
+
+strictNear(x) => math.abs(close - x) / close < (gpVisibilityRange / 100) * 0.5
+
+// Optimized GP visibility checks
+nearDGP = isNear(dGpLow) or isNear(dGpHigh)
+
+nearWGP = isNear(wGpLow) or isNear(wGpHigh)
+
+nearMGP = isNear(mGpLow) or isNear(mGpHigh)
+
+overBullGP = low < dGpLow or low < wGpLow or low < mGpLow
+
+overBearGP = high > dGpHigh or high > wGpHigh or high > mGpHigh
+
+nearOrOverBullGP = nearDGP or nearWGP or nearMGP or overBullGP
+
+nearOrOverBearGP = nearDGP or nearWGP or nearMGP or overBearGP
+
+strictNearDGP = strictNear(dGpLow) or strictNear(dGpHigh)
+
+strictNearWGP = strictNear(wGpLow) or strictNear(wGpHigh)
+
+strictNearMGP = strictNear(mGpLow) or strictNear(mGpHigh)
+
+nearStrictBullGP = strictNearDGP or strictNearWGP or strictNearMGP or overBullGP
+
+nearStrictBearGP = strictNearDGP or strictNearWGP or strictNearMGP or overBearGP
+
+// ========== SMC SEEDS / BOS ==========
+
+bullFVG = low  > high[2]
+
+bearFVG = high < low[2]
+
+prevSwingHigh = ta.highest(high, pivotLookback)[1]
+
+prevSwingLow  = ta.lowest(low,  pivotLookback)[1]
+
+bosUpSoon   = ta.highest(high, obConfirmBars) > prevSwingHigh
+
+bosDownSoon = ta.lowest(low,  obConfirmBars)  < prevSwingLow
+
+// ========== ORDER BLOCKS ==========
+
+tight = 1.0 + obTightenPct / 100.0
+
+dispUpOK   = body >= atr * obAtrMult * tight
+
+dispDownOK = body >= atr * obAtrMult * tight
+
+rangeOK    = (high - low) >= atr * obRangeAtr
+
+volOBOK    = volume > volAvg * obVolMult
+
+isBullBase = close < open
+
+isBearBase = close > open
+
+bullishOB = bosUpSoon   and isBullBase and dispUpOK   and rangeOK and volOBOK and bodyPct >= math.min(0.95, obBodyMin * tight) and (not obRequireFVG or bullFVG) and (not obRequireGP or nearOrOverBullGP)
+
+bearishOB = bosDownSoon and isBearBase and dispDownOK and rangeOK and volOBOK and bodyPct >= math.min(0.95, obBodyMin * tight) and (not obRequireFVG or bearFVG) and (not obRequireGP or nearOrOverBearGP)
+
+// ========== DIVERGENCES (REGULAR ONLY) ==========
+
+var float lastBullWt = na
+
+var float lastBullPrice = na
+
+var float lastBearWt = na
+
+var float lastBearPrice = na
+
+var int   lastBullBar = na
+
+var int   lastBearBar = na
+
+regularBullDiv = false
+
+regularBearDiv = false
+
+if ta.crossover(wt1, wt2) and wt1 < -10
+
+    if not na(lastBullPrice) and bar_index - lastBullBar > 6
+
+        regularBullDiv := low < lastBullPrice and wt1 > lastBullWt and rsi < 45
+
+    lastBullWt := wt1
+
+    lastBullPrice := low
+
+    lastBullBar := bar_index
+
+if ta.crossunder(wt1, wt2) and wt1 > 10
+
+    if not na(lastBearPrice) and bar_index - lastBearBar > 6
+
+        regularBearDiv := high > lastBearPrice and wt1 < lastBearWt and rsi > 55
+
+    lastBearWt := wt1
+
+    lastBearPrice := high
+
+    lastBearBar := bar_index
+
+// ========== HIGH-QUALITY SWEEPS ==========
+
+prevLowN  = ta.lowest(low,  sweepLookback)[1]
+
+prevHighN = ta.highest(high, sweepLookback)[1]
+
+var int lastSweepL = na
+
+var int lastSweepH = na
+
+exceedLow  = (prevLowN - low)   >= atr * sweepAtrFrac
+
+exceedHigh = (high - prevHighN) >= atr * sweepAtrFrac
+
+sweepL_base = (low < prevLowN) and exceedLow and (close > prevLowN) and (wickLowerPct >= sweepWickMinPct) and (bodyPct <= sweepBodyMaxPct) and (volume > volAvg * sweepVolMult) and (rsi < 55)
+
+sweepH_base = (high > prevHighN) and exceedHigh and (close < prevHighN) and (wickUpperPct >= sweepWickMinPct) and (bodyPct <= sweepBodyMaxPct) and (volume > volAvg * sweepVolMult) and (rsi > 45)
+
+sweepL_ctxOK = sweepsMustBeAtGP ? nearStrictBullGP : true
+
+sweepH_ctxOK = sweepsMustBeAtGP ? nearStrictBearGP : true
+
+sweptLowsHQ  = sweepL_base and sweepL_ctxOK and (na(lastSweepL) or bar_index - lastSweepL > sweepCooldown)
+
+sweptHighsHQ = sweepH_base and sweepH_ctxOK and (na(lastSweepH) or bar_index - lastSweepH > sweepCooldown)
+
+if sweptLowsHQ
+
+    lastSweepL := bar_index
+
+if sweptHighsHQ
+
+    lastSweepH := bar_index
+
+// ========== CONFLUENCE ==========
+
+heavyVolume = volume > ta.highest(volume, 20)[1] * 0.8
+
+confluenceScore = 0.0
+
+confluenceFactors = 0
+
+if isNear(dGpLow) or isNear(dGpHigh)
+
+    confluenceScore += 20
+
+    confluenceFactors += 1
+
+if isNear(wGpLow) or isNear(wGpHigh)
+
+    confluenceScore += 25
+
+    confluenceFactors += 1
+
+if isNear(mGpLow) or isNear(mGpHigh)
+
+    confluenceScore += 30
+
+    confluenceFactors += 1
+
+if heavyVolume
+
+    confluenceScore += 20
+
+    confluenceFactors += 1
+
+if bullishOB or bearishOB
+
+    confluenceScore += 16
+
+    confluenceFactors += 1
+
+if sweptLowsHQ or sweptHighsHQ
+
+    confluenceScore += 18
+
+    confluenceFactors += 1
+
+if regularBullDiv or regularBearDiv
+
+    confluenceScore += 20
+
+    confluenceFactors += 1
+
+trendAlign = (uptrend and close > emaShort) or (not uptrend and close < emaShort)
+
+if trendAlign
+
+    confluenceScore += 10
+
+    confluenceFactors += 1
+
+confluenceScore := confluenceFactors > 0 ? math.min(100, confluenceScore) : 0
+
+// ========== SIGNALS ==========
+
+bullDivSig = ta.crossover(wt1, wt2)  and wt1 > 35 and wt2 > 20 and volTrend and close > emaShort and wt1 - wt2 > 12
+
+bearDivSig = ta.crossunder(wt1, wt2) and wt1 < -35 and wt2 < -20 and volTrend and close < emaShort and wt2 - wt1 > 12
+
+mmLong  = low  < low[sensitivity]  and close > open and close > close[sensitivity] and close > emaShort and volume > volAvg * 1.4
+
+mmShort = high > high[sensitivity] and close < open and close < close[sensitivity] and close < emaShort and volume > volAvg * 1.4
+
+veryBullish = clusterSize >= liqThreshold * 3 and close > open and sweptLowsHQ
+
+veryBearish = clusterSize >= liqThreshold * 3 and close < open and sweptHighsHQ
+
+bullConfirmations = (bullDivSig ? 1 : 0) + (mmLong ? 1 : 0) + (veryBullish ? 1 : 0) + (sweptLowsHQ ? 1 : 0) + (regularBullDiv ? 1 : 0) + (bullishOB ? 1 : 0)
+
+bearConfirmations = (bearDivSig ? 1 : 0) + (mmShort ? 1 : 0) + (veryBearish ? 1 : 0) + (sweptHighsHQ ? 1 : 0) + (regularBearDiv ? 1 : 0) + (bearishOB ? 1 : 0)
+
+strongBullSignal = bullConfirmations >= 2 and close > emaShort
+
+strongBearSignal = bearConfirmations >= 2 and close < emaShort
+
+passesBullFilters = strongBullSignal and confluenceScore >= minConfluence
+
+passesBearFilters = strongBearSignal and confluenceScore >= minConfluence
+
+if requireGPTouch
+
+    passesBullFilters := passesBullFilters and nearOrOverBullGP
+
+    passesBearFilters := passesBearFilters and nearOrOverBearGP
+
+if requireVolume
+
+    passesBullFilters := passesBullFilters and (volume > volAvg)
+
+    passesBearFilters := passesBearFilters and (volume > volAvg)
+
+if requireSMC
+
+    passesBullFilters := passesBullFilters and (sweptLowsHQ or bullishOB)
+
+    passesBearFilters := passesBearFilters and (sweptHighsHQ or bearishOB)
+
+// ========== A+ LOGIC ==========
+
+twoOf3_bull = (sweptLowsHQ ? 1 : 0) + (bullishOB ? 1 : 0) + (regularBullDiv ? 1 : 0) >= 2
+
+twoOf3_bear = (sweptHighsHQ ? 1 : 0) + (bearishOB ? 1 : 0) + (regularBearDiv ? 1 : 0) >= 2
+
+aplusBull = passesBullFilters and nearStrictBullGP and heavyVolume and twoOf3_bull
+
+aplusBear = passesBearFilters and nearStrictBearGP and heavyVolume and twoOf3_bear
+
+signalGrade = ""
+
+if passesBullFilters or passesBearFilters
+
+    if aplusBull or aplusBear or (confluenceScore >= 75 and (twoOf3_bull or twoOf3_bear))
+
+        signalGrade := "A+"
+
+    else if confluenceScore >= 65 and confluenceFactors >= 4
+
+        signalGrade := "A"
+
+    else
+
+        signalGrade := "B"
+
+// ========== COOLDOWN ==========
+
+var int lastBull = na
+
+var int lastBear = na
+
+plotBull = false
+
+plotBear = false
+
+if passesBullFilters and (na(lastBull) or bar_index - lastBull > reversalCooldown)
+
+    plotBull := true
+
+    lastBull := bar_index
+
+if passesBearFilters and (na(lastBear) or bar_index - lastBear > reversalCooldown)
+
+    plotBear := true
+
+    lastBear := bar_index
+
+// ========== RISK ==========
+
+var float stopLoss = na
+
+var float target1 = na
+
+var float target2 = na
+
+// Fixed: Use configurable multipliers
+if plotBull
+
+    stopLoss := low - (atr * stopLossATRMult)
+
+    target1 := close + (atr * target1ATRMult)
+
+    target2 := close + (atr * target2ATRMult)
+
+if plotBear
+
+    stopLoss := high + (atr * stopLossATRMult)
+
+    target1 := close - (atr * target1ATRMult)
+
+    target2 := close - (atr * target2ATRMult)
+
+// ========== PLOTS ==========
+
+bullColor = signalGrade == "A+" ? color.lime : color.white
+
+bearColor = signalGrade == "A+" ? color.red  : color.purple
+
+plotshape(plotBull and signalGrade == "A+", title="GPS Bull A+", style=shape.diamond, location=location.belowbar, color=bullColor, size=size.small)
+
+plotshape(plotBull and signalGrade != "A+", title="GPS Bull",    style=shape.diamond, location=location.belowbar, color=bullColor, size=size.tiny)
+
+plotshape(plotBear and signalGrade == "A+", title="GPS Bear A+", style=shape.diamond, location=location.abovebar, color=bearColor, size=size.small)
+
+plotshape(plotBear and signalGrade != "A+", title="GPS Bear",    style=shape.diamond, location=location.abovebar, color=bearColor, size=size.tiny)
+
+// Regular divergences
+
+plotshape(regularBullDiv, title="Regular Bull Div", style=shape.triangleup,   location=location.belowbar, color=color.new(color.green, 0), size=size.tiny)
+
+plotshape(regularBearDiv, title="Regular Bear Div", style=shape.triangledown, location=location.abovebar, color=color.new(color.red,   0), size=size.tiny)
+
+// OB & Sweep prints
+
+plotshape(bullishOB,    title="Bullish OB",    style=shape.square, location=location.belowbar, color=color.new(color.blue,   18), size=size.tiny)
+
+plotshape(bearishOB,    title="Bearish OB",    style=shape.square, location=location.abovebar, color=color.new(color.orange, 18), size=size.tiny)
+
+plotshape(sweptLowsHQ,  title="Sweep Low HQ",  style=shape.xcross, location=location.belowbar, color=color.new(color.lime,   0),  size=size.tiny)
+
+plotshape(sweptHighsHQ, title="Sweep High HQ", style=shape.xcross, location=location.abovebar, color=color.new(color.red,    0),  size=size.tiny)
+
+// ========== FIXED: Trail Lines with Cleanup ==========
+
+var line[] trailLines = array.new<line>()
+
+var float lastBullY = na
+
+var float lastBearY = na
+
+var int   lastBullX = na
+
+var int   lastBearX = na
+
+MAX_TRAIL_LINES = 50
+
+if showTrails
+
+    if plotBull
+
+        if not na(lastBullY)
+
+            newLine = line.new(x1=lastBullX, y1=lastBullY, x2=bar_index, y2=low, color=color.lime, width=1)
+
+            array.push(trailLines, newLine)
+
+            if array.size(trailLines) > MAX_TRAIL_LINES
+
+                line.delete(array.shift(trailLines))
+
+        lastBullY := low
+
+        lastBullX := bar_index
+
+    if plotBear
+
+        if not na(lastBearY)
+
+            newLine = line.new(x1=lastBearX, y1=lastBearY, x2=bar_index, y2=high, color=color.red, width=1)
+
+            array.push(trailLines, newLine)
+
+            if array.size(trailLines) > MAX_TRAIL_LINES
+
+                line.delete(array.shift(trailLines))
+
+        lastBearY := high
+
+        lastBearX := bar_index
+
+// ========== FIXED: Risk Lines (Memory Leak Fix) ==========
+
+var line stopLossLine = na
+
+var line target1Line = na
+
+var line target2Line = na
+
+if showRiskLevels and (plotBull or plotBear)
+
+    // Delete old lines first
+
+    if not na(stopLossLine)
+
+        line.delete(stopLossLine)
+
+    if not na(target1Line)
+
+        line.delete(target1Line)
+
+    if not na(target2Line)
+
+        line.delete(target2Line)
+
+    // Create new persistent lines with extend
+
+    stopLossLine := line.new(bar_index, stopLoss, bar_index + 200, stopLoss, color=color.new(color.red, 0), width=1, style=line.style_dashed, extend=extend.right)
+
+    target1Line := line.new(bar_index, target1, bar_index + 200, target1, color=color.new(color.green, 0), width=1, style=line.style_dashed, extend=extend.right)
+
+    target2Line := line.new(bar_index, target2, bar_index + 200, target2, color=color.new(color.lime, 0), width=1, style=line.style_dashed, extend=extend.right)
+
+// ========== GP LINES WITH UPDATED COLORS (Matching Screenshot) ==========
+
+// Color definitions matching screenshot:
+// Daily GP: Bright green (#00FF00 or color.lime)
+// Prev Day GP: Dark green (#006600 or darker green)
+// Weekly GP: Orange/gold (#FFA500 or color.orange)
+// Prev Week GP: Dark orange/brown (#CC6600)
+// Monthly GP: Magenta/purple (#FF00FF or color.fuchsia)
+// Prev Month GP: Dark purple (#8800AA)
+
+// Daily GP colors
+colorDailyGP = #00FF00  // Bright green
+colorPrevDayGP = #006600  // Dark green
+
+// Weekly GP colors
+colorWeeklyGP = #FFA500  // Orange/gold
+colorPrevWeekGP = #CC6600  // Dark orange/brown
+
+// Monthly GP colors
+colorMonthlyGP = #FF00FF  // Magenta/purple
+colorPrevMonthGP = #8800AA  // Dark purple
+
+gpCondDailyLow   = (alwaysShowGP and showDGP)  or (showDGP  and isNear(dGpLow))
+
+gpCondDailyHigh  = (alwaysShowGP and showDGP)  or (showDGP  and isNear(dGpHigh))
+
+gpCondPrevDayLow = (alwaysShowGP and showPDGP) or (showPDGP and isNear(pdGpLow))
+
+gpCondPrevDayHigh= (alwaysShowGP and showPDGP) or (showPDGP and isNear(pdGpHigh))
+
+gpCondWeekLow    = (alwaysShowGP and showWGP)  or (showWGP  and isNear(wGpLow))
+
+gpCondWeekHigh   = (alwaysShowGP and showWGP)  or (showWGP  and isNear(wGpHigh))
+
+gpCondPrevWeekLow= (alwaysShowGP and showPWGP) or (showPWGP and isNear(pwGpLow))
+
+gpCondPrevWeekHigh=(alwaysShowGP and showPWGP) or (showPWGP and isNear(pwGpHigh))
+
+gpCondMonLow     = (alwaysShowGP and showMGP)  or (showMGP  and isNear(mGpLow))
+
+gpCondMonHigh    = (alwaysShowGP and showMGP)  or (showMGP  and isNear(mGpHigh))
+
+gpCondPrevMonLow = (alwaysShowGP and showPMGP) or (showPMGP and isNear(pmGpLow))
+
+gpCondPrevMonHigh= (alwaysShowGP and showPMGP) or (showPMGP and isNear(pmGpHigh))
+
+// Plot GP lines with Cross style and smallest thickness (matching screenshot)
+plot(gpCondDailyLow   ? dGpLow   : na, "Daily GP Low",      color=color.new(colorDailyGP, 0), linewidth=1, style=plot.style_cross)
+plot(gpCondDailyHigh  ? dGpHigh  : na, "Daily GP High",     color=color.new(colorDailyGP, 0), linewidth=1, style=plot.style_cross)
+plot(gpCondPrevDayLow ? pdGpLow  : na, "Prev Day GP Low",   color=color.new(colorPrevDayGP, 25), linewidth=1, style=plot.style_cross)
+plot(gpCondPrevDayHigh? pdGpHigh : na, "Prev Day GP High",  color=color.new(colorPrevDayGP, 25), linewidth=1, style=plot.style_cross)
+plot(gpCondWeekLow    ? wGpLow   : na, "Weekly GP Low",     color=color.new(colorWeeklyGP, 0), linewidth=1, style=plot.style_cross)
+plot(gpCondWeekHigh   ? wGpHigh  : na, "Weekly GP High",    color=color.new(colorWeeklyGP, 0), linewidth=1, style=plot.style_cross)
+plot(gpCondPrevWeekLow? pwGpLow  : na, "Prev Week GP Low",  color=color.new(colorPrevWeekGP, 25), linewidth=1, style=plot.style_cross)
+plot(gpCondPrevWeekHigh?pwGpHigh : na, "Prev Week GP High", color=color.new(colorPrevWeekGP, 25), linewidth=1, style=plot.style_cross)
+plot(gpCondMonLow     ? mGpLow   : na, "Monthly GP Low",    color=color.new(colorMonthlyGP, 0), linewidth=1, style=plot.style_cross)
+plot(gpCondMonHigh    ? mGpHigh  : na, "Monthly GP High",   color=color.new(colorMonthlyGP, 0), linewidth=1, style=plot.style_cross)
+plot(gpCondPrevMonLow ? pmGpLow  : na, "Prev Month GP Low", color=color.new(colorPrevMonthGP, 25), linewidth=1, style=plot.style_cross)
+plot(gpCondPrevMonHigh? pmGpHigh : na, "Prev Month GP High",color=color.new(colorPrevMonthGP, 25), linewidth=1, style=plot.style_cross)
+
+// Background (optional)
+
+var color bgCol = na
+
+bgCol := confluenceScore > 70 ? color.new(color.green, 96) : confluenceScore > 50 ? color.new(color.yellow, 97) : na
+
+bgcolor(showConfluenceBg ? bgCol : na, title="High Confluence Zone")
+
+// ========== COMPREHENSIVE ALERTS ==========
+
+// Main GPS Signals
+alertcondition(aplusBull, "GPS: A+ Bull Signal", "A+ Bullish Setup Detected!")
+alertcondition(aplusBear, "GPS: A+ Bear Signal", "A+ Bearish Setup Detected!")
+alertcondition(plotBull and signalGrade == "A+", "GPS: A+ Bull", "A+ Grade Bullish Signal!")
+alertcondition(plotBear and signalGrade == "A+", "GPS: A+ Bear", "A+ Grade Bearish Signal!")
+alertcondition(plotBull and signalGrade == "A", "GPS: A Bull", "A Grade Bullish Signal!")
+alertcondition(plotBear and signalGrade == "A", "GPS: A Bear", "A Grade Bearish Signal!")
+alertcondition(plotBull and signalGrade == "B", "GPS: B Bull", "B Grade Bullish Signal!")
+alertcondition(plotBear and signalGrade == "B", "GPS: B Bear", "B Grade Bearish Signal!")
+alertcondition(plotBull and nearOrOverBullGP, "GPS: Bull at GP", "Bullish Signal at Golden Pocket!")
+alertcondition(plotBear and nearOrOverBearGP, "GPS: Bear at GP", "Bearish Signal at Golden Pocket!")
+
+// Order Blocks
+alertcondition(bullishOB, "GPS: Bullish OB", "Bullish Order Block Detected!")
+alertcondition(bearishOB, "GPS: Bearish OB", "Bearish Order Block Detected!")
+
+// Sweeps
+alertcondition(sweptLowsHQ, "GPS: Sweep Low HQ", "High Quality Low Sweep Detected!")
+alertcondition(sweptHighsHQ, "GPS: Sweep High HQ", "High Quality High Sweep Detected!")
+
+// Divergences
+alertcondition(regularBullDiv, "GPS: Regular Bull Div", "Regular Bullish Divergence Detected!")
+alertcondition(regularBearDiv, "GPS: Regular Bear Div", "Regular Bearish Divergence Detected!")
+alertcondition(bullDivSig, "GPS: Bull Div Signal", "Bullish Divergence Signal!")
+alertcondition(bearDivSig, "GPS: Bear Div Signal", "Bearish Divergence Signal!")
+
+// Market Maker Signals
+alertcondition(mmLong, "GPS: MM Long", "Market Maker Long Signal!")
+alertcondition(mmShort, "GPS: MM Short", "Market Maker Short Signal!")
+
+// Very Bullish/Bearish
+alertcondition(veryBullish, "GPS: Very Bullish", "Very Bullish Setup Detected!")
+alertcondition(veryBearish, "GPS: Very Bearish", "Very Bearish Setup Detected!")
+
+// Strong Signals
+alertcondition(strongBullSignal, "GPS: Strong Bull", "Strong Bullish Signal!")
+alertcondition(strongBearSignal, "GPS: Strong Bear", "Strong Bearish Signal!")
+
+// High Confluence
+alertcondition(confluenceScore >= 75, "GPS: High Confluence", "High Confluence Zone (75%+)!")
+alertcondition(confluenceScore >= 90, "GPS: Very High Confluence", "Very High Confluence Zone (90%+)!")
+
+// Bottom-left info table (OFF by default)
+
+var table infoTable = na
+
+if showInfoTable
+
+    if na(infoTable)
+
+        infoTable := table.new(position.bottom_left, 2, 4, bgcolor=na)
+
+    if barstate.islast
+
+        table.cell(infoTable, 0, 0, "Confluence", text_color=color.gray, text_size=size.tiny)
+
+        table.cell(infoTable, 1, 0, str.tostring(math.round(confluenceScore)) + "%", text_color=confluenceScore > 70 ? color.lime : color.white, text_size=size.tiny)
+
+        table.cell(infoTable, 0, 1, "Trend", text_color=color.gray, text_size=size.tiny)
+
+        table.cell(infoTable, 1, 1, uptrend ? "Bull" : "Bear", text_color=uptrend ? color.green : color.red, text_size=size.tiny)
+
+        table.cell(infoTable, 0, 2, "Volume", text_color=color.gray, text_size=size.tiny)
+
+        table.cell(infoTable, 1, 2, volume > volAvg ? "High" : "Normal", text_color=volume > volAvg ? color.lime : color.gray, text_size=size.tiny)
+
+        for r = 0 to 2
+
+            table.cell_set_bgcolor(infoTable, 0, r, color.new(color.black, 85))
+
+            table.cell_set_bgcolor(infoTable, 1, r, color.new(color.black, 85))
+
+        table.cell(infoTable, 0, 3, " ", text_size=size.huge)
+
+        table.cell(infoTable, 1, 3, " ", text_size=size.huge)
+
+        table.cell_set_bgcolor(infoTable, 0, 3, na)
+
+        table.cell_set_bgcolor(infoTable, 1, 3, na)

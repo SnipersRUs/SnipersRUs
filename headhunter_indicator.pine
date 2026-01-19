@@ -1,0 +1,551 @@
+//@version=6
+indicator("Head Hunter HH", overlay=true, max_bars_back=5000)
+
+// ============================================
+// INPUTS - All Toggleable, VWAPs ON by Default
+// ============================================
+
+// VWAP Settings (ON by default)
+showVWAP = input.bool(true, "Show VWAP", group="VWAP Settings")
+showVWAPStdDev1 = input.bool(true, "Show VWAP ±1σ", group="VWAP Settings")
+showVWAPStdDev2 = input.bool(true, "Show VWAP ±2σ", group="VWAP Settings")
+stdevMult = input.float(1.0, 'Std Dev 1', minval=0.1, group="VWAP Settings")
+stdevMult2 = input.float(2.0, 'Std Dev 2', minval=0.1, group="VWAP Settings")
+
+// Previous and Current Session Level Toggles (all OFF by default)
+// Previous period lines
+showPrevDayHL = input.bool(false, "Show Prev Day High/Low", group="Session Levels")
+showPrevWeekHL = input.bool(false, "Show Prev Week High/Low", group="Session Levels")
+showPrevMonthHL = input.bool(false, "Show Prev Month High/Low", group="Session Levels")
+showPrevYearHL = input.bool(false, "Show Prev Year High/Low", group="Session Levels")
+
+// Current period lines
+showCurrDayHL = input.bool(false, "Show Daily High/Low", group="Session Levels")
+showCurrWeekHL = input.bool(false, "Show Weekly High/Low", group="Session Levels")
+showCurrMonthHL = input.bool(false, "Show Monthly High/Low", group="Session Levels")
+showCurrYearHL = input.bool(false, "Show Yearly High/Low", group="Session Levels")
+
+// Colors - Previous periods
+prevDayColor = input.color(color.new(#00FF7F, 0), "Prev Day Color (Neon Green)", group="Session Levels")
+prevWeekColor = input.color(color.new(#FFD700, 0), "Prev Week Color (Yellow)", group="Session Levels")
+prevMonthColor = input.color(color.new(#FF00FF, 0), "Prev Month Color (Pink)", group="Session Levels")
+prevYearColor = input.color(color.new(#00BFFF, 0), "Prev Year Color (Neon Blue)", group="Session Levels")
+
+// Colors - Current periods
+dayHLColor = input.color(color.new(#00CC99, 0), "Daily HL Color (Greenish Blue)", group="Session Levels")
+weekHLColor = input.color(color.new(#CC5500, 0), "Weekly HL Color (Burnt Orange)", group="Session Levels")
+monthHLColor = input.color(color.new(#8000FF, 0), "Monthly HL Color (Purple)", group="Session Levels")
+yearHLColor = input.color(color.new(#FFFFFF, 0), "Yearly HL Color (White)", group="Session Levels")
+
+sessionLineWidth = input.int(1, "Line Width", minval=1, maxval=5, group="Session Levels")
+
+// Signal Settings (OFF by default)
+showLongSignals = input.bool(false, "Show Long Signals", group="Signals")
+showShortSignals = input.bool(false, "Show Short Signals", group="Signals")
+
+// Bar Coloring (OFF by default)
+showBarColoring = input.bool(false, "Show Bar Coloring", group="Display Options")
+
+// MA Settings (OFF by default)
+showMA = input.bool(false, "Show 50 MA", group="Moving Averages")
+
+// Signal Parameters (OFF by default - for configuring signals when enabled)
+wickThreshold = input.float(0.2, "Wick Size Ratio", minval=0.1, maxval=1.0, group="Signal Parameters")
+volumePeriods = input.int(14, "Volume Lookback", minval=10, maxval=50, group="Signal Parameters")
+volumeThreshold = input.float(1.2, "Volume Multiplier", minval=1.0, maxval=3.0, group="Signal Parameters")
+rsiLength = input.int(14, "RSI Length", minval=1, group="Signal Parameters")
+rsiOverbought = input.float(65, "RSI Overbought", minval=50, group="Signal Parameters")
+rsiOversold = input.float(35, "RSI Oversold", minval=1, group="Signal Parameters")
+
+// Alert Settings
+enableVWAPTaps = input.bool(true, "Enable VWAP Tap Alerts", group="Alerts")
+enableLongAlerts = input.bool(true, "Enable Long Signal Alerts", group="Alerts")
+enableShortAlerts = input.bool(true, "Enable Short Signal Alerts", group="Alerts")
+enablePrevDayAlerts = input.bool(true, "Enable Previous Day High/Low Alerts", group="Alerts")
+enableWeeklyAlerts = input.bool(true, "Enable Weekly High/Low Alerts", group="Alerts")
+enableMonthlyAlerts = input.bool(true, "Enable Monthly High/Low Alerts", group="Alerts")
+enableYearlyAlerts = input.bool(true, "Enable Yearly High/Low Alerts", group="Alerts")
+
+// ============================================
+// PREVIOUS/CURRENT DAY/WEEK/MONTH/YEAR LEVEL CALCULATIONS
+// ============================================
+
+// Previous Day High/Low
+[pdHigh, pdLow] = request.security(syminfo.tickerid, 'D', [high[1], low[1]], barmerge.gaps_off, barmerge.lookahead_off)
+
+// Weekly High/Low
+[weeklyHigh, weeklyLow] = request.security(syminfo.tickerid, 'W', [high[1], low[1]], barmerge.gaps_off, barmerge.lookahead_off)
+
+// Monthly High/Low
+[monthlyHigh, monthlyLow] = request.security(syminfo.tickerid, 'M', [high[1], low[1]], barmerge.gaps_off, barmerge.lookahead_off)
+
+// Yearly High/Low
+[yearlyHigh, yearlyLow] = request.security(syminfo.tickerid, '12M', [high[1], low[1]], barmerge.gaps_off, barmerge.lookahead_off)
+
+// Current period High/Low (today, this week, this month, this year)
+[curDayHigh, curDayLow] = request.security(syminfo.tickerid, 'D', [high, low], barmerge.gaps_off, barmerge.lookahead_off)
+[curWeekHigh, curWeekLow] = request.security(syminfo.tickerid, 'W', [high, low], barmerge.gaps_off, barmerge.lookahead_off)
+[curMonthHigh, curMonthLow] = request.security(syminfo.tickerid, 'M', [high, low], barmerge.gaps_off, barmerge.lookahead_off)
+[curYearHigh, curYearLow] = request.security(syminfo.tickerid, '12M', [high, low], barmerge.gaps_off, barmerge.lookahead_off)
+
+// Check if we're in the current period (not historical)
+isCurrentDay = ta.change(time("1D")) == 0
+isCurrentWeek = ta.change(time("1W")) == 0
+isCurrentMonth = ta.change(time("1M")) == 0
+isCurrentYear = ta.change(time("12M")) == 0
+
+// ============================================
+// VWAP CALCULATIONS
+// ============================================
+
+var float sumPV = 0.0
+var float sumV = 0.0
+var float sumPV2 = 0.0
+
+sumPV += hlc3 * volume
+sumV += volume
+sumPV2 += math.pow(hlc3, 2) * volume
+
+vwap = sumPV / sumV
+variance = (sumPV2 / sumV) - math.pow(vwap, 2)
+stdev = math.sqrt(variance)
+
+vwapUpper1 = vwap + stdev * stdevMult
+vwapLower1 = vwap - stdev * stdevMult
+vwapUpper2 = vwap + stdev * stdevMult2
+vwapLower2 = vwap - stdev * stdevMult2
+
+// ============================================
+// TECHNICAL CALCULATIONS
+// ============================================
+
+sma50 = ta.sma(close, 50)
+rsi = ta.rsi(close, rsiLength)
+rsiOB = rsi > rsiOverbought
+rsiOS = rsi < rsiOversold
+
+// VWAP Divergence
+vwapDist = close - vwap
+vwapSlope = ta.change(vwap, 3)
+priceSlope = ta.change(close, 3)
+
+// Volume Analysis
+isHighVolume() =>
+    avgVol = ta.sma(volume, volumePeriods)
+    volume > avgVol * volumeThreshold
+
+// Pattern Detection
+getWickRatio(h, l, o, c) =>
+    bodyHigh = math.max(o, c)
+    bodyLow = math.min(o, c)
+    candleSize = h - l
+    upperWick = h - bodyHigh
+    lowerWick = bodyLow - l
+    [upperWick / candleSize, lowerWick / candleSize]
+
+// Signal Generation
+isLongSignal() =>
+    [uw1, lw1] = getWickRatio(high[1], low[1], open[1], close[1])
+    wickValid = lw1 > wickThreshold
+    candlePattern = close > open and close > close[1]
+    volValid = isHighVolume()
+    vwapDiv = vwapDist < 0 and vwapSlope > 0  // Added VWAP divergence check
+    wickValid and candlePattern and volValid and (rsiOS or vwapDiv)
+
+isShortSignal() =>
+    [uw1, lw1] = getWickRatio(high[1], low[1], open[1], close[1])
+    wickValid = uw1 > wickThreshold
+    candlePattern = close < open and close < close[1]
+    volValid = isHighVolume()
+    vwapDiv = vwapDist > 0 and vwapSlope < 0  // Added VWAP divergence check
+    wickValid and candlePattern and volValid and (rsiOB or vwapDiv)
+
+// VWAP Tap Detection
+vwapTapUp = ta.crossover(close, vwap) or (math.abs(low - vwap) / vwap < 0.001 and close > vwap)
+vwapTapDown = ta.crossunder(close, vwap) or (math.abs(high - vwap) / vwap < 0.001 and close < vwap)
+vwapTapUpper1 = ta.crossover(close, vwapUpper1) or (math.abs(low - vwapUpper1) / vwapUpper1 < 0.001 and close > vwapUpper1)
+vwapTapLower1 = ta.crossunder(close, vwapLower1) or (math.abs(high - vwapLower1) / vwapLower1 < 0.001 and close > vwapLower1)
+vwapTapUpper2 = ta.crossover(close, vwapUpper2) or (math.abs(low - vwapUpper2) / vwapUpper2 < 0.001 and close > vwapUpper2)
+vwapTapLower2 = ta.crossunder(close, vwapLower2) or (math.abs(high - vwapLower2) / vwapLower2 < 0.001 and close > vwapLower2)
+
+// ============================================
+// PREVIOUS DAY/WEEKLY/MONTHLY HIGH/LOW LINE MANAGEMENT
+// ============================================
+
+// Variables to store line IDs - Previous Period
+var line prevDayHighLine = na
+var line prevDayLowLine = na
+var line weeklyHighLine = na
+var line weeklyLowLine = na
+var line monthlyHighLine = na
+var line monthlyLowLine = na
+var line yearlyHighLine = na
+var line yearlyLowLine = na
+
+// Variables to store line IDs - Current Period
+var line currDayHighLine = na
+var line currDayLowLine = na
+var line currWeekHighLine = na
+var line currWeekLowLine = na
+var line currMonthHighLine = na
+var line currMonthLowLine = na
+var line currYearHighLine = na
+var line currYearLowLine = na
+
+var float prevPdHigh = na
+var float prevPdLow = na
+var float prevWeeklyHigh = na
+var float prevWeeklyLow = na
+var float prevMonthlyHigh = na
+var float prevMonthlyLow = na
+var float prevYearlyHigh = na
+var float prevYearlyLow = na
+
+var float prevCurrDayHigh = na
+var float prevCurrDayLow = na
+var float prevCurrWeekHigh = na
+var float prevCurrWeekLow = na
+var float prevCurrMonthHigh = na
+var float prevCurrMonthLow = na
+var float prevCurrYearHigh = na
+var float prevCurrYearLow = na
+
+// Previous Day High/Low Lines - only show during current day
+if showPrevDayHL and isCurrentDay and not na(pdHigh) and not na(pdLow)
+    if na(prevDayHighLine) or pdHigh != prevPdHigh
+        if not na(prevDayHighLine)
+            line.delete(prevDayHighLine)
+        prevDayHighLine := line.new(bar_index - 1, pdHigh, bar_index, pdHigh, color=prevDayColor, style=line.style_dashed, width=sessionLineWidth, extend=extend.both)
+        prevPdHigh := pdHigh
+    else if not na(prevDayHighLine)
+        line.set_x2(prevDayHighLine, bar_index)
+        line.set_y1(prevDayHighLine, pdHigh)
+        line.set_y2(prevDayHighLine, pdHigh)
+
+    if na(prevDayLowLine) or pdLow != prevPdLow
+        if not na(prevDayLowLine)
+            line.delete(prevDayLowLine)
+        prevDayLowLine := line.new(bar_index - 1, pdLow, bar_index, pdLow, color=prevDayColor, style=line.style_dashed, width=sessionLineWidth, extend=extend.both)
+        prevPdLow := pdLow
+    else if not na(prevDayLowLine)
+        line.set_x2(prevDayLowLine, bar_index)
+        line.set_y1(prevDayLowLine, pdLow)
+        line.set_y2(prevDayLowLine, pdLow)
+else
+    if not na(prevDayHighLine)
+        line.delete(prevDayHighLine)
+        prevDayHighLine := na
+    if not na(prevDayLowLine)
+        line.delete(prevDayLowLine)
+        prevDayLowLine := na
+
+// Weekly High/Low Lines - only show during current week
+if showPrevWeekHL and isCurrentWeek and not na(weeklyHigh) and not na(weeklyLow)
+    if na(weeklyHighLine) or weeklyHigh != prevWeeklyHigh
+        if not na(weeklyHighLine)
+            line.delete(weeklyHighLine)
+        weeklyHighLine := line.new(bar_index - 1, weeklyHigh, bar_index, weeklyHigh, color=prevWeekColor, style=line.style_dashed, width=sessionLineWidth, extend=extend.both)
+        prevWeeklyHigh := weeklyHigh
+    else if not na(weeklyHighLine)
+        line.set_x2(weeklyHighLine, bar_index)
+        line.set_y1(weeklyHighLine, weeklyHigh)
+        line.set_y2(weeklyHighLine, weeklyHigh)
+
+    if na(weeklyLowLine) or weeklyLow != prevWeeklyLow
+        if not na(weeklyLowLine)
+            line.delete(weeklyLowLine)
+        weeklyLowLine := line.new(bar_index - 1, weeklyLow, bar_index, weeklyLow, color=prevWeekColor, style=line.style_dashed, width=sessionLineWidth, extend=extend.both)
+        prevWeeklyLow := weeklyLow
+    else if not na(weeklyLowLine)
+        line.set_x2(weeklyLowLine, bar_index)
+        line.set_y1(weeklyLowLine, weeklyLow)
+        line.set_y2(weeklyLowLine, weeklyLow)
+else
+    if not na(weeklyHighLine)
+        line.delete(weeklyHighLine)
+        weeklyHighLine := na
+    if not na(weeklyLowLine)
+        line.delete(weeklyLowLine)
+        weeklyLowLine := na
+
+// Monthly High/Low Lines - only show during current month
+if showPrevMonthHL and isCurrentMonth and not na(monthlyHigh) and not na(monthlyLow)
+    if na(monthlyHighLine) or monthlyHigh != prevMonthlyHigh
+        if not na(monthlyHighLine)
+            line.delete(monthlyHighLine)
+        monthlyHighLine := line.new(bar_index - 1, monthlyHigh, bar_index, monthlyHigh, color=prevMonthColor, style=line.style_dashed, width=sessionLineWidth, extend=extend.both)
+        prevMonthlyHigh := monthlyHigh
+    else if not na(monthlyHighLine)
+        line.set_x2(monthlyHighLine, bar_index)
+        line.set_y1(monthlyHighLine, monthlyHigh)
+        line.set_y2(monthlyHighLine, monthlyHigh)
+
+    if na(monthlyLowLine) or monthlyLow != prevMonthlyLow
+        if not na(monthlyLowLine)
+            line.delete(monthlyLowLine)
+        monthlyLowLine := line.new(bar_index - 1, monthlyLow, bar_index, monthlyLow, color=prevMonthColor, style=line.style_dashed, width=sessionLineWidth, extend=extend.both)
+        prevMonthlyLow := monthlyLow
+    else if not na(monthlyLowLine)
+        line.set_x2(monthlyLowLine, bar_index)
+        line.set_y1(monthlyLowLine, monthlyLow)
+        line.set_y2(monthlyLowLine, monthlyLow)
+else
+    if not na(monthlyHighLine)
+        line.delete(monthlyHighLine)
+        monthlyHighLine := na
+    if not na(monthlyLowLine)
+        line.delete(monthlyLowLine)
+        monthlyLowLine := na
+
+// Yearly High/Low Lines - only show during current year
+if showPrevYearHL and isCurrentYear and not na(yearlyHigh) and not na(yearlyLow)
+    if na(yearlyHighLine) or yearlyHigh != prevYearlyHigh
+        if not na(yearlyHighLine)
+            line.delete(yearlyHighLine)
+        yearlyHighLine := line.new(bar_index - 1, yearlyHigh, bar_index, yearlyHigh, color=prevYearColor, style=line.style_dashed, width=sessionLineWidth, extend=extend.both)
+        prevYearlyHigh := yearlyHigh
+    else if not na(yearlyHighLine)
+        line.set_x2(yearlyHighLine, bar_index)
+        line.set_y1(yearlyHighLine, yearlyHigh)
+        line.set_y2(yearlyHighLine, yearlyHigh)
+
+    if na(yearlyLowLine) or yearlyLow != prevYearlyLow
+        if not na(yearlyLowLine)
+            line.delete(yearlyLowLine)
+        yearlyLowLine := line.new(bar_index - 1, yearlyLow, bar_index, yearlyLow, color=prevYearColor, style=line.style_dashed, width=sessionLineWidth, extend=extend.both)
+        prevYearlyLow := yearlyLow
+    else if not na(yearlyLowLine)
+        line.set_x2(yearlyLowLine, bar_index)
+        line.set_y1(yearlyLowLine, yearlyLow)
+        line.set_y2(yearlyLowLine, yearlyLow)
+else
+    if not na(yearlyHighLine)
+        line.delete(yearlyHighLine)
+        yearlyHighLine := na
+    if not na(yearlyLowLine)
+        line.delete(yearlyLowLine)
+        yearlyLowLine := na
+
+// ============================================
+// CURRENT PERIOD HL LINE MANAGEMENT (dashed lines)
+// ============================================
+
+// Current Day High/Low Lines - only show during current day
+if showCurrDayHL and isCurrentDay and not na(curDayHigh) and not na(curDayLow)
+    if na(currDayHighLine) or curDayHigh != prevCurrDayHigh
+        if not na(currDayHighLine)
+            line.delete(currDayHighLine)
+        currDayHighLine := line.new(bar_index - 1, curDayHigh, bar_index, curDayHigh, color=dayHLColor, style=line.style_dashed, width=sessionLineWidth, extend=extend.both)
+        prevCurrDayHigh := curDayHigh
+    else if not na(currDayHighLine)
+        line.set_x2(currDayHighLine, bar_index)
+        line.set_y1(currDayHighLine, curDayHigh)
+        line.set_y2(currDayHighLine, curDayHigh)
+
+    if na(currDayLowLine) or curDayLow != prevCurrDayLow
+        if not na(currDayLowLine)
+            line.delete(currDayLowLine)
+        currDayLowLine := line.new(bar_index - 1, curDayLow, bar_index, curDayLow, color=dayHLColor, style=line.style_dashed, width=sessionLineWidth, extend=extend.both)
+        prevCurrDayLow := curDayLow
+    else if not na(currDayLowLine)
+        line.set_x2(currDayLowLine, bar_index)
+        line.set_y1(currDayLowLine, curDayLow)
+        line.set_y2(currDayLowLine, curDayLow)
+else
+    if not na(currDayHighLine)
+        line.delete(currDayHighLine)
+        currDayHighLine := na
+    if not na(currDayLowLine)
+        line.delete(currDayLowLine)
+        currDayLowLine := na
+
+// Current Week High/Low Lines - only show during current week
+if showCurrWeekHL and isCurrentWeek and not na(curWeekHigh) and not na(curWeekLow)
+    if na(currWeekHighLine) or curWeekHigh != prevCurrWeekHigh
+        if not na(currWeekHighLine)
+            line.delete(currWeekHighLine)
+        currWeekHighLine := line.new(bar_index - 1, curWeekHigh, bar_index, curWeekHigh, color=weekHLColor, style=line.style_dashed, width=sessionLineWidth, extend=extend.both)
+        prevCurrWeekHigh := curWeekHigh
+    else if not na(currWeekHighLine)
+        line.set_x2(currWeekHighLine, bar_index)
+        line.set_y1(currWeekHighLine, curWeekHigh)
+        line.set_y2(currWeekHighLine, curWeekHigh)
+
+    if na(currWeekLowLine) or curWeekLow != prevCurrWeekLow
+        if not na(currWeekLowLine)
+            line.delete(currWeekLowLine)
+        currWeekLowLine := line.new(bar_index - 1, curWeekLow, bar_index, curWeekLow, color=weekHLColor, style=line.style_dashed, width=sessionLineWidth, extend=extend.both)
+        prevCurrWeekLow := curWeekLow
+    else if not na(currWeekLowLine)
+        line.set_x2(currWeekLowLine, bar_index)
+        line.set_y1(currWeekLowLine, curWeekLow)
+        line.set_y2(currWeekLowLine, curWeekLow)
+else
+    if not na(currWeekHighLine)
+        line.delete(currWeekHighLine)
+        currWeekHighLine := na
+    if not na(currWeekLowLine)
+        line.delete(currWeekLowLine)
+        currWeekLowLine := na
+
+// Current Month High/Low Lines - only show during current month
+if showCurrMonthHL and isCurrentMonth and not na(curMonthHigh) and not na(curMonthLow)
+    if na(currMonthHighLine) or curMonthHigh != prevCurrMonthHigh
+        if not na(currMonthHighLine)
+            line.delete(currMonthHighLine)
+        currMonthHighLine := line.new(bar_index - 1, curMonthHigh, bar_index, curMonthHigh, color=monthHLColor, style=line.style_dashed, width=sessionLineWidth, extend=extend.both)
+        prevCurrMonthHigh := curMonthHigh
+    else if not na(currMonthHighLine)
+        line.set_x2(currMonthHighLine, bar_index)
+        line.set_y1(currMonthHighLine, curMonthHigh)
+        line.set_y2(currMonthHighLine, curMonthHigh)
+
+    if na(currMonthLowLine) or curMonthLow != prevCurrMonthLow
+        if not na(currMonthLowLine)
+            line.delete(currMonthLowLine)
+        currMonthLowLine := line.new(bar_index - 1, curMonthLow, bar_index, curMonthLow, color=monthHLColor, style=line.style_dashed, width=sessionLineWidth, extend=extend.both)
+        prevCurrMonthLow := curMonthLow
+    else if not na(currMonthLowLine)
+        line.set_x2(currMonthLowLine, bar_index)
+        line.set_y1(currMonthLowLine, curMonthLow)
+        line.set_y2(currMonthLowLine, curMonthLow)
+else
+    if not na(currMonthHighLine)
+        line.delete(currMonthHighLine)
+        currMonthHighLine := na
+    if not na(currMonthLowLine)
+        line.delete(currMonthLowLine)
+        currMonthLowLine := na
+
+// Current Year High/Low Lines - only show during current year
+if showCurrYearHL and isCurrentYear and not na(curYearHigh) and not na(curYearLow)
+    if na(currYearHighLine) or curYearHigh != prevCurrYearHigh
+        if not na(currYearHighLine)
+            line.delete(currYearHighLine)
+        currYearHighLine := line.new(bar_index - 1, curYearHigh, bar_index, curYearHigh, color=yearHLColor, style=line.style_dashed, width=sessionLineWidth, extend=extend.both)
+        prevCurrYearHigh := curYearHigh
+    else if not na(currYearHighLine)
+        line.set_x2(currYearHighLine, bar_index)
+        line.set_y1(currYearHighLine, curYearHigh)
+        line.set_y2(currYearHighLine, curYearHigh)
+
+    if na(currYearLowLine) or curYearLow != prevCurrYearLow
+        if not na(currYearLowLine)
+            line.delete(currYearLowLine)
+        currYearLowLine := line.new(bar_index - 1, curYearLow, bar_index, curYearLow, color=yearHLColor, style=line.style_dashed, width=sessionLineWidth, extend=extend.both)
+        prevCurrYearLow := curYearLow
+    else if not na(currYearLowLine)
+        line.set_x2(currYearLowLine, bar_index)
+        line.set_y1(currYearLowLine, curYearLow)
+        line.set_y2(currYearLowLine, curYearLow)
+else
+    if not na(currYearHighLine)
+        line.delete(currYearHighLine)
+        currYearHighLine := na
+    if not na(currYearLowLine)
+        line.delete(currYearLowLine)
+        currYearLowLine := na
+
+// ============================================
+// PLOTTING
+// ============================================
+
+// VWAP Plots (ON by default) - White for bullish bands, bright purple/pink for bearish bands
+plot(showVWAP ? vwap : na, "VWAP", color=#0077FF, linewidth=2)
+plot(showVWAPStdDev1 ? vwapUpper1 : na, "VWAP +1σ", color=color.white, linewidth=1, style=plot.style_stepline)
+plot(showVWAPStdDev1 ? vwapLower1 : na, "VWAP -1σ", color=#FF00FF, linewidth=1, style=plot.style_stepline)
+plot(showVWAPStdDev2 ? vwapUpper2 : na, "VWAP +2σ", color=color.white, linewidth=1, style=plot.style_stepline)
+plot(showVWAPStdDev2 ? vwapLower2 : na, "VWAP -2σ", color=#FF00FF, linewidth=1, style=plot.style_stepline)
+
+// Previous Day/Weekly/Monthly/Yearly and Current Day/Weekly/Monthly/Yearly High/Low Lines are drawn using line.new() above with dashed style
+
+// MA Plot
+plot(showMA ? sma50 : na, "50 MA", color=#FF8C0073, linewidth=2)
+
+// Regular Signals
+plotshape(showLongSignals and isLongSignal(),
+         title="Long",
+         style=shape.triangleup,
+         location=location.belowbar,
+         color=color.white,
+         size=size.tiny)
+
+plotshape(showShortSignals and isShortSignal(),
+         title="Short",
+         style=shape.triangledown,
+         location=location.abovebar,
+         color=color.purple,
+         size=size.tiny)
+
+
+// Bar coloring
+barcolor(showBarColoring ? (isShortSignal() ? color.purple : isLongSignal() ? color.white : na) : na)
+
+// ============================================
+// ALERTS
+// ============================================
+
+// VWAP Tap Alerts
+if enableVWAPTaps
+    if vwapTapUp
+        alert("VWAP Tap Up - Price crossed above VWAP", alert.freq_once_per_bar)
+    if vwapTapDown
+        alert("VWAP Tap Down - Price crossed below VWAP", alert.freq_once_per_bar)
+    if vwapTapUpper1
+        alert("VWAP Tap Upper +1σ - Price crossed above VWAP +1σ", alert.freq_once_per_bar)
+    if vwapTapLower1
+        alert("VWAP Tap Lower -1σ - Price crossed below VWAP -1σ", alert.freq_once_per_bar)
+    if vwapTapUpper2
+        alert("VWAP Tap Upper +2σ - Price crossed above VWAP +2σ", alert.freq_once_per_bar)
+    if vwapTapLower2
+        alert("VWAP Tap Lower -2σ - Price crossed below VWAP -2σ", alert.freq_once_per_bar)
+
+// Long Signal Alerts
+if enableLongAlerts and showLongSignals
+    if isLongSignal()
+        alert("Head Hunter Long Signal", alert.freq_once_per_bar)
+
+// Short Signal Alerts
+if enableShortAlerts and showShortSignals
+    if isShortSignal()
+        alert("Head Hunter Short Signal", alert.freq_once_per_bar)
+
+// Previous Day High/Low Alerts
+if enablePrevDayAlerts and showPrevDayHL and isCurrentDay
+    prevDayHighTouch = ta.crossover(close, pdHigh) or ta.crossunder(close, pdHigh) or (math.abs(high - pdHigh) / pdHigh < 0.001 and close >= pdHigh) or (math.abs(low - pdHigh) / pdHigh < 0.001 and close <= pdHigh)
+    prevDayLowTouch = ta.crossover(close, pdLow) or ta.crossunder(close, pdLow) or (math.abs(high - pdLow) / pdLow < 0.001 and close >= pdLow) or (math.abs(low - pdLow) / pdLow < 0.001 and close <= pdLow)
+
+    if prevDayHighTouch
+        alert("Previous Day High Touched: " + str.tostring(pdHigh, format.mintick), alert.freq_once_per_bar)
+    if prevDayLowTouch
+        alert("Previous Day Low Touched: " + str.tostring(pdLow, format.mintick), alert.freq_once_per_bar)
+
+// Weekly High/Low Alerts
+if enableWeeklyAlerts and showPrevWeekHL and isCurrentWeek
+    weeklyHighTouch = ta.crossover(close, weeklyHigh) or ta.crossunder(close, weeklyHigh) or (math.abs(high - weeklyHigh) / weeklyHigh < 0.001 and close >= weeklyHigh) or (math.abs(low - weeklyHigh) / weeklyHigh < 0.001 and close <= weeklyHigh)
+    weeklyLowTouch = ta.crossover(close, weeklyLow) or ta.crossunder(close, weeklyLow) or (math.abs(high - weeklyLow) / weeklyLow < 0.001 and close >= weeklyLow) or (math.abs(low - weeklyLow) / weeklyLow < 0.001 and close <= weeklyLow)
+
+    if weeklyHighTouch
+        alert("Weekly High Touched: " + str.tostring(weeklyHigh, format.mintick), alert.freq_once_per_bar)
+    if weeklyLowTouch
+        alert("Weekly Low Touched: " + str.tostring(weeklyLow, format.mintick), alert.freq_once_per_bar)
+
+// Monthly High/Low Alerts
+if enableMonthlyAlerts and showPrevMonthHL and isCurrentMonth
+    monthlyHighTouch = ta.crossover(close, monthlyHigh) or ta.crossunder(close, monthlyHigh) or (math.abs(high - monthlyHigh) / monthlyHigh < 0.001 and close >= monthlyHigh) or (math.abs(low - monthlyHigh) / monthlyHigh < 0.001 and close <= monthlyHigh)
+    monthlyLowTouch = ta.crossover(close, monthlyLow) or ta.crossunder(close, monthlyLow) or (math.abs(high - monthlyLow) / monthlyLow < 0.001 and close >= monthlyLow) or (math.abs(low - monthlyLow) / monthlyLow < 0.001 and close <= monthlyLow)
+
+    if monthlyHighTouch
+        alert("Monthly High Touched: " + str.tostring(monthlyHigh, format.mintick), alert.freq_once_per_bar)
+    if monthlyLowTouch
+        alert("Monthly Low Touched: " + str.tostring(monthlyLow, format.mintick), alert.freq_once_per_bar)
+
+// Yearly High/Low Alerts
+if enableYearlyAlerts and showPrevYearHL and isCurrentYear
+    yearlyHighTouch = ta.crossover(close, yearlyHigh) or ta.crossunder(close, yearlyHigh) or (math.abs(high - yearlyHigh) / yearlyHigh < 0.001 and close >= yearlyHigh) or (math.abs(low - yearlyHigh) / yearlyHigh < 0.001 and close <= yearlyHigh)
+    yearlyLowTouch = ta.crossover(close, yearlyLow) or ta.crossunder(close, yearlyLow) or (math.abs(high - yearlyLow) / yearlyLow < 0.001 and close >= yearlyLow) or (math.abs(low - yearlyLow) / yearlyLow < 0.001 and close <= yearlyLow)
+
+    if yearlyHighTouch
+        alert("Yearly High Touched: " + str.tostring(yearlyHigh, format.mintick), alert.freq_once_per_bar)
+    if yearlyLowTouch
+        alert("Yearly Low Touched: " + str.tostring(yearlyLow, format.mintick), alert.freq_once_per_bar)

@@ -1,0 +1,340 @@
+//@version=6
+indicator("Multi-Cycle Confluence Tracker", overlay=true, max_labels_count=500, max_lines_count=100)
+
+// ========================================
+// MULTI-CYCLE CONFLUENCE INDICATOR
+// ========================================
+// Combines multiple cycles to find high-probability setups
+// When multiple cycles align, signals are stronger
+// ========================================
+
+// === INPUT GROUPS ===
+grpCycles = "🔄 Enabled Cycles"
+grpDisplay = "📊 Display Settings"
+grpConfluence = "🎯 Confluence Settings"
+grpAlerts = "🔔 Alerts"
+
+// === CYCLE TOGGLES ===
+enableMoonCycle = input.bool(true, "Moon Cycle", group=grpCycles, tooltip="Lunar phase cycles (~29.5 days)")
+enableHalvingCycle = input.bool(true, "Halving Cycle", group=grpCycles, tooltip="Bitcoin 4-year halving cycle")
+enableWeeklyCycle = input.bool(true, "Weekly Cycle", group=grpCycles, tooltip="Day-of-week patterns")
+enableMonthlyCycle = input.bool(false, "Monthly Cycle", group=grpCycles, tooltip="Month-end/month-start patterns")
+enableVolumeCycle = input.bool(false, "Volume Cycle", group=grpCycles, tooltip="Volume-based cycles")
+enableMomentumCycle = input.bool(false, "Momentum Cycle", group=grpCycles, tooltip="RSI/MACD momentum cycles")
+
+// === DISPLAY INPUTS ===
+showConfluenceZones = input.bool(true, "Show Confluence Zones", group=grpDisplay)
+showCycleStatus = input.bool(true, "Show Cycle Status Table", group=grpDisplay)
+showSignals = input.bool(true, "Show Buy/Sell Signals", group=grpDisplay)
+showBackground = input.bool(true, "Show Background Colors", group=grpDisplay)
+
+// === CONFLUENCE INPUTS ===
+minConfluence = input.int(3, "Minimum Confluence", minval=2, maxval=6, group=grpConfluence, tooltip="Minimum number of cycles that must align for signal")
+bullishThreshold = input.int(2, "Bullish Threshold", minval=1, maxval=6, group=grpConfluence, tooltip="Cycles needed for bullish signal")
+bearishThreshold = input.int(2, "Bearish Threshold", minval=1, maxval=6, group=grpConfluence, tooltip="Cycles needed for bearish signal")
+
+// === ALERT INPUTS ===
+alertOnHighConfluence = input.bool(true, "Alert: High Confluence", group=grpAlerts, tooltip="Alert when multiple cycles align")
+alertOnBullishConfluence = input.bool(true, "Alert: Bullish Confluence", group=grpAlerts)
+alertOnBearishConfluence = input.bool(true, "Alert: Bearish Confluence", group=grpAlerts)
+
+// === COLORS ===
+grpColors = "🎨 Colors"
+bullishColor = input.color(color.new(color.lime, 0), "Bullish", group=grpColors)
+bearishColor = input.color(color.new(color.red, 0), "Bearish", group=grpColors)
+neutralColor = input.color(color.new(color.gray, 0), "Neutral", group=grpColors)
+confluenceColor = input.color(color.new(color.yellow, 0), "High Confluence", group=grpColors)
+
+// === MOON CYCLE ===
+// Simplified moon phase calculation
+getMoonPhase() =>
+    // Approximate: 29.530588861 days per cycle
+    daysSince2000 = (time - timestamp(2000, 1, 1, 0, 0, 0)) / (1000 * 60 * 60 * 24)
+    phase = (daysSince2000 / 29.530588861) % 1.0
+    phase
+
+moonPhase = enableMoonCycle ? getMoonPhase() : na
+isWaxingMoon = enableMoonCycle and not na(moonPhase) and moonPhase < 0.5 and moonPhase > 0.03
+isWaningMoon = enableMoonCycle and not na(moonPhase) and moonPhase > 0.5 and moonPhase < 0.97
+isNewMoon = enableMoonCycle and not na(moonPhase) and (moonPhase < 0.03 or moonPhase > 0.97)
+isFullMoon = enableMoonCycle and not na(moonPhase) and moonPhase > 0.47 and moonPhase < 0.53
+
+moonCycleBullish = isWaxingMoon or isFullMoon
+moonCycleBearish = isWaningMoon
+
+// === HALVING CYCLE ===
+halving1 = timestamp(2012, 11, 28, 0, 0, 0)
+halving2 = timestamp(2016, 7, 9, 0, 0, 0)
+halving3 = timestamp(2020, 5, 11, 0, 0, 0)
+halving4 = timestamp(2024, 4, 20, 0, 0, 0)
+halving5 = timestamp(2028, 4, 20, 0, 0, 0)
+
+getHalvingPhase() =>
+    currentTime = time
+    lastHalving = halving4
+    nextHalving = halving5
+
+    if currentTime >= halving4 and currentTime < halving5
+        lastHalving := halving4
+        nextHalving := halving5
+    else if currentTime >= halving3 and currentTime < halving4
+        lastHalving := halving3
+        nextHalving := halving4
+
+    daysSince = (currentTime - lastHalving) / (1000 * 60 * 60 * 24)
+    phase = "Neutral"
+
+    // Accumulation: 0-365 days (bullish)
+    // Bull Run: 365-730 days (very bullish)
+    // Distribution: 730-1095 days (bearish)
+    // Bear: 1095-1460 days (very bearish)
+    if daysSince >= 0 and daysSince < 365
+        phase := "Accumulation"
+    else if daysSince >= 365 and daysSince < 730
+        phase := "Bull Run"
+    else if daysSince >= 730 and daysSince < 1095
+        phase := "Distribution"
+    else if daysSince >= 1095 and daysSince < 1460
+        phase := "Bear Market"
+
+    [phase, daysSince]
+
+[halvingPhase, halvingDays] = enableHalvingCycle ? getHalvingPhase() : [na, na]
+halvingCycleBullish = enableHalvingCycle and not na(halvingPhase) and (halvingPhase == "Accumulation" or halvingPhase == "Bull Run")
+halvingCycleBearish = enableHalvingCycle and not na(halvingPhase) and (halvingPhase == "Distribution" or halvingPhase == "Bear Market")
+
+// === WEEKLY CYCLE ===
+currentDay = dayofweek
+isMonday = enableWeeklyCycle and currentDay == 1
+isFriday = enableWeeklyCycle and currentDay == 5
+isWeekend = enableWeeklyCycle and (currentDay == 6 or currentDay == 7)
+
+// Weekly patterns: Monday often volatile, Sunday evening often bullish
+weeklyCycleBullish = enableWeeklyCycle and isWeekend
+weeklyCycleBearish = enableWeeklyCycle and isFriday
+
+// === MONTHLY CYCLE ===
+dayOfMonth = dayofmonth
+isMonthStart = enableMonthlyCycle and dayOfMonth >= 1 and dayOfMonth <= 5
+isMonthEnd = enableMonthlyCycle and dayOfMonth >= 25
+
+monthlyCycleBullish = isMonthStart
+monthlyCycleBearish = isMonthEnd
+
+// === VOLUME CYCLE ===
+volSMA = ta.sma(volume, 20)
+isHighVolume = enableVolumeCycle and volume > volSMA * 1.5
+isLowVolume = enableVolumeCycle and volume < volSMA * 0.7
+
+volumeCycleBullish = isHighVolume  // High volume = strong moves
+volumeCycleBearish = isLowVolume   // Low volume = weak moves
+
+// === MOMENTUM CYCLE ===
+rsi = ta.rsi(close, 14)
+macdLine = ta.ema(close, 12) - ta.ema(close, 26)
+macdSignal = ta.ema(macdLine, 9)
+macdHist = macdLine - macdSignal
+
+isOverbought = enableMomentumCycle and rsi > 70
+isOversold = enableMomentumCycle and rsi < 30
+isMomentumUp = enableMomentumCycle and macdHist > 0 and macdLine > macdSignal
+isMomentumDown = enableMomentumCycle and macdHist < 0 and macdLine < macdSignal
+
+momentumCycleBullish = isOversold or isMomentumUp
+momentumCycleBearish = isOverbought or isMomentumDown
+
+// === CONFLUENCE CALCULATION ===
+// Count bullish and bearish cycles
+bullishCount = 0
+bearishCount = 0
+neutralCount = 0
+
+if moonCycleBullish
+    bullishCount += 1
+else if moonCycleBearish
+    bearishCount += 1
+else if enableMoonCycle
+    neutralCount += 1
+
+if halvingCycleBullish
+    bullishCount += 1
+else if halvingCycleBearish
+    bearishCount += 1
+else if enableHalvingCycle
+    neutralCount += 1
+
+if weeklyCycleBullish
+    bullishCount += 1
+else if weeklyCycleBearish
+    bearishCount += 1
+else if enableWeeklyCycle
+    neutralCount += 1
+
+if monthlyCycleBullish
+    bullishCount += 1
+else if monthlyCycleBearish
+    bearishCount += 1
+else if enableMonthlyCycle
+    neutralCount += 1
+
+if volumeCycleBullish
+    bullishCount += 1
+else if volumeCycleBearish
+    bearishCount += 1
+else if enableVolumeCycle
+    neutralCount += 1
+
+if momentumCycleBullish
+    bullishCount += 1
+else if momentumCycleBearish
+    bearishCount += 1
+else if enableMomentumCycle
+    neutralCount += 1
+
+totalCycles = bullishCount + bearishCount + neutralCount
+confluenceScore = bullishCount - bearishCount  // Positive = bullish, Negative = bearish
+
+// Determine signal
+isBullishSignal = bullishCount >= bullishThreshold and confluenceScore >= 1
+isBearishSignal = bearishCount >= bearishThreshold and confluenceScore <= -1
+isHighConfluence = math.abs(confluenceScore) >= minConfluence
+
+// Track previous state for alerts
+var bool prevBullishSignal = false
+var bool prevBearishSignal = false
+var bool prevHighConfluence = false
+
+dayChange = ta.change(dayofmonth)
+day_changed = not na(dayChange) and dayChange != 0
+
+// === VISUALIZATION ===
+// Background colors
+bgColor = na
+if showBackground
+    if isHighConfluence and isBullishSignal
+        bgColor := color.new(bullishColor, 97)
+    else if isHighConfluence and isBearishSignal
+        bgColor := color.new(bearishColor, 97)
+    else if isHighConfluence
+        bgColor := color.new(confluenceColor, 98)
+
+bgcolor(bgColor)
+
+// Confluence zones (lines)
+if showConfluenceZones and isHighConfluence
+    line.new(bar_index, low, bar_index, high, color=color.new(confluenceColor, 70), width=2, style=line.style_dashed)
+
+// Signals
+if showSignals and day_changed
+    if isBullishSignal and bullishCount >= bullishThreshold
+        label.new(bar_index, low, "🔼 " + str.tostring(bullishCount) + " Cycles Bullish", style=label.style_label_up, color=bullishColor, textcolor=color.white, size=size.normal)
+
+    if isBearishSignal and bearishCount >= bearishThreshold
+        label.new(bar_index, high, "🔽 " + str.tostring(bearishCount) + " Cycles Bearish", style=label.style_label_down, color=bearishColor, textcolor=color.white, size=size.normal)
+
+    if isHighConfluence and math.abs(confluenceScore) >= minConfluence
+        label.new(bar_index, hl2, "⚡ HIGH CONFLUENCE", style=label.style_label_center, color=confluenceColor, textcolor=color.black, size=size.small)
+
+// === ALERTS ===
+if alertOnHighConfluence and isHighConfluence and not prevHighConfluence
+    alert("High Confluence Detected: " + str.tostring(bullishCount) + " Bullish, " + str.tostring(bearishCount) + " Bearish", alert.freq_once_per_bar)
+
+if alertOnBullishConfluence and isBullishSignal and not prevBullishSignal
+    alert("Bullish Confluence: " + str.tostring(bullishCount) + " cycles aligned bullish", alert.freq_once_per_bar)
+
+if alertOnBearishConfluence and isBearishSignal and not prevBearishSignal
+    alert("Bearish Confluence: " + str.tostring(bearishCount) + " cycles aligned bearish", alert.freq_once_per_bar)
+
+// Update previous state
+if day_changed
+    prevBullishSignal := isBullishSignal
+    prevBearishSignal := isBearishSignal
+    prevHighConfluence := isHighConfluence
+
+// === STATUS TABLE ===
+var table statusTable = na
+if showCycleStatus and barstate.islast
+    if na(statusTable)
+        statusTable := table.new(position.top_left, 3, 8, bgcolor=color.new(color.black, 85), border_width=1)
+
+    // Headers
+    table.cell(statusTable, 0, 0, "Cycle", text_color=color.white, text_size=size.small, bgcolor=color.new(color.gray, 50))
+    table.cell(statusTable, 1, 0, "Status", text_color=color.white, text_size=size.small, bgcolor=color.new(color.gray, 50))
+    table.cell(statusTable, 2, 0, "Signal", text_color=color.white, text_size=size.small, bgcolor=color.new(color.gray, 50))
+
+    row = 1
+
+    // Moon Cycle
+    if enableMoonCycle
+        moonStatus = isNewMoon ? "New Moon" : isFullMoon ? "Full Moon" : isWaxingMoon ? "Waxing" : isWaningMoon ? "Waning" : "Unknown"
+        moonSignal = moonCycleBullish ? "🔼 Bullish" : moonCycleBearish ? "🔽 Bearish" : "➖ Neutral"
+        moonSignalColor = moonCycleBullish ? bullishColor : moonCycleBearish ? bearishColor : neutralColor
+        table.cell(statusTable, 0, row, "Moon", text_color=color.white, text_size=size.tiny)
+        table.cell(statusTable, 1, row, moonStatus, text_color=color.white, text_size=size.tiny)
+        table.cell(statusTable, 2, row, moonSignal, text_color=moonSignalColor, text_size=size.tiny)
+        row += 1
+
+    // Halving Cycle
+    if enableHalvingCycle
+        halvingStatus = not na(halvingPhase) ? halvingPhase : "Unknown"
+        halvingSignal = halvingCycleBullish ? "🔼 Bullish" : halvingCycleBearish ? "🔽 Bearish" : "➖ Neutral"
+        halvingSignalColor = halvingCycleBullish ? bullishColor : halvingCycleBearish ? bearishColor : neutralColor
+        table.cell(statusTable, 0, row, "Halving", text_color=color.white, text_size=size.tiny)
+        table.cell(statusTable, 1, row, halvingStatus, text_color=color.white, text_size=size.tiny)
+        table.cell(statusTable, 2, row, halvingSignal, text_color=halvingSignalColor, text_size=size.tiny)
+        row += 1
+
+    // Weekly Cycle
+    if enableWeeklyCycle
+        weeklyStatus = isMonday ? "Monday" : isFriday ? "Friday" : isWeekend ? "Weekend" : "Weekday"
+        weeklySignal = weeklyCycleBullish ? "🔼 Bullish" : weeklyCycleBearish ? "🔽 Bearish" : "➖ Neutral"
+        weeklySignalColor = weeklyCycleBullish ? bullishColor : weeklyCycleBearish ? bearishColor : neutralColor
+        table.cell(statusTable, 0, row, "Weekly", text_color=color.white, text_size=size.tiny)
+        table.cell(statusTable, 1, row, weeklyStatus, text_color=color.white, text_size=size.tiny)
+        table.cell(statusTable, 2, row, weeklySignal, text_color=weeklySignalColor, text_size=size.tiny)
+        row += 1
+
+    // Monthly Cycle
+    if enableMonthlyCycle
+        monthlyStatus = isMonthStart ? "Month Start" : isMonthEnd ? "Month End" : "Mid Month"
+        monthlySignal = monthlyCycleBullish ? "🔼 Bullish" : monthlyCycleBearish ? "🔽 Bearish" : "➖ Neutral"
+        monthlySignalColor = monthlyCycleBullish ? bullishColor : monthlyCycleBearish ? bearishColor : neutralColor
+        table.cell(statusTable, 0, row, "Monthly", text_color=color.white, text_size=size.tiny)
+        table.cell(statusTable, 1, row, monthlyStatus, text_color=color.white, text_size=size.tiny)
+        table.cell(statusTable, 2, row, monthlySignal, text_color=monthlySignalColor, text_size=size.tiny)
+        row += 1
+
+    // Volume Cycle
+    if enableVolumeCycle
+        volumeStatus = isHighVolume ? "High Vol" : isLowVolume ? "Low Vol" : "Normal Vol"
+        volumeSignal = volumeCycleBullish ? "🔼 Bullish" : volumeCycleBearish ? "🔽 Bearish" : "➖ Neutral"
+        volumeSignalColor = volumeCycleBullish ? bullishColor : volumeCycleBearish ? bearishColor : neutralColor
+        table.cell(statusTable, 0, row, "Volume", text_color=color.white, text_size=size.tiny)
+        table.cell(statusTable, 1, row, volumeStatus, text_color=color.white, text_size=size.tiny)
+        table.cell(statusTable, 2, row, volumeSignal, text_color=volumeSignalColor, text_size=size.tiny)
+        row += 1
+
+    // Momentum Cycle
+    if enableMomentumCycle
+        momentumStatus = isOverbought ? "Overbought" : isOversold ? "Oversold" : isMomentumUp ? "Momentum Up" : isMomentumDown ? "Momentum Down" : "Neutral"
+        momentumSignal = momentumCycleBullish ? "🔼 Bullish" : momentumCycleBearish ? "🔽 Bearish" : "➖ Neutral"
+        momentumSignalColor = momentumCycleBullish ? bullishColor : momentumCycleBearish ? bearishColor : neutralColor
+        table.cell(statusTable, 0, row, "Momentum", text_color=color.white, text_size=size.tiny)
+        table.cell(statusTable, 1, row, momentumStatus, text_color=color.white, text_size=size.tiny)
+        table.cell(statusTable, 2, row, momentumSignal, text_color=momentumSignalColor, text_size=size.tiny)
+        row += 1
+
+    // Summary
+    table.cell(statusTable, 0, row, "CONFLUENCE", text_color=color.white, text_size=size.small, bgcolor=color.new(color.gray, 50))
+    confluenceText = str.tostring(bullishCount) + " Bull / " + str.tostring(bearishCount) + " Bear"
+    confluenceTextColor = isBullishSignal ? bullishColor : isBearishSignal ? bearishColor : isHighConfluence ? confluenceColor : neutralColor
+    table.cell(statusTable, 1, row, confluenceText, text_color=confluenceTextColor, text_size=size.small, bgcolor=color.new(color.gray, 50))
+    signalText = isBullishSignal ? "🔼 BUY" : isBearishSignal ? "🔽 SELL" : isHighConfluence ? "⚡ WATCH" : "➖ WAIT"
+    table.cell(statusTable, 2, row, signalText, text_color=confluenceTextColor, text_size=size.small, bgcolor=color.new(color.gray, 50))
+
+
+
+
+
+
+

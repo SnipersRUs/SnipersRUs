@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SnipersRUs - Referral Card</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .card {
+            background: linear-gradient(145deg, #8b5cf6 0%, #6d28d9 50%, #5b21b6 100%);
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 800px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3),
+                        0 0 0 2px rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 35px;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+            padding-bottom: 20px;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+            background: linear-gradient(45deg, #fff, #e0e7ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .section {
+            margin-bottom: 30px;
+        }
+
+        .section-title {
+            font-size: 1.4em;
+            margin-bottom: 15px;
+            padding: 10px 15px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            border-left: 4px solid #fbbf24;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .section-title::before {
+            content: "🎯";
+            font-size: 1.2em;
+        }
+
+        .links-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+        }
+
+        .link-item {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 15px;
+            transition: all 0.3s ease;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+        }
+
+        .link-item:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .link-label {
+            font-weight: 600;
+            margin-bottom: 8px;
+            font-size: 0.95em;
+            color: #fbbf24;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .link-url {
+            font-size: 0.85em;
+            word-break: break-all;
+            color: rgba(255, 255, 255, 0.9);
+            background: rgba(0, 0, 0, 0.2);
+            padding: 8px 10px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .link-url a {
+            color: #93c5fd;
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .link-url a:hover {
+            color: #60a5fa;
+            text-decoration: underline;
+        }
+
+        .social-section {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        .social-links {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .social-badge {
+            background: rgba(255, 255, 255, 0.15);
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-size: 0.9em;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .social-badge a {
+            color: white;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .social-badge:hover {
+            background: rgba(255, 255, 255, 0.25);
+        }
+
+        .icon {
+            font-size: 1.2em;
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 2px solid rgba(255, 255, 255, 0.2);
+            opacity: 0.8;
+            font-size: 0.9em;
+        }
+
+        @media (max-width: 600px) {
+            .card {
+                padding: 25px;
+            }
+
+            .header h1 {
+                font-size: 2em;
+            }
+
+            .links-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="header">
+            <h1>🎯 SNIPERS-R-US</h1>
+            <p>Your Referral Links & Socials</p>
+        </div>
+
+        <div class="section">
+            <div class="section-title">💰 Exchange Referrals</div>
+            <div class="links-grid">
+                <div class="link-item">
+                    <div class="link-label">
+                        <span class="icon">📈</span> Zoomex
+                    </div>
+                    <div class="link-url">
+                        <a href="https://www.zoomex.com/en-US/feediscount?params=ref=0VL4Z8G|ID=1c2e380a-836b-415c-ade1-cdbfb7b2c674|actUserId=524534287|actUserName=rickytspanish%E2%80%8B@gmail.com" target="_blank">
+                            zoomex.com/feediscount
+                        </a>
+                    </div>
+                </div>
+
+                <div class="link-item">
+                    <div class="link-label">
+                        <span class="icon">🚀</span> Bitunix
+                    </div>
+                    <div class="link-url">
+                        <a href="https://www.bitunix.com/register?inviteCode=3vm3p7" target="_blank">
+                            bitunix.com/register?inviteCode=3vm3p7
+                        </a>
+                    </div>
+                </div>
+
+                <div class="link-item">
+                    <div class="link-label">
+                        <span class="icon">📊</span> TradingView ($15 Credit)
+                    </div>
+                    <div class="link-url">
+                        <a href="https://www.tradingview.com/pricing/?share_your_love=Bishopbizzle" target="_blank">
+                            tradingview.com/pricing/?share_your_love=Bishopbizzle
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">🌐 Social Media & Links</div>
+            <div class="social-section">
+                <div class="social-links">
+                    <div class="social-badge">
+                        <a href="https://twitter.com/Brypto_sniper" target="_blank">
+                            <span class="icon">🐦</span> Twitter: @Brypto_sniper
+                        </a>
+                    </div>
+                    <div class="social-badge">
+                        <a href="https://www.youtube.com/@rickytspanish" target="_blank">
+                            <span class="icon">▶️</span> YouTube
+                        </a>
+                    </div>
+                    <div class="social-badge">
+                        <a href="https://www.tiktok.com/@rickytspanish?_r=1&_t=ZT-91tq1sdWMmc" target="_blank">
+                            <span class="icon">🎵</span> TikTok
+                        </a>
+                    </div>
+                    <div class="social-badge">
+                        <a href="https://snipersrus.github.io/SnipersRUs/" target="_blank">
+                            <span class="icon">🎯</span> Official Site
+                        </a>
+                    </div>
+                    <div class="social-badge">
+                        <a href="https://www.tradingview.com" target="_blank">
+                            <span class="icon">📈</span> TradingView
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>🔗 Share these links and support the SnipersRUs community!</p>
+            <p style="margin-top: 10px; font-size: 0.85em;">Discord Webhook: sniper guru</p>
+        </div>
+    </div>
+</body>
+</html>
+
+
+
+
+
+
+
+

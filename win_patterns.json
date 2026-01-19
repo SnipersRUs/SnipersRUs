@@ -1,0 +1,29 @@
+{
+  "min_confidence": 10.0,
+  "avg_confidence": 10.0,
+  "top_reasons": [
+    [
+      "3\u03c3 VWAP oversold",
+      5
+    ],
+    [
+      "Near 90D low",
+      5
+    ],
+    [
+      "Similar to past wins",
+      5
+    ],
+    [
+      "Daily -3\u03c3",
+      4
+    ],
+    [
+      "3\u03c3 VWAP overbought",
+      3
+    ]
+  ],
+  "preferred_direction": "LONG",
+  "win_count": 8,
+  "last_updated": "2025-12-04T19:14:42.512090"
+}

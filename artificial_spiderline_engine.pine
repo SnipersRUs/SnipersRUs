@@ -1,0 +1,306 @@
+//@version=6
+
+indicator("Artificial Spiderline Engine (v0)", overlay=true)
+
+// ------------------------ USER INPUTS ------------------------
+
+anchor_mode      = input.string(title="Anchor mode", defval="Manual lookback", options=["Manual lookback","All-time low close","First major bullish weekly","High volume early pivot"])
+
+manual_lookback  = input.int(title="Manual anchor lookback (bars)", defval=1200, minval=1)
+
+num_lines        = input.int(title="Number of rays", defval=20, minval=4, maxval=80)
+
+start_slope_pct  = input.float(title="Start slope % (per scaleBars)", defval=0.5, minval=0.01, step=0.01)
+
+end_slope_pct    = input.float(title="End slope % (per scaleBars)", defval=12.0, minval=0.1, step=0.1)
+
+scale_bars       = input.int(title="Bars per slope step (affects steepness)", defval=365, minval=1)
+
+future_bars      = input.int(title="Extend rays forward (bars)", defval=520, minval=10)
+
+use_log_scale    = input.bool(title="Use log math (recommended for crypto)", defval=true)
+
+touch_tolerance  = input.float(title="Touch tolerance (%)", defval=1.2, step=0.1)
+
+show_touch_labels= input.bool(title="Show touch counts (labels right)", defval=true)
+
+show_price_levels = input.bool(title="Show projected price levels (right)", defval=true)
+
+gradient_low_col = color.new(color.green, 0)
+
+gradient_mid_col = color.new(color.silver, 0)
+
+gradient_high_col= color.new(color.yellow, 0)
+
+// ------------------------ WEEKLY TIMEFRAME DATA ------------------------
+
+// Get weekly timeframe data using request.security
+// This ensures lines are drawn based on weekly bars and persist across all timeframes
+
+get_weekly_data() =>
+    [request.security(syminfo.tickerid, "1W", close, lookahead=barmerge.lookahead_off),
+     request.security(syminfo.tickerid, "1W", open, lookahead=barmerge.lookahead_off),
+     request.security(syminfo.tickerid, "1W", volume, lookahead=barmerge.lookahead_off),
+     request.security(syminfo.tickerid, "1W", time, lookahead=barmerge.lookahead_off)]
+
+[weekly_close, weekly_open, weekly_volume, weekly_time] = get_weekly_data()
+
+// ------------------------ ANCHOR DETECTION (WEEKLY TIMEFRAME) ------------------------
+
+// Accumulate weekly bar data as we process
+var array<int> weekly_times = array.new<int>()
+var array<float> weekly_closes = array.new<float>()
+var array<float> weekly_opens = array.new<float>()
+var array<float> weekly_volumes = array.new<float>()
+
+// Track when we see a new weekly bar
+// ta.change() returns a series, so check if it's not zero (indicating a change)
+if ta.change(weekly_time) != 0 and not na(weekly_time)
+    array.unshift(weekly_times, weekly_time)
+    array.unshift(weekly_closes, weekly_close)
+    array.unshift(weekly_opens, weekly_open)
+    array.unshift(weekly_volumes, weekly_volume)
+    // Keep array size reasonable (last 500 weekly bars max)
+    if array.size(weekly_times) > 500
+        array.pop(weekly_times)
+        array.pop(weekly_closes)
+        array.pop(weekly_opens)
+        array.pop(weekly_volumes)
+
+var int anchor_weekly_bar_index = na
+var float anchor_price = na
+var int anchor_time = na
+
+// helper functions for log vs linear mapping
+logp(x) => math.log(x)
+exp_p(x) => math.exp(x)
+
+// Calculate volume mean on weekly timeframe
+var float weekly_vol_mean = na
+weekly_size_for_vol = array.size(weekly_volumes)
+if weekly_size_for_vol > 0
+    // Calculate SMA of weekly volumes
+    sum_vol = 0.0
+    lookback = math.min(200, weekly_size_for_vol)
+    for i = 0 to lookback - 1
+        sum_vol += array.get(weekly_volumes, i)
+    weekly_vol_mean := sum_vol / lookback
+
+// function to compute projected price at given future index using either linear pct progression or log-space
+proj_price_at(bar_idx, slope_pct, anchor_x_val, anchor_y_val) =>
+    // delta bars from anchor
+    delta = bar_idx - anchor_x_val
+    if use_log_scale
+        // work in ln(price) space: ln(P_t) = ln(P_anchor) + delta/scale_bars * ln(1 + slope_pct/100)
+        ln_anchor = logp(anchor_y_val)
+        ln_step = math.log(1 + slope_pct / 100.0)
+        ln_p = ln_anchor + (delta / scale_bars) * ln_step
+        exp_p(ln_p)
+    else
+        // linear percent accumulation: P_t = P_anchor * (1 + slope_pct/100)^(delta/scale_bars)
+        anchor_y_val * math.pow(1 + slope_pct / 100.0, (delta / scale_bars))
+
+// Detect anchor on weekly timeframe (only once on last confirmed history)
+if barstate.islastconfirmedhistory
+
+    weekly_size = array.size(weekly_times)
+
+    if weekly_size > 0
+
+        if anchor_mode == "Manual lookback"
+            // Use manual lookback on weekly bars
+            lookback_idx = math.min(manual_lookback, weekly_size - 1)
+            anchor_weekly_bar_index := lookback_idx
+            anchor_price := use_log_scale ? math.max(array.get(weekly_closes, lookback_idx), 0.0000001) : array.get(weekly_closes, lookback_idx)
+            anchor_time := array.get(weekly_times, lookback_idx)
+
+        else if anchor_mode == "All-time low close"
+            // Find lowest close in weekly data
+            min_price = array.get(weekly_closes, 0)
+            min_idx = 0
+            for i = 1 to weekly_size - 1
+                p = array.get(weekly_closes, i)
+                if p < min_price
+                    min_price := p
+                    min_idx := i
+            anchor_weekly_bar_index := min_idx
+            anchor_price := use_log_scale ? math.max(min_price, 0.0000001) : min_price
+            anchor_time := array.get(weekly_times, min_idx)
+
+        else if anchor_mode == "First major bullish weekly"
+            // Find first major bullish weekly bar
+            found = false
+            for i = weekly_size - 1 to 0
+                if i < weekly_size - 1
+                    curr_close = array.get(weekly_closes, i)
+                    curr_open = array.get(weekly_opens, i)
+                    prev_close = array.get(weekly_closes, i + 1)
+                    if curr_close > curr_open and curr_close > prev_close and not found
+                        anchor_weekly_bar_index := i
+                        anchor_price := use_log_scale ? math.max(curr_close, 0.0000001) : curr_close
+                        anchor_time := array.get(weekly_times, i)
+                        found := true
+                        break
+            if not found
+                // fallback
+                lookback_idx = math.min(manual_lookback, weekly_size - 1)
+                anchor_weekly_bar_index := lookback_idx
+                anchor_price := use_log_scale ? math.max(array.get(weekly_closes, lookback_idx), 0.0000001) : array.get(weekly_closes, lookback_idx)
+                anchor_time := array.get(weekly_times, lookback_idx)
+
+        else if anchor_mode == "High volume early pivot"
+            // Find high volume bar in weekly data
+            found2 = false
+            vol_mean_val = nz(weekly_vol_mean, array.get(weekly_volumes, 0))
+            for i = weekly_size - 1 to 0
+                vol = array.get(weekly_volumes, i)
+                if vol > vol_mean_val * 2 and not found2
+                    anchor_weekly_bar_index := i
+                    anchor_price := use_log_scale ? math.max(array.get(weekly_closes, i), 0.0000001) : array.get(weekly_closes, i)
+                    anchor_time := array.get(weekly_times, i)
+                    found2 := true
+                    break
+            if not found2
+                // fallback
+                lookback_idx = math.min(manual_lookback, weekly_size - 1)
+                anchor_weekly_bar_index := lookback_idx
+                anchor_price := use_log_scale ? math.max(array.get(weekly_closes, lookback_idx), 0.0000001) : array.get(weekly_closes, lookback_idx)
+                anchor_time := array.get(weekly_times, lookback_idx)
+    else
+        // No weekly data available, use current timeframe fallback
+        anchor_time := time[math.min(manual_lookback, bar_index)]
+        anchor_price := use_log_scale ? math.max(close[math.min(manual_lookback, bar_index)], 0.0000001) : close[math.min(manual_lookback, bar_index)]
+        anchor_weekly_bar_index := 0
+
+// Clamp anchor values if missing (defensive fallback)
+if na(anchor_time)
+    anchor_time := time[0]
+    anchor_price := use_log_scale ? math.max(close[0], 0.0000001) : close[0]
+    anchor_weekly_bar_index := 0
+
+// ------------------------ SLOPE FAMILY GENERATION ------------------------
+
+// slope percentages array from start_slope_pct -> end_slope_pct
+slope_step = (end_slope_pct - start_slope_pct) / math.max(1, num_lines - 1)
+
+// create/replace lines each script run
+var line[] spider_lines = array.new_line()
+var label[] right_labels = array.new_label()
+var int[] touch_counts = array.new_int()
+
+// Only create lines once on last confirmed history to prevent array overflow
+if barstate.islastconfirmedhistory
+
+    // cleanup previous lines and labels
+    if array.size(spider_lines) > 0
+        for i = 0 to array.size(spider_lines) - 1
+            line.delete(array.get(spider_lines, i))
+    if array.size(right_labels) > 0
+        for i = 0 to array.size(right_labels) - 1
+            label.delete(array.get(right_labels, i))
+
+    array.clear(spider_lines)
+    array.clear(right_labels)
+    array.clear(touch_counts)
+
+    // Calculate future time (weekly bars forward from anchor)
+    // Weekly bar duration is approximately 7 days = 604800000 milliseconds
+    weekly_bar_duration = 7 * 24 * 60 * 60 * 1000
+    future_time = anchor_time + (future_bars * weekly_bar_duration)
+
+    // Draw rays using time-based coordinates (xloc.bar_time)
+    for i = 0 to num_lines - 1
+        slope_pct = start_slope_pct + slope_step * i
+
+        // Calculate prices at anchor and future points
+        // For time-based lines, we use weekly bar progression
+        y0 = anchor_price  // Start at anchor price
+        // Calculate end price using weekly bar progression
+        weekly_delta = future_bars
+        y1 = proj_price_at(anchor_weekly_bar_index + weekly_delta, slope_pct, anchor_weekly_bar_index, anchor_price)
+
+        // color mapping: low slopes -> green, mid -> silver, high -> yellow
+        t = (slope_pct - start_slope_pct) / math.max(1e-9, end_slope_pct - start_slope_pct)
+        ln_col = color.rgb(
+          math.round(color.r(gradient_low_col)   * (1 - t) + color.r(gradient_high_col) * t),
+          math.round(color.g(gradient_mid_col)   * (1 - math.abs(0.5 - t) * 2) + color.g(gradient_high_col) * t),
+          math.round(color.b(gradient_high_col)  * t + color.b(gradient_low_col) * (1 - t)),
+          0)
+
+        // draw dotted ray using TIME coordinates (not bar_index) - this makes it persist across timeframes
+        l = line.new(x1=anchor_time, y1=y0, x2=future_time, y2=y1, xloc=xloc.bar_time, extend=extend.none, style=line.style_dotted, width=1, color=ln_col)
+        array.push(spider_lines, l)
+
+        // touch counting: count bars where abs(close - price_on_bar)/price_on_bar < tol
+        tol = touch_tolerance / 100.0
+        touches = 0
+
+        // Scan history for touches (limited for performance)
+        // Use k to access bars back: time[k] is k bars ago, close[k] is k bars ago
+        hist_scan = math.min(bar_index, 2000)
+        for k = 0 to hist_scan
+            // Ensure we don't access invalid bars
+            if k <= bar_index
+                // Calculate projected price at this historical point
+                // time[k] is the time k bars ago
+                hist_time = time[k]
+                weekly_bars_from_anchor = math.round((hist_time - anchor_time) / weekly_bar_duration)
+                if weekly_bars_from_anchor >= 0
+                    p_on_k = proj_price_at(anchor_weekly_bar_index + weekly_bars_from_anchor, slope_pct, anchor_weekly_bar_index, anchor_price)
+                    c_on_k = close[k]
+                    // calculate relative difference
+                    rel = math.abs(c_on_k - p_on_k) / p_on_k
+                    if rel <= tol
+                        touches += 1
+
+        array.push(touch_counts, touches)
+
+// Update labels on realtime bars only
+if barstate.isrealtime and array.size(spider_lines) > 0
+
+    // Clean up old labels first
+    if array.size(right_labels) > 0
+        for i = 0 to array.size(right_labels) - 1
+            label.delete(array.get(right_labels, i))
+    array.clear(right_labels)
+
+    // Create labels for touch counts
+    if show_touch_labels
+        for i = 0 to array.size(spider_lines) - 1
+            slope_pct = start_slope_pct + slope_step * i
+
+            // Calculate current price projection
+            weekly_bars_from_anchor = math.round((time - anchor_time) / (7 * 24 * 60 * 60 * 1000))
+            curr_y = proj_price_at(anchor_weekly_bar_index + weekly_bars_from_anchor, slope_pct, anchor_weekly_bar_index, anchor_price)
+
+            touches = array.size(touch_counts) > i ? array.get(touch_counts, i) : 0
+
+            ln_col = color.rgb(
+              math.round(color.r(gradient_low_col)   * (1 - (slope_pct - start_slope_pct) / math.max(1e-9, end_slope_pct - start_slope_pct)) + color.r(gradient_high_col) * (slope_pct - start_slope_pct) / math.max(1e-9, end_slope_pct - start_slope_pct)),
+              math.round(color.g(gradient_mid_col)   * (1 - math.abs(0.5 - (slope_pct - start_slope_pct) / math.max(1e-9, end_slope_pct - start_slope_pct)) * 2) + color.g(gradient_high_col) * (slope_pct - start_slope_pct) / math.max(1e-9, end_slope_pct - start_slope_pct)),
+              math.round(color.b(gradient_high_col)  * (slope_pct - start_slope_pct) / math.max(1e-9, end_slope_pct - start_slope_pct) + color.b(gradient_low_col) * (1 - (slope_pct - start_slope_pct) / math.max(1e-9, end_slope_pct - start_slope_pct))),
+              0)
+
+            lbl = label.new(time, curr_y, text = str.tostring(math.round(slope_pct*100)/100) + "% | touches:" + str.tostring(touches), xloc=xloc.bar_time, style=label.style_label_right, textcolor=color.white, size=size.small, color=color.new(ln_col, 80))
+            array.push(right_labels, lbl)
+
+    // Optionally draw horizontal price levels on right for current bar
+    if show_price_levels
+        for i = 0 to array.size(spider_lines) - 1
+            slope_pct = start_slope_pct + slope_step * i
+            weekly_bars_from_anchor = math.round((time - anchor_time) / (7 * 24 * 60 * 60 * 1000))
+            lvl = proj_price_at(anchor_weekly_bar_index + weekly_bars_from_anchor, slope_pct, anchor_weekly_bar_index, anchor_price)
+            // small label on right with price
+            label.new(time, lvl, text = str.tostring(lvl, format.mintick), xloc=xloc.bar_time, style=label.style_label_right, textcolor=color.black, size=size.tiny, color=color.new(color.white, 0))
+
+// ------------------------ SIMPLE VISUAL AID ------------------------
+
+// Anchor marker
+plotshape(anchor_price, title="Anchor Price", location=location.absolute, style=shape.xcross, size=size.small, color=color.orange, text="ANCHOR")
+
+// ------------------------ USAGE NOTES (printed to console via table) ------------------------
+
+var table myNotes = table.new(position.bottom_right, 1, 4)
+
+if barstate.islast
+    table.cell(myNotes, 0, 0, "Artificial Spiderline v0\nAnchor time: " + str.tostring(anchor_time) + "\nAnchor price: " + str.tostring(anchor_price) + "\nMode: " + anchor_mode + "\nWeekly bars from anchor: " + str.tostring(anchor_weekly_bar_index), text_color=color.white, bgcolor=color.new(color.black, 0))

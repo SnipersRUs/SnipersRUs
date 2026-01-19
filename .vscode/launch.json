@@ -1,0 +1,32 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Run MM Trading Bot",
+      "type": "python",
+      "request": "launch",
+      "program": "src/run_mm_bot.py",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "args": []
+    },
+    {
+      "name": "Test Discord Webhook",
+      "type": "python",
+      "request": "launch",
+      "program": "src/test_discord.py",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "args": []
+    },
+    {
+      "name": "Debug MM Detector",
+      "type": "python",
+      "request": "launch",
+      "program": "src/mm_detector.py",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "args": []
+    }
+  ]
+}

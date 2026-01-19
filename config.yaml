@@ -1,0 +1,17 @@
+# Bounty Seeker v4 Configuration
+discord:
+  webhook_url: "YOUR_DISCORD_WEBHOOK_URL_HERE"
+  
+trading:
+  max_open_trades: 3
+  leverage: 15
+  margin_per_trade: 250.0
+  take_profit_threshold: 50.0
+  
+exchanges:
+  bybit:
+    enabled: true
+  bitget:
+    enabled: true
+  mexc:
+    enabled: true

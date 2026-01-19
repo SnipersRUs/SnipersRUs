@@ -1,0 +1,354 @@
+//@version=6
+indicator("BOS Enhanced", overlay=true, max_labels_count=500, max_lines_count=500)
+
+// ============================================================================
+// INPUTS
+// ============================================================================
+swingLength = input.int(5, "Swing Detection Length", minval=2, maxval=50,
+     tooltip="Number of bars to confirm a swing high/low")
+
+bosConfirmBars = input.int(1, "Structure Break Confirmation Bars", minval=1, maxval=10,
+     tooltip="Bars needed to confirm structure break")
+
+showLabels = input.bool(false, "Show Structure Break Labels")
+showLines = input.bool(true, "Show Structure Lines")
+showSignals = input.bool(false, "Show BOS Signals (Plotshape)")
+alertOnBOS = input.bool(true, "Enable BOS Alerts")
+
+// Historical BOS Display
+showHistoricalBOS = input.bool(true, "Show Historical BOS (24h)",
+     tooltip="Display breaks of structure from the last 24 hours")
+historicalLookbackHours = input.int(24, "Historical Lookback Hours", minval=1, maxval=48,
+     tooltip="How many hours back to show BOS")
+
+// Signal Filtering - Only show significant BOS
+filterSignals = input.bool(true, "Filter to Significant BOS Only",
+     tooltip="Only show BOS that meet minimum significance criteria")
+minSwingStrength = input.float(0.5, "Minimum Swing Strength %", minval=0.1, maxval=5.0, step=0.1,
+     tooltip="Minimum price move % to consider swing significant")
+minBreakMagnitude = input.float(0.3, "Minimum Break Magnitude %", minval=0.1, maxval=2.0, step=0.1,
+     tooltip="Minimum % price must break above/below swing to be significant")
+requireVolumeConfirmation = input.bool(true, "Require Volume Confirmation",
+     tooltip="Only show BOS with above-average volume")
+volumeMultiplier = input.float(1.2, "Volume Multiplier", minval=1.0, maxval=3.0, step=0.1,
+     tooltip="Volume must be this times average to confirm")
+
+// Visual Settings - Sniper Colors
+bullColor = input.color(color.new(color.white, 0), "Bullish Structure Break Color")
+bearColor = input.color(color.new(#9d4edd, 0), "Bearish Structure Break Color",
+     tooltip="Purple for bearish breaks")
+
+// Line Customization
+lineWidth = input.int(2, "Line Width", minval=1, maxval=5)
+lineStyle = input.string("Dashed", "Line Style", options=["Solid", "Dashed", "Dotted"],
+     tooltip="Style of structure lines")
+
+// ============================================================================
+// HELPER FUNCTIONS
+// ============================================================================
+getLineStyle() =>
+    switch lineStyle
+        "Solid" => line.style_solid
+        "Dotted" => line.style_dotted
+        => line.style_dashed
+
+// Check if timeframe is 10 minutes or higher
+isTimeframeValid() =>
+    periodSeconds = timeframe.in_seconds()
+    periodSeconds >= 600  // 10 minutes = 600 seconds
+
+// Calculate hours back in bars
+getBarsBack(hours) =>
+    periodSeconds = timeframe.in_seconds()
+    periodSeconds > 0 ? math.ceil(hours * 3600 / periodSeconds) : 0
+
+barsToShow = getBarsBack(historicalLookbackHours)
+
+// ============================================================================
+// SWING DETECTION (Optimized for Crypto Volatility)
+// ============================================================================
+var float lastSwingHigh = na
+var int lastSwingHighBar = na
+var float lastSwingLow = na
+var int lastSwingLowBar = na
+
+// Arrays to store historical swings and breaks
+var array<float> swingHighs = array.new<float>()
+var array<int> swingHighBars = array.new<int>()
+var array<float> swingLows = array.new<float>()
+var array<int> swingLowBars = array.new<int>()
+
+// Arrays to store BOS events (structure: [bar_index, price, isBullish])
+var array<int> bosEventBars = array.new<int>()
+var array<float> bosEventPrices = array.new<float>()
+var array<bool> bosEventIsBull = array.new<bool>()
+var array<line> bosLines = array.new<line>()
+var array<label> bosLabels = array.new<label>()
+
+// Volume average for confirmation
+volAvg = ta.sma(volume, 20)
+
+// Detect swing highs
+isSwingHigh = ta.pivothigh(high, swingLength, swingLength)
+if not na(isSwingHigh)
+    swingPrice = high[swingLength]
+    swingBar = bar_index - swingLength
+
+    // Calculate swing strength
+    swingStrength = math.abs(swingPrice - close) / close * 100
+
+    // Store swing if significant or filtering is off
+    if not filterSignals or swingStrength >= minSwingStrength
+        array.push(swingHighs, swingPrice)
+        array.push(swingHighBars, swingBar)
+        // Keep only recent swings (within lookback period)
+        if array.size(swingHighs) > 50
+            array.shift(swingHighs)
+            array.shift(swingHighBars)
+
+    lastSwingHigh := swingPrice
+    lastSwingHighBar := swingBar
+
+// Detect swing lows
+isSwingLow = ta.pivotlow(low, swingLength, swingLength)
+if not na(isSwingLow)
+    swingPrice = low[swingLength]
+    swingBar = bar_index - swingLength
+
+    // Calculate swing strength
+    swingStrength = math.abs(swingPrice - close) / close * 100
+
+    // Store swing if significant or filtering is off
+    if not filterSignals or swingStrength >= minSwingStrength
+        array.push(swingLows, swingPrice)
+        array.push(swingLowBars, swingBar)
+        // Keep only recent swings (within lookback period)
+        if array.size(swingLows) > 50
+            array.shift(swingLows)
+            array.shift(swingLowBars)
+
+    lastSwingLow := swingPrice
+    lastSwingLowBar := swingBar
+
+// ============================================================================
+// BREAK OF STRUCTURE LOGIC
+// ============================================================================
+// Only show BOS on 10m and higher timeframes
+timeframeValid = isTimeframeValid()
+
+// Check for bullish break
+bullishBreak = false
+var float breakHigh = na
+var int breakBar = na
+
+if timeframeValid and not na(lastSwingHigh) and not na(lastSwingHighBar)
+    if close > lastSwingHigh and bar_index > lastSwingHighBar + bosConfirmBars
+        // Calculate break magnitude
+        breakMagnitude = (close - lastSwingHigh) / lastSwingHigh * 100
+
+        // Check filtering criteria
+        magnitudeOK = not filterSignals or breakMagnitude >= minBreakMagnitude
+        volOK = not requireVolumeConfirmation or volume > volAvg * volumeMultiplier
+
+        if magnitudeOK and volOK
+            bullishBreak := true
+            breakHigh := lastSwingHigh
+            breakBar := lastSwingHighBar
+
+            // Store BOS event
+            array.push(bosEventBars, breakBar)
+            array.push(bosEventPrices, breakHigh)
+            array.push(bosEventIsBull, true)
+
+            // Draw structure line
+            if showLines
+                newLine = line.new(
+                     breakBar, breakHigh,
+                     bar_index, breakHigh,
+                     color=bullColor, width=lineWidth, style=getLineStyle())
+                array.push(bosLines, newLine)
+
+            // Add label
+            if showLabels
+                newLabel = label.new(
+                     bar_index, high,
+                     text="BREAK ▲\n" + str.tostring(breakHigh, "#.##"),
+                     style=label.style_label_up,
+                     color=bullColor,
+                     textcolor=color.new(color.black, 0),
+                     size=size.normal)
+                array.push(bosLabels, newLabel)
+
+// Check for bearish break
+bearishBreak = false
+var float breakLow = na
+if timeframeValid and not na(lastSwingLow) and not na(lastSwingLowBar)
+    if close < lastSwingLow and bar_index > lastSwingLowBar + bosConfirmBars
+        // Calculate break magnitude
+        breakMagnitude = (lastSwingLow - close) / lastSwingLow * 100
+
+        // Check filtering criteria
+        magnitudeOK = not filterSignals or breakMagnitude >= minBreakMagnitude
+        volOK = not requireVolumeConfirmation or volume > volAvg * volumeMultiplier
+
+        if magnitudeOK and volOK
+            bearishBreak := true
+            breakLow := lastSwingLow
+            breakBar := lastSwingLowBar
+
+            // Store BOS event
+            array.push(bosEventBars, breakBar)
+            array.push(bosEventPrices, breakLow)
+            array.push(bosEventIsBull, false)
+
+            // Draw structure line
+            if showLines
+                newLine = line.new(
+                     breakBar, breakLow,
+                     bar_index, breakLow,
+                     color=bearColor, width=lineWidth, style=getLineStyle())
+                array.push(bosLines, newLine)
+
+            // Add label
+            if showLabels
+                newLabel = label.new(
+                     bar_index, low,
+                     text="BREAK ▼\n" + str.tostring(breakLow, "#.##"),
+                     style=label.style_label_down,
+                     color=bearColor,
+                     textcolor=color.white,
+                     size=size.normal)
+                array.push(bosLabels, newLabel)
+
+// ============================================================================
+// HISTORICAL BOS DISPLAY (24 Hours Back)
+// ============================================================================
+if showHistoricalBOS and timeframeValid
+    // Clean up old lines and labels outside lookback period
+    barsBack = barsToShow
+    currentBar = bar_index
+
+    // Clean up old BOS events outside lookback window
+    // Iterate backwards to safely remove elements
+    var int i = 0
+    i := array.size(bosEventBars) - 1
+    while i >= 0
+        if i < array.size(bosEventBars)
+            eventBar = array.get(bosEventBars, i)
+            if currentBar - eventBar > barsBack
+                // Remove from arrays (need to remove from all three arrays)
+                array.remove(bosEventBars, i)
+                array.remove(bosEventPrices, i)
+                array.remove(bosEventIsBull, i)
+        i -= 1
+
+    // Remove old lines outside lookback period
+    // Iterate backwards to safely remove elements
+    i := array.size(bosLines) - 1
+    while i >= 0
+        if i < array.size(bosLines)
+            lineObj = array.get(bosLines, i)
+            if not na(lineObj)
+                lineStartBar = line.get_x1(lineObj)
+                if currentBar - lineStartBar > barsBack
+                    line.delete(lineObj)
+                    array.remove(bosLines, i)
+                else
+                    // Extend line to current bar if it's still within lookback
+                    line.set_x2(lineObj, currentBar)
+            else
+                array.remove(bosLines, i)
+        i -= 1
+
+    // Remove old labels outside lookback period
+    // Iterate backwards to safely remove elements
+    i := array.size(bosLabels) - 1
+    while i >= 0
+        if i < array.size(bosLabels)
+            labelObj = array.get(bosLabels, i)
+            if not na(labelObj)
+                labelBar = label.get_x(labelObj)
+                if currentBar - labelBar > barsBack
+                    label.delete(labelObj)
+                    array.remove(bosLabels, i)
+            else
+                array.remove(bosLabels, i)
+        i -= 1
+
+    // Redraw historical BOS lines that are still within lookback
+    if showLines and barstate.islast and array.size(bosEventBars) > 0
+        for j = 0 to array.size(bosEventBars) - 1
+            if j < array.size(bosEventBars) and j < array.size(bosEventPrices) and j < array.size(bosEventIsBull)
+                eventBar = array.get(bosEventBars, j)
+                eventPrice = array.get(bosEventPrices, j)
+                isBull = array.get(bosEventIsBull, j)
+
+                if currentBar - eventBar <= barsBack
+                    // Check if line already exists for this event
+                    lineExists = false
+                    if array.size(bosLines) > 0
+                        for k = 0 to array.size(bosLines) - 1
+                            if k < array.size(bosLines)
+                                existingLine = array.get(bosLines, k)
+                                if not na(existingLine) and line.get_x1(existingLine) == eventBar
+                                    lineExists := true
+                                    break
+
+                    // Draw line if it doesn't exist
+                    if not lineExists
+                        lineColor = isBull ? color.new(bullColor, 30) : color.new(bearColor, 50)
+                        newLine = line.new(
+                             eventBar, eventPrice,
+                             currentBar, eventPrice,
+                             color=lineColor, width=lineWidth, style=getLineStyle())
+                        array.push(bosLines, newLine)
+
+// ============================================================================
+// VISUAL ENHANCEMENTS
+// ============================================================================
+// Background highlighting on structure breaks
+bgcolor(bullishBreak ? color.new(bullColor, 90) : na, title="Bullish Break Background")
+bgcolor(bearishBreak ? color.new(bearColor, 90) : na, title="Bearish Break Background")
+
+// ============================================================================
+// TREND BIAS INDICATOR
+// ============================================================================
+var int trendBias = 0  // 1 = bullish, -1 = bearish, 0 = neutral
+
+if bullishBreak
+    trendBias := 1
+else if bearishBreak
+    trendBias := -1
+
+// Display trend bias in corner
+var table trendTable = table.new(position.top_right, 1, 1)
+if barstate.islast
+    table.clear(trendTable, 0, 0, 0, 0)
+    trendText = trendBias == 1 ? "BULLISH BIAS ▲" : trendBias == -1 ? "BEARISH BIAS ▼" : "NEUTRAL"
+    trendColor = trendBias == 1 ? bullColor : trendBias == -1 ? bearColor : color.gray
+    table.cell(trendTable, 0, 0, trendText,
+         bgcolor=color.new(trendColor, 70),
+         text_color=trendBias == 1 ? color.new(color.black, 0) : color.white,
+         text_size=size.normal)
+
+// ============================================================================
+// ALERTS
+// ============================================================================
+if alertOnBOS and timeframeValid
+    if bullishBreak
+        alert("🚀 BULLISH Break of Structure at " + str.tostring(close, "#.##") +
+             "\nPrice broke above: " + str.tostring(lastSwingHigh, "#.##"),
+             alert.freq_once_per_bar_close)
+
+    if bearishBreak
+        alert("📉 BEARISH Break of Structure at " + str.tostring(close, "#.##") +
+             "\nPrice broke below: " + str.tostring(lastSwingLow, "#.##"),
+             alert.freq_once_per_bar_close)
+
+// ============================================================================
+// PLOTTING FOR BACKTESTING
+// ============================================================================
+plotshape(showSignals and timeframeValid and bullishBreak, "Bullish Structure Break Signal", shape.circle,
+     location.belowbar, bullColor, size=size.small)
+plotshape(showSignals and timeframeValid and bearishBreak, "Bearish Structure Break Signal", shape.circle,
+     location.abovebar, bearColor, size=size.small)

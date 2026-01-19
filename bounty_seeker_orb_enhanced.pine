@@ -1,0 +1,394 @@
+//@version=6
+indicator("Bounty Seeker + ORB FVG (Enhanced for Beginners)", overlay=true, max_lines_count=500, max_labels_count=500)
+
+// ═══════════════════════════════════════════════════════════════
+// ENHANCED BOUNTY SEEKER + ORB FVG
+// Designed to be intuitive and educational for new traders
+// ═══════════════════════════════════════════════════════════════
+
+// === INPUT GROUPS ===
+var grpPivots = "🎯 Major Pivots (Key Support/Resistance)"
+var grpORB = "📊 Opening Range (ORB Setup)"
+var grpFVG = "💎 Fair Value Gaps (Price Gaps)"
+var grpAlerts = "🔔 Alerts & Notifications"
+var grpVisual = "🎨 Visual Enhancements"
+
+// === PIVOT INPUTS ===
+pivotLookback = input.int(10, "Pivot Detection Period", minval=3, group=grpPivots, tooltip="How many bars to look back for major pivot points")
+lineExtendBars = input.int(10, "Line Extension", minval=5, maxval=100, group=grpPivots, tooltip="How many bars to extend pivot lines forward")
+maxSFPs = input.int(10, "Max Pivot Lines", minval=1, maxval=20, group=grpPivots)
+
+spLookback = input.int(20, "Single Print Detection", minval=3, group=grpPivots, tooltip="Bars to check for unique high/low prices")
+maxSPs = input.int(5, "Max Single Print Lines", minval=1, maxval=20, group=grpPivots)
+spExtendBars = input.int(10, "Single Print Extension", minval=2, maxval=50, group=grpPivots)
+
+// === ORB INPUTS ===
+orbStartHour = input.int(9, "ORB Start Hour", minval=0, maxval=23, group=grpORB, tooltip="Opening Range start time (your exchange timezone)")
+orbStartMinute = input.int(30, "ORB Start Minute", minval=0, maxval=59, group=grpORB)
+orbEndHour = input.int(9, "ORB End Hour", minval=0, maxval=23, group=grpORB, tooltip="Opening Range end time - price action during this window sets the range")
+orbEndMinute = input.int(45, "ORB End Minute", minval=0, maxval=59, group=grpORB)
+showORBZone = input.bool(true, "Show ORB Background Zone", group=grpORB, tooltip="Highlights the opening range area with colored background")
+
+// === FVG INPUTS ===
+showFVGs = input.bool(true, "Show Fair Value Gaps", group=grpFVG, tooltip="Fair Value Gaps are price gaps that often get filled later")
+fvgFillAlert = input.bool(true, "Alert on FVG Fill", group=grpFVG)
+maxFVGs = input.int(5, "Max FVG Zones", minval=1, maxval=20, group=grpFVG)
+
+// === ALERT INPUTS ===
+orbBreakoutAlert = input.bool(true, "Alert on ORB Breakout", group=grpAlerts, tooltip="Get notified when price breaks above/below the opening range")
+pivotBreakAlert = input.bool(true, "Alert on Strong Pivot Break", group=grpAlerts)
+fvgFillAlertEnabled = input.bool(true, "Alert on FVG Fill", group=grpAlerts)
+
+// === VISUAL INPUTS ===
+showLabels = input.bool(true, "Show Educational Labels", group=grpVisual, tooltip="Adds helpful labels explaining what each element means")
+labelOpacity = input.int(80, "Label Opacity %", minval=0, maxval=100, group=grpVisual)
+highlightStrongPivots = input.bool(true, "Highlight Strong Pivots", group=grpVisual)
+showLegend = input.bool(true, "Show Legend", group=grpVisual, tooltip="Display a legend explaining all colors and symbols")
+
+// === VOLUME & ATR CALCULATIONS ===
+volSMA = ta.sma(volume, 20)
+atrPeriod = 14
+atr = ta.atr(atrPeriod)
+softPivotMinDist = 0.2 * atr
+var float lastPivotPrice = na
+
+// === PIVOT DETECTION ===
+majorPivotHigh = ta.pivothigh(high, pivotLookback, pivotLookback)
+majorPivotLow = ta.pivotlow(low, pivotLookback, pivotLookback)
+
+priceRange = ta.highest(high, pivotLookback) - ta.lowest(low, pivotLookback)
+lowVol = volume < volSMA * 0.7
+smallBody = math.abs(close - open) < priceRange * 0.1
+
+pivotHighFar = na(lastPivotPrice) or (not na(majorPivotHigh) and math.abs(majorPivotHigh - lastPivotPrice) > softPivotMinDist)
+pivotLowFar = na(lastPivotPrice) or (not na(majorPivotLow) and math.abs(majorPivotLow - lastPivotPrice) > softPivotMinDist)
+
+isHighVol = volume > volSMA
+isStrongVol = volume > 1.5 * volSMA
+
+plotHigh = not na(majorPivotHigh) and pivotHighFar and isHighVol
+plotLow = not na(majorPivotLow) and pivotLowFar and isHighVol
+
+strongHigh = plotHigh and isStrongVol
+strongLow = plotLow and isStrongVol
+normalHigh = plotHigh and not isStrongVol
+normalLow = plotLow and not isStrongVol
+
+if plotHigh or plotLow
+    lastPivotPrice := plotHigh ? majorPivotHigh : majorPivotLow
+
+fakeHigh = not na(majorPivotHigh) and lowVol and smallBody and pivotHighFar
+fakeLow = not na(majorPivotLow) and lowVol and smallBody and pivotLowFar
+
+// === SFP LINES (BEARISH = PURPLE, BULLISH = WHITE) ===
+var line[] bearLines = array.new_line()
+var line[] bullLines = array.new_line()
+
+if plotHigh
+    lineColor = strongHigh ? color.new(#9932CC, 5) : color.new(#9932CC, 10)
+    l = line.new(x1=bar_index, y1=majorPivotHigh, x2=bar_index+lineExtendBars, y2=majorPivotHigh,
+                 color=lineColor, style=line.style_dashed, width=strongHigh ? 2 : 1)
+    array.unshift(bearLines, l)
+    if array.size(bearLines) > maxSFPs
+        line.delete(array.pop(bearLines))
+    // Educational label
+    if showLabels
+        label.new(bar_index, majorPivotHigh, "Resistance\n(Bearish)",
+                 color=color.new(#9932CC, 90), textcolor=color.white,
+                 style=label.style_label_down, size=size.small)
+
+if plotLow
+    lineColor = strongLow ? color.new(color.white, 5) : color.new(color.white, 10)
+    l = line.new(x1=bar_index, y1=majorPivotLow, x2=bar_index+lineExtendBars, y2=majorPivotLow,
+                 color=lineColor, style=line.style_dashed, width=strongLow ? 2 : 1)
+    array.unshift(bullLines, l)
+    if array.size(bullLines) > maxSFPs
+        line.delete(array.pop(bullLines))
+    // Educational label
+    if showLabels
+        label.new(bar_index, majorPivotLow, "Support\n(Bullish)",
+                 color=color.new(color.white, 90), textcolor=color.black,
+                 style=label.style_label_up, size=size.small)
+
+// === SINGLE PRINTS (BLUE DASHED) ===
+var line[] spLines = array.new_line()
+var label[] spLabels = array.new_label()
+
+for i = 1 to spLookback
+    h = high[i]
+    l = low[i]
+    hCount = 0
+    lCount = 0
+
+    for j = 1 to spLookback
+        if high[j] == h
+            hCount += 1
+        if low[j] == l
+            lCount += 1
+
+    if hCount == 1
+        lsp = line.new(x1=bar_index-i, y1=h, x2=bar_index-i+spExtendBars, y2=h,
+                      color=color.new(color.blue, 10), style=line.style_dashed, width=1)
+        array.unshift(spLines, lsp)
+        if array.size(spLines) > maxSPs
+            line.delete(array.pop(spLines))
+
+        if showLabels
+            lbl = label.new(bar_index-i, h, "Single\nPrint",
+                           color=color.new(color.blue, 80), textcolor=color.white,
+                           style=label.style_label_down, size=size.tiny)
+            array.unshift(spLabels, lbl)
+            if array.size(spLabels) > maxSPs
+                label.delete(array.pop(spLabels))
+
+    if lCount == 1
+        lsp = line.new(x1=bar_index-i, y1=l, x2=bar_index-i+spExtendBars, y2=l,
+                      color=color.new(color.blue, 10), style=line.style_dashed, width=1)
+        array.unshift(spLines, lsp)
+        if array.size(spLines) > maxSPs
+            line.delete(array.pop(spLines))
+
+        if showLabels
+            lbl = label.new(bar_index-i, l, "Single\nPrint",
+                           color=color.new(color.blue, 80), textcolor=color.white,
+                           style=label.style_label_up, size=size.tiny)
+            array.unshift(spLabels, lbl)
+            if array.size(spLabels) > maxSPs
+                label.delete(array.pop(spLabels))
+
+// === PIVOT MARKERS ===
+plotchar(normalHigh, title="Bear Pivot", char="×", location=location.abovebar,
+         color=color.new(#9932CC, 0), size=size.tiny)
+plotchar(normalLow, title="Bull Pivot", char="×", location=location.belowbar,
+         color=color.new(color.white, 0), size=size.tiny)
+
+plotchar(strongHigh, title="Strong Bear Pivot", char="●", location=location.abovebar,
+         color=color.new(#9932CC, 0), size=size.small)
+plotchar(strongLow, title="Strong Bull Pivot", char="●", location=location.belowbar,
+         color=color.new(color.white, 0), size=size.small)
+
+plotchar(fakeHigh, title="Fakeout Pivot", char="×", location=location.belowbar,
+         color=color.new(color.orange, 0), size=size.tiny)
+plotchar(fakeLow, title="Fakeout Pivot", char="×", location=location.abovebar,
+         color=color.new(color.orange, 0), size=size.tiny)
+
+// === ORB SESSION CALCULATION ===
+sessionStart = timestamp("GMT-5", year, month, dayofmonth, 0, 0)
+sessionEnd = timestamp("GMT-5", year, month, dayofmonth, 23, 59)
+orbStart = timestamp("GMT-5", year, month, dayofmonth, orbStartHour, orbStartMinute)
+orbEnd = timestamp("GMT-5", year, month, dayofmonth, orbEndHour, orbEndMinute)
+
+var float orbHigh = na
+var float orbLow = na
+var line orbHighLine = na
+var line orbLowLine = na
+var box orbZone = na
+var label orbStartLabel = na
+
+// Reset at new session
+timeReset = (na(time[1]) or (time[1] < sessionStart and time >= sessionStart))
+
+if timeReset
+    orbHigh := na
+    orbLow := na
+    if not na(orbHighLine)
+        line.delete(orbHighLine)
+        orbHighLine := na
+    if not na(orbLowLine)
+        line.delete(orbLowLine)
+        orbLowLine := na
+    if not na(orbZone)
+        box.delete(orbZone)
+        orbZone := na
+    if not na(orbStartLabel)
+        label.delete(orbStartLabel)
+        orbStartLabel := na
+
+// Track ORB during window
+var int orbStartBar = na
+if (time >= orbStart and time <= orbEnd)
+    if na(orbStartBar)
+        orbStartBar := bar_index
+    orbHigh := na(orbHigh) ? high : math.max(orbHigh, high)
+    orbLow := na(orbLow) ? low : math.min(orbLow, low)
+
+// Draw ORB zone background
+var int orbEndBar = na
+if (time > orbEnd and not na(orbHigh) and not na(orbLow))
+    if na(orbEndBar)
+        orbEndBar := bar_index
+    if showORBZone and na(orbZone) and not na(orbStartBar)
+        orbZone := box.new(left=orbStartBar, top=orbHigh, right=orbEndBar, bottom=orbLow,
+                          border_color=color.new(color.yellow, 50), bgcolor=color.new(color.yellow, 95),
+                          border_width=1)
+
+// Draw/extend ORB lines after window
+if (time > orbEnd and not na(orbHigh) and not na(orbLow))
+    if na(orbHighLine)
+        orbHighLine := line.new(x1=bar_index, y1=orbHigh, x2=bar_index, y2=orbHigh,
+                                color=color.new(color.white, 30), width=3, style=line.style_solid)
+        if showLabels
+            label.new(bar_index, orbHigh, "ORB High\nResistance",
+                     color=color.new(color.yellow, 80), textcolor=color.black,
+                     style=label.style_label_down, size=size.normal)
+    else
+        line.set_x2(orbHighLine, bar_index)
+        line.set_y2(orbHighLine, orbHigh)
+
+    if na(orbLowLine)
+        orbLowLine := line.new(x1=bar_index, y1=orbLow, x2=bar_index, y2=orbLow,
+                              color=color.new(#9932CC, 30), width=3, style=line.style_solid)
+        if showLabels
+            label.new(bar_index, orbLow, "ORB Low\nSupport",
+                     color=color.new(color.yellow, 80), textcolor=color.black,
+                     style=label.style_label_up, size=size.normal)
+    else
+        line.set_x2(orbLowLine, bar_index)
+        line.set_y2(orbLowLine, orbLow)
+
+    // ORB Breakout Alerts
+    if orbBreakoutAlert
+        if close > orbHigh and close[1] <= orbHigh
+            alert("🟢 ORB BREAKOUT UP! Price broke above opening range high", alert.freq_once_per_bar)
+        if close < orbLow and close[1] >= orbLow
+            alert("🔴 ORB BREAKDOWN DOWN! Price broke below opening range low", alert.freq_once_per_bar)
+
+// === FVG DETECTION INSIDE ORB ===
+var line[] fvgLines = array.new_line()
+var box[] fvgBoxes = array.new_box()
+var label[] fvgLabels = array.new_label()
+pink = #FF69B4
+
+if (time >= orbStart and time <= orbEnd) and showFVGs
+    // Bullish FVG (gap up)
+    if high[1] < low
+        fvgTop = high[1]
+        fvgBottom = low
+
+        // Draw FVG box
+        fvgBox = box.new(left=bar_index-1, top=fvgTop, right=bar_index+20, bottom=fvgBottom,
+                        border_color=color.new(pink, 30), bgcolor=color.new(pink, 85),
+                        border_width=1)
+        array.unshift(fvgBoxes, fvgBox)
+
+        // Draw line
+        fvgLine = line.new(x1=bar_index-1, y1=fvgTop, x2=bar_index, y2=fvgBottom,
+                          color=pink, style=line.style_dotted, width=2)
+        array.unshift(fvgLines, fvgLine)
+
+        if showLabels
+            fvgLbl = label.new(bar_index-1, (fvgTop + fvgBottom) / 2, "FVG\n(Will Fill?)",
+                              color=color.new(pink, 80), textcolor=color.white,
+                              style=label.style_label_center, size=size.small)
+            array.unshift(fvgLabels, fvgLbl)
+
+        if array.size(fvgBoxes) > maxFVGs
+            box.delete(array.pop(fvgBoxes))
+        if array.size(fvgLines) > maxFVGs
+            line.delete(array.pop(fvgLines))
+        if array.size(fvgLabels) > maxFVGs
+            label.delete(array.pop(fvgLabels))
+
+    // Bearish FVG (gap down)
+    if low[1] > high
+        fvgTop = low[1]
+        fvgBottom = high
+
+        fvgBox = box.new(left=bar_index-1, top=fvgTop, right=bar_index+20, bottom=fvgBottom,
+                        border_color=color.new(pink, 30), bgcolor=color.new(pink, 85),
+                        border_width=1)
+        array.unshift(fvgBoxes, fvgBox)
+
+        fvgLine = line.new(x1=bar_index-1, y1=fvgTop, x2=bar_index, y2=fvgBottom,
+                          color=pink, style=line.style_dotted, width=2)
+        array.unshift(fvgLines, fvgLine)
+
+        if showLabels
+            fvgLbl = label.new(bar_index-1, (fvgTop + fvgBottom) / 2, "FVG\n(Will Fill?)",
+                              color=color.new(pink, 80), textcolor=color.white,
+                              style=label.style_label_center, size=size.small)
+            array.unshift(fvgLabels, fvgLbl)
+
+        if array.size(fvgBoxes) > maxFVGs
+            box.delete(array.pop(fvgBoxes))
+        if array.size(fvgLines) > maxFVGs
+            line.delete(array.pop(fvgLines))
+        if array.size(fvgLabels) > maxFVGs
+            label.delete(array.pop(fvgLabels))
+
+// Check FVG fills and alert
+if fvgFillAlertEnabled and array.size(fvgBoxes) > 0
+    for i = 0 to array.size(fvgBoxes) - 1
+        fvgBox = array.get(fvgBoxes, i)
+        if not na(fvgBox)
+            boxTop = box.get_top(fvgBox)
+            boxBottom = box.get_bottom(fvgBox)
+            // Check if price filled the FVG
+            if (low <= boxTop and low >= boxBottom) or (high <= boxTop and high >= boxBottom)
+                if close >= boxBottom and close <= boxTop
+                    alert("💎 FVG FILLED! Price returned to fill the Fair Value Gap", alert.freq_once_per_bar)
+
+// === PIVOT BREAK ALERTS ===
+if pivotBreakAlert
+    if array.size(bearLines) > 0
+        for i = 0 to array.size(bearLines) - 1
+            bearLine = array.get(bearLines, i)
+            if not na(bearLine)
+                linePrice = line.get_y1(bearLine)
+                if close > linePrice and close[1] <= linePrice
+                    alert("🟢 RESISTANCE BROKEN! Price broke above key pivot", alert.freq_once_per_bar)
+
+    if array.size(bullLines) > 0
+        for i = 0 to array.size(bullLines) - 1
+            bullLine = array.get(bullLines, i)
+            if not na(bullLine)
+                linePrice = line.get_y1(bullLine)
+                if close < linePrice and close[1] >= linePrice
+                    alert("🔴 SUPPORT BROKEN! Price broke below key pivot", alert.freq_once_per_bar)
+
+// === LEGEND ===
+var table legend = na
+if showLegend and barstate.islast
+    if na(legend)
+        legend := table.new(position.top_right, 3, 9, bgcolor=color.new(color.black, 80), border_width=1)
+
+        // Header
+        table.cell(legend, 0, 0, "Element", text_color=color.white, bgcolor=color.new(color.gray, 50), text_size=size.small)
+        table.cell(legend, 1, 0, "Symbol", text_color=color.white, bgcolor=color.new(color.gray, 50), text_size=size.small)
+        table.cell(legend, 2, 0, "Meaning", text_color=color.white, bgcolor=color.new(color.gray, 50), text_size=size.small)
+
+        // Rows
+        table.cell(legend, 0, 1, "Support", text_color=color.white, text_size=size.tiny)
+        table.cell(legend, 1, 1, "● White", text_color=color.white, text_size=size.tiny)
+        table.cell(legend, 2, 1, "Bullish pivot (buy zone)", text_color=color.white, text_size=size.tiny)
+
+        table.cell(legend, 0, 2, "Resistance", text_color=#9932CC, text_size=size.tiny)
+        table.cell(legend, 1, 2, "● Purple", text_color=#9932CC, text_size=size.tiny)
+        table.cell(legend, 2, 2, "Bearish pivot (sell zone)", text_color=color.white, text_size=size.tiny)
+
+        table.cell(legend, 0, 3, "Strong Pivot", text_color=color.white, text_size=size.tiny)
+        table.cell(legend, 1, 3, "● Big", text_color=color.white, text_size=size.tiny)
+        table.cell(legend, 2, 3, "High volume confirmation", text_color=color.white, text_size=size.tiny)
+
+        table.cell(legend, 0, 4, "ORB High", text_color=color.yellow, text_size=size.tiny)
+        table.cell(legend, 1, 4, "━ Yellow", text_color=color.yellow, text_size=size.tiny)
+        table.cell(legend, 2, 4, "Opening range top", text_color=color.white, text_size=size.tiny)
+
+        table.cell(legend, 0, 5, "ORB Low", text_color=#9932CC, text_size=size.tiny)
+        table.cell(legend, 1, 5, "━ Purple", text_color=#9932CC, text_size=size.tiny)
+        table.cell(legend, 2, 5, "Opening range bottom", text_color=color.white, text_size=size.tiny)
+
+        table.cell(legend, 0, 6, "FVG", text_color=pink, text_size=size.tiny)
+        table.cell(legend, 1, 6, "■ Pink", text_color=pink, text_size=size.tiny)
+        table.cell(legend, 2, 6, "Price gap (often fills)", text_color=color.white, text_size=size.tiny)
+
+        table.cell(legend, 0, 7, "Single Print", text_color=color.blue, text_size=size.tiny)
+        table.cell(legend, 1, 7, "━ Blue", text_color=color.blue, text_size=size.tiny)
+        table.cell(legend, 2, 7, "Unique price level", text_color=color.white, text_size=size.tiny)
+
+        table.cell(legend, 0, 8, "Fakeout", text_color=color.orange, text_size=size.tiny)
+        table.cell(legend, 1, 8, "× Orange", text_color=color.orange, text_size=size.tiny)
+        table.cell(legend, 2, 8, "Weak/low volume pivot", text_color=color.white, text_size=size.tiny)
+
+
+

@@ -1,0 +1,435 @@
+//@version=6
+indicator("VIPER + Mini Anchored VWAP Fusion (Enhanced)", overlay=true, max_labels_count=200, max_lines_count=500)
+
+// =================== CORE SIGNAL SETTINGS ===================
+group_core   = "🎯 Signal Settings"
+signal_mode  = input.string("Balanced", "Signal Mode", options=["Conservative","Balanced","Aggressive"], group=group_core)
+showSignals  = input.bool(false, "Show Buy/Sell Diamonds", group=group_core)
+showStackSignals = input.bool(true, "Show VWAP Stack Signals", group=group_core)
+use_confluence = input.bool(true, "Use Multi-VWAP Confluence", group=group_core)
+use_divergence = input.bool(true, "Use Divergence Detection", group=group_core)
+lookback = input.int(20, "Pivot Lookback", minval=5, maxval=50, group=group_core)
+squeezeThreshold = input.float(0.002, "Stack Squeeze Threshold %", minval=0.0001, maxval=0.01, step=0.0001, group=group_core)
+
+// =================== VWAP TOGGLE ALL ===================
+group_vwap_toggle = "⚓ VWAP Controls"
+toggle_all_vwaps = input.bool(false, "Toggle All VWAPs ON/OFF", group=group_vwap_toggle)
+
+// =================== ENHANCED FEATURES (SIMPLIFIED) ===================
+// Volume Profile Settings (OFF by default)
+group_volprofile = "📊 Volume Profile"
+show_volprofile = input.bool(false, "Show Volume Profile", group=group_volprofile)
+show_poc = input.bool(false, "Show Point of Control", group=group_volprofile)
+volprofile_lookback = input.int(50, "Volume Profile Lookback", minval=20, maxval=200, group=group_volprofile)
+
+// Performance Overlay Settings (OFF by default)
+group_performance = "📈 Performance Overlay"
+show_performance = input.bool(false, "Show Performance Overlay", group=group_performance)
+performance_lookback = input.int(100, "Performance Lookback", minval=20, maxval=500, group=group_performance)
+
+// =================== ANCHORED VWAPs (MINI) ===================
+group_anchored = "⚓ Anchored VWAPs"
+src = input.source(hlc3, "VWAP Source", group=group_anchored)
+
+// These are ON by default
+show_1h  = input.bool(true, "1-Hour VWAP", group=group_anchored)
+col_1h   = input.color(#00FF00, "1H Color", group=group_anchored)
+w_1h     = input.int(2, "1H Width", minval=1, maxval=5, group=group_anchored)
+
+show_4h  = input.bool(true, "4-Hour VWAP", group=group_anchored)
+col_4h   = input.color(#FFA500, "4H Color", group=group_anchored)
+w_4h     = input.int(2, "4H Width", minval=1, maxval=5, group=group_anchored)
+
+show_8h  = input.bool(true, "8-Hour VWAP", group=group_anchored)
+col_8h   = input.color(#9C27B0, "8H Color (Purple)", group=group_anchored)
+w_8h     = input.int(2, "8H Width", minval=1, maxval=5, group=group_anchored)
+
+show_12h = input.bool(true, "12-Hour VWAP", group=group_anchored)
+col_12h  = input.color(#FF0000, "12H Color", group=group_anchored)
+w_12h    = input.int(2, "12H Width", minval=1, maxval=5, group=group_anchored)
+
+show_daily = input.bool(true, "Daily VWAP", group=group_anchored)
+col_daily  = input.color(#00FFFF, "Daily Color", group=group_anchored)
+w_daily    = input.int(3, "Daily Width", minval=1, maxval=5, group=group_anchored)
+glow_daily = input.bool(true, "Daily Glow Effect", group=group_anchored)
+
+// These are OFF by default
+show_weekly  = input.bool(false, "Weekly VWAP", group=group_anchored)
+col_weekly   = input.color(#FFFF00, "Weekly Color", group=group_anchored)
+
+show_monthly = input.bool(false, "Monthly VWAP", group=group_anchored)
+col_monthly  = input.color(#FF00FF, "Monthly Color", group=group_anchored)
+
+show_yearly  = input.bool(false, "Yearly VWAP", group=group_anchored)
+col_yearly   = input.color(#808080, "Yearly Color", group=group_anchored)
+
+show_4day = input.bool(false, "4-Day Rolling VWAP", group=group_anchored)
+col_4day  = input.color(#0000FF, "4-Day Color", group=group_anchored)
+
+// =================== 12H CLOUD (Money Flow) ===================
+group_cloud  = "☁️ 12-Hour Money Flow Cloud"
+show_cloud   = input.bool(true, "Show Cloud", group=group_cloud)
+cloud_k      = input.float(0.35, "Base Size (ATR)", minval=0.1, maxval=0.6, step=0.05, group=group_cloud)
+cloud_vis    = input.float(1.50, "Visibility Boost", minval=1.0, maxval=2.0, step=0.05, group=group_cloud)
+cloud_s      = input.int(8, "Smoothing", minval=5, maxval=30, group=group_cloud)
+cloud_trend_color = input.bool(true, "Dynamic Trend Coloring", group=group_cloud)
+cloud_op_strong = input.int(40, "Strong Trend Opacity", minval=0, maxval=100, group=group_cloud)
+cloud_op_weak   = input.int(70, "Weak Trend Opacity", minval=0, maxval=100, group=group_cloud)
+cloud_bull   = input.color(#00FF00, "Bull Color", group=group_cloud)
+cloud_bear   = input.color(#FF0080, "Bear Color", group=group_cloud)
+cloud_neut   = input.color(#808080, "Neutral Color", group=group_cloud)
+
+// =================== ASIA SESSION ===================
+group_asia = "⏰ Asia Session Hi/Lo Lines"
+show_asia_lines  = input.bool(true, "Draw dashed lines at end of Asia session", group=group_asia)
+asia_sess        = input.session("0000-0900", "Asia Session (UTC)", group=group_asia)
+asia_extend_bars = input.int(200, "Extend Right (bars)", minval=50, maxval=2000, group=group_asia)
+asia_line_col    = input.color(#FFA500, "Asia Lines Color", group=group_asia)
+
+// =================== DASHBOARD ===================
+group_dash = "📈 Dashboard"
+show_dash = input.bool(true, "Show Dashboard", group=group_dash)
+show_stack_status = input.bool(true, "Show Stack Status", group=group_dash)
+
+// =================== HELPER FUNCTIONS ===================
+tf_change(tf) => ta.change(time(tf)) != 0
+
+// Anchored VWAP calculation
+f_anchored_vwap(_isNew) =>
+    var float cum_vol = 0.0
+    var float cum_vol_price = 0.0
+    if _isNew
+        cum_vol := volume
+        cum_vol_price := volume * src
+    else
+        cum_vol += volume
+        cum_vol_price += volume * src
+    vwap_val = cum_vol == 0 ? na : cum_vol_price / cum_vol
+    vwap_val
+
+// N-day rolling VWAP
+f_nday_vwap(_src, n) =>
+    var float sp = 0.0
+    var float sv = 0.0
+    var int d = 0
+    newDay = tf_change("D")
+    if newDay
+        d += 1
+        if d > n
+            d := 1
+            sp := 0.0
+            sv := 0.0
+    sp += _src * volume
+    sv += volume
+    sv > 0 ? sp / sv : na
+
+// =================== VWAP CALCULATIONS ===================
+// Anchored VWAPs
+vwap_1h  = f_anchored_vwap(tf_change("60"))
+vwap_4h  = f_anchored_vwap(tf_change("240"))
+vwap_8h  = f_anchored_vwap(tf_change("480"))
+vwap_12h = f_anchored_vwap(tf_change("720"))
+vwap_daily = f_anchored_vwap(tf_change("D"))
+vwap_weekly = f_anchored_vwap(tf_change("W"))
+vwap_monthly = f_anchored_vwap(tf_change("M"))
+vwap_yearly = f_anchored_vwap(tf_change("12M"))
+vwap_4day = f_nday_vwap(src, 4)
+
+// =================== TECHNICAL INDICATORS ===================
+atr = ta.atr(14)
+rsi = ta.rsi(close, 14)
+vol_ma = ta.sma(volume, 20)
+vol_surge = volume > vol_ma * 1.5
+[macd_line, signal_line, hist] = ta.macd(close, 12, 26, 9)
+macd_bull_div = low < low[1] and macd_line > macd_line[1]
+macd_bear_div = high > high[1] and macd_line < macd_line[1]
+
+// =================== CLOUD CALCULATIONS (12H) ===================
+rel_vol = volume / math.max(vol_ma, 1)
+rel_vol_s = ta.ema(rel_vol, cloud_s)
+tp = hlc3
+mf_pos = tp > nz(tp[1]) ? tp * volume : 0.0
+mf_neg = tp < nz(tp[1]) ? tp * volume : 0.0
+mf_pos_s = ta.ema(mf_pos, cloud_s)
+mf_neg_s = ta.ema(mf_neg, cloud_s)
+mfr = mf_pos_s / math.max(mf_neg_s, 1)
+mfi = ta.ema(100 - (100 / (1 + mfr)), cloud_s)
+
+cloud_trend_strength = math.abs(mfi - 50) / 50
+cloud_opacity = cloud_trend_color ? int(cloud_op_weak - (cloud_op_weak - cloud_op_strong) * cloud_trend_strength) : cloud_op_strong
+
+expand = 1.0
+if mfi > 70 or mfi < 30
+    expand += math.abs(mfi - 50) / 50 * 0.5
+if vol_surge
+    expand += 0.3 * math.min(math.max(rel_vol_s, 0.5), 2.0)
+expand := math.min(expand, 2.0)
+
+base_rng = atr * cloud_k
+rng_smooth = ta.ema(ta.ema(base_rng * expand * cloud_vis, cloud_s), cloud_s)
+cloud_up = vwap_12h + rng_smooth
+cloud_dn = vwap_12h - rng_smooth
+
+cloud_base = cloud_trend_color ? 
+     (mfi > 60 ? color.new(cloud_bull, 0) : 
+      mfi < 40 ? color.new(cloud_bear, 0) : 
+      color.new(cloud_neut, 0)) : 
+     color.new(cloud_neut, 0)
+cloud_fill = color.new(cloud_base, cloud_opacity)
+cloud_edge = color.new(cloud_base, math.max(cloud_opacity - 20, 0))
+
+// =================== VWAP STACK DETECTION ===================
+// Detect pivot points
+pivotHigh = ta.pivothigh(high, lookback, lookback)
+pivotLow  = ta.pivotlow(low, lookback, lookback)
+
+// Compute once per bar to avoid short-circuit warning
+hh = ta.highest(high, lookback * 2)
+ll = ta.lowest(low, lookback * 2)
+
+isPivotHighArea = not na(pivotHigh[lookback]) or (high == hh)
+isPivotLowArea  = not na(pivotLow[lookback])  or (low  == ll)
+
+// Calculate stack squeeze
+vwapMax = math.max(vwap_1h, math.max(vwap_4h, math.max(vwap_8h, vwap_12h)))
+vwapMin = math.min(vwap_1h, math.min(vwap_4h, math.min(vwap_8h, vwap_12h)))
+vwapSpread = vwapMax > 0 ? (vwapMax - vwapMin) / vwapMax : 0
+isSqueezing = vwapSpread < squeezeThreshold
+
+// Bullish Stack (1H bottom, 4H/8H middle, 12H top)
+bullishStack = false
+if vwap_1h > 0 and vwap_12h > 0
+    greenIsBottom = vwap_1h <= vwap_4h and vwap_1h <= vwap_8h and vwap_1h <= vwap_12h
+    redIsTop = vwap_12h >= vwap_1h and vwap_12h >= vwap_4h and vwap_12h >= vwap_8h
+    middleValid = (vwap_4h >= vwap_1h or vwap_8h >= vwap_1h) and (vwap_4h <= vwap_12h or vwap_8h <= vwap_12h)
+    bullishStack := greenIsBottom and redIsTop and middleValid and isSqueezing
+
+// Bearish Stack (1H top, 4H/8H middle, 12H bottom)
+bearishStack = false
+if vwap_1h > 0 and vwap_12h > 0
+    greenIsTop = vwap_1h >= vwap_4h and vwap_1h >= vwap_8h and vwap_1h >= vwap_12h
+    redIsBottom = vwap_12h <= vwap_1h and vwap_12h <= vwap_4h and vwap_12h <= vwap_8h
+    middleValid2 = (vwap_4h <= vwap_1h or vwap_8h <= vwap_1h) and (vwap_4h >= vwap_12h or vwap_8h >= vwap_12h)
+    bearishStack := greenIsTop and redIsBottom and middleValid2 and isSqueezing
+
+// Stack signals at pivots
+stackBullSignal = showStackSignals and bullishStack and isPivotLowArea
+stackBearSignal = showStackSignals and bearishStack and isPivotHighArea
+
+// =================== CONFLUENCE & MAIN SIGNALS ===================
+vwap_count = 0
+vwap_threshold = atr * 0.3
+if math.abs(close - vwap_daily) < vwap_threshold
+    vwap_count += 1
+if math.abs(close - vwap_4h) < vwap_threshold
+    vwap_count += 1
+if math.abs(close - vwap_12h) < vwap_threshold
+    vwap_count += 1
+confluence_mult = use_confluence ? 1 + (vwap_count - 1) * 0.3 : 1.0
+
+// Main signal logic
+bounce_up = low <= vwap_daily and close > vwap_daily
+bounce_down = high >= vwap_daily and close < vwap_daily
+
+sMult = signal_mode == "Conservative" ? 1.5 : signal_mode == "Balanced" ? 1.0 : 0.75
+var int lastB = na
+var int lastS = na
+barsB = na(lastB) ? 1e9 : bar_index - lastB
+barsS = na(lastS) ? 1e9 : bar_index - lastS
+
+buy_base = bounce_up and barsB >= 8 * sMult and rsi < 60
+sell_base = bounce_down and barsS >= 8 * sMult and rsi > 40
+
+buy_ok = buy_base and (not use_divergence or not macd_bear_div)
+sell_ok = sell_base and (not use_divergence or not macd_bull_div)
+
+// Enhanced with stack signals
+buy_str_raw = buy_ok ? 1 + (vol_surge?1:0) + (rsi<40?1:0) + (mfi>55?1:0) + (vwap_count>2?1:0) + (bullishStack?2:0) : 0
+sell_str_raw = sell_ok ? 1 + (vol_surge?1:0) + (rsi>60?1:0) + (mfi<45?1:0) + (vwap_count>2?1:0) + (bearishStack?2:0) : 0
+buy_str = int(math.min(buy_str_raw * confluence_mult, 4))
+sell_str = int(math.min(sell_str_raw * confluence_mult, 4))
+
+if buy_ok
+    lastB := bar_index
+if sell_ok
+    lastS := bar_index
+
+// =================== ASIA SESSION ===================
+in_asia = time(timeframe.period, asia_sess) != 0
+var float asia_hi = na
+var float asia_lo = na
+var line asia_hi_line = na
+var line asia_lo_line = na
+
+if in_asia and not in_asia[1]
+    asia_hi := high
+    asia_lo := low
+else if in_asia
+    asia_hi := math.max(asia_hi, high)
+    asia_lo := math.min(asia_lo, low)
+else if not in_asia and in_asia[1] and show_asia_lines
+    if not na(asia_hi_line)
+        line.delete(asia_hi_line)
+        line.delete(asia_lo_line)
+    asia_hi_line := line.new(x1=bar_index, y1=asia_hi, x2=bar_index + asia_extend_bars, y2=asia_hi, 
+                             extend=extend.right, style=line.style_dashed, color=asia_line_col, width=1)
+    asia_lo_line := line.new(x1=bar_index, y1=asia_lo, x2=bar_index + asia_extend_bars, y2=asia_lo, 
+                             extend=extend.right, style=line.style_dashed, color=asia_line_col, width=1)
+
+// =================== ENHANCED FEATURES CALCULATIONS ===================
+
+// Volume Profile Calculations (only if enabled)
+var float poc_level = na
+var float total_volume = 0.0
+var float max_volume = 0.0
+var float poc_price = na
+
+if show_volprofile
+    // Calculate volume profile over lookback period
+    if bar_index % volprofile_lookback == 0
+        poc_level := na
+        total_volume := 0.0
+        max_volume := 0.0
+        poc_price := na
+    
+    // Simple volume profile calculation
+    price_level = math.round(close / (atr * 0.1)) * (atr * 0.1)
+    if not na(price_level)
+        total_volume += volume
+        if volume > max_volume
+            max_volume := volume
+            poc_price := price_level
+            poc_level := price_level
+
+// Performance Overlay Calculations (only if enabled)
+var float performance_score = 0.0
+var int total_signals = 0
+var int winning_signals = 0
+
+if show_performance
+    // Track signal performance
+    if buy_str > 0 or sell_str > 0
+        total_signals += 1
+        // Simple performance tracking (price moved in signal direction)
+        if buy_str > 0 and close[5] > close
+            winning_signals += 1
+        if sell_str > 0 and close[5] < close
+            winning_signals += 1
+    
+    // Calculate performance score
+    if total_signals > 0
+        performance_score := winning_signals / total_signals * 100
+    else
+        performance_score := 0.0
+
+// =================== PLOTS ===================
+// Cloud
+u = plot(show_cloud ? cloud_up : na, "Cloud Up", color=cloud_edge, linewidth=2)
+d = plot(show_cloud ? cloud_dn : na, "Cloud Dn", color=cloud_edge, linewidth=2)
+fill(u, d, color=show_cloud ? cloud_fill : na, title="12H Money Flow Cloud")
+
+// VWAP Toggle All Logic
+vwap_1h_show = toggle_all_vwaps ? false : show_1h
+vwap_4h_show = toggle_all_vwaps ? false : show_4h
+vwap_8h_show = toggle_all_vwaps ? false : show_8h
+vwap_12h_show = toggle_all_vwaps ? false : show_12h
+vwap_daily_show = toggle_all_vwaps ? false : show_daily
+vwap_weekly_show = toggle_all_vwaps ? false : show_weekly
+vwap_monthly_show = toggle_all_vwaps ? false : show_monthly
+vwap_yearly_show = toggle_all_vwaps ? false : show_yearly
+vwap_4day_show = toggle_all_vwaps ? false : show_4day
+
+// Anchored VWAPs
+plot(vwap_1h_show ? vwap_1h : na, "1H VWAP", color=col_1h, linewidth=w_1h)
+plot(vwap_4h_show ? vwap_4h : na, "4H VWAP", color=col_4h, linewidth=w_4h)
+plot(vwap_8h_show ? vwap_8h : na, "8H VWAP", color=col_8h, linewidth=w_8h)
+plot(vwap_12h_show ? vwap_12h : na, "12H VWAP", color=col_12h, linewidth=w_12h)
+
+// Daily with glow
+plot(vwap_daily_show ? vwap_daily : na, "Daily VWAP", color=col_daily, linewidth=w_daily)
+plot(glow_daily and vwap_daily_show ? vwap_daily : na, "Daily Glow 1", color=color.new(col_daily, 70), linewidth=w_daily + 2)
+plot(glow_daily and vwap_daily_show ? vwap_daily : na, "Daily Glow 2", color=color.new(col_daily, 85), linewidth=w_daily + 4)
+
+// Optional VWAPs
+plot(vwap_weekly_show ? vwap_weekly : na, "Weekly VWAP", color=col_weekly, linewidth=1)
+plot(vwap_monthly_show ? vwap_monthly : na, "Monthly VWAP", color=col_monthly, linewidth=2)
+plot(vwap_yearly_show ? vwap_yearly : na, "Yearly VWAP", color=col_yearly, linewidth=2)
+plot(vwap_4day_show ? vwap_4day : na, "4-Day VWAP", color=col_4day, linewidth=2)
+
+// Enhanced Feature Plots (only if enabled)
+plot(show_poc and not na(poc_level) ? poc_level : na, "POC", color=color.yellow, linewidth=2, style=plot.style_line)
+
+// Performance Overlay (only if enabled)
+performance_color = performance_score > 60 ? color.new(color.green, 70) : performance_score > 40 ? color.new(color.yellow, 70) : color.new(color.red, 70)
+plot(show_performance ? performance_score * 0.01 : na, "Performance Score", color=performance_color, style=plot.style_histogram)
+
+// =================== SIGNALS ===================
+// Stack Diamonds (SMALLER SIZE)
+plotshape(stackBullSignal, 
+          title="Heaven Diamond (Stack)", 
+          style=shape.diamond, 
+          location=location.belowbar,
+          color=color.white, 
+          size=size.small)
+
+plotshape(stackBearSignal,
+          title="Blood Diamond (Stack)",
+          style=shape.diamond,
+          location=location.abovebar, 
+          color=#FF0000,
+          size=size.small)
+
+// Regular signal diamonds (no text, default off)
+buy_colors  = array.from(color.new(#00FF00, 60), color.new(#00FF00, 40), color.new(#00FF00, 20), color.new(#00FF00, 0))
+sell_colors = array.from(color.new(#FF0000, 60), color.new(#FF0000, 40), color.new(#FF0000, 20), color.new(#FF0000, 0))
+buy_color  = buy_str  > 0 ? array.get(buy_colors,  math.min(buy_str - 1,  3)) : na
+sell_color = sell_str > 0 ? array.get(sell_colors, math.min(sell_str - 1, 3)) : na
+
+plotshape(showSignals and buy_str  > 0, title="Buy Signal",  style=shape.diamond, location=location.belowbar, color=buy_color,  size=size.tiny)
+plotshape(showSignals and sell_str > 0, title="Sell Signal", style=shape.diamond, location=location.abovebar,  color=sell_color, size=size.tiny)
+
+// =================== DASHBOARD ===================
+if show_dash and barstate.islast
+    var table dash = table.new(position.bottom_left, 2, 6)
+    
+    // Stack status
+    if show_stack_status
+        stack_text = bullishStack ? "🟢 BULLISH STACK" : bearishStack ? "🔴 BEARISH STACK" : "⚪ No Stack"
+        squeeze_text = isSqueezing ? "✅ Squeezed" : "❌ Not Squeezed"
+        table.cell(dash, 0, 0, "Stack Status:", text_color=color.white, bgcolor=color.new(color.black, 80))
+        table.cell(dash, 1, 0, stack_text + "\n" + squeeze_text, text_color=color.white, bgcolor=color.new(color.black, 80))
+    
+    // VWAP Confluence
+    table.cell(dash, 0, 1, "VWAP Touch:", text_color=color.white, bgcolor=color.new(color.black, 80))
+    table.cell(dash, 1, 1, str.tostring(vwap_count) + " VWAPs", text_color=color.white, bgcolor=color.new(color.black, 80))
+    
+    // Trend
+    trend_text = mfi > 60 ? "🟢 Bullish" : mfi < 40 ? "🔴 Bearish" : "⚪ Neutral"
+    table.cell(dash, 0, 2, "MFI Trend:", text_color=color.white, bgcolor=color.new(color.black, 80))
+    table.cell(dash, 1, 2, trend_text + " (" + str.tostring(mfi, "#") + ")", text_color=color.white, bgcolor=color.new(color.black, 80))
+    
+    // Enhanced Features Dashboard (only if enabled)
+    if show_volprofile
+        table.cell(dash, 0, 3, "POC Level:", text_color=color.white, bgcolor=color.new(color.black, 80))
+        table.cell(dash, 1, 3, not na(poc_level) ? str.tostring(poc_level, "#.##") : "N/A", text_color=color.white, bgcolor=color.new(color.black, 80))
+    
+    if show_performance
+        table.cell(dash, 0, 4, "Performance:", text_color=color.white, bgcolor=color.new(color.black, 80))
+        table.cell(dash, 1, 4, str.tostring(performance_score, "#") + "% (" + str.tostring(winning_signals) + "/" + str.tostring(total_signals) + ")", text_color=color.white, bgcolor=color.new(color.black, 80))
+    
+    // VWAP Toggle Status
+    table.cell(dash, 0, 5, "VWAP Status:", text_color=color.white, bgcolor=color.new(color.black, 80))
+    table.cell(dash, 1, 5, toggle_all_vwaps ? "🔴 ALL OFF" : "🟢 INDIVIDUAL", text_color=color.white, bgcolor=color.new(color.black, 80))
+
+// =================== ALERTS ===================
+alertcondition(stackBullSignal, title="Bullish Stack Signal", message="Heaven Diamond: Bullish VWAP stack at pivot!")
+alertcondition(stackBearSignal, title="Bearish Stack Signal", message="Blood Diamond: Bearish VWAP stack at pivot!")
+alertcondition(buy_str > 0, "Buy Signal", "Buy signal detected")
+alertcondition(sell_str > 0, "Sell Signal", "Sell signal detected")
+alertcondition(buy_str >= 3, "Strong Buy", "Strong buy signal!")
+alertcondition(sell_str >= 3, "Strong Sell", "Strong sell signal!")
+alertcondition(vwap_count >= 3, "Multi-VWAP Confluence", "Multiple VWAPs aligned!")
+
+// Enhanced Feature Alerts (only if enabled)
+alertcondition(show_performance and performance_score > 70, "High Performance", "High performance score detected!")
+alertcondition(show_volprofile and not na(poc_level), "POC Level Set", "Point of Control level established!")

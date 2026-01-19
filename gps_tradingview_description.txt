@@ -1,0 +1,71 @@
+🎯 Golden Pocket Syndicate (GPS) - Advanced Trading Indicator
+
+A comprehensive Smart Money Concepts (SMC) indicator designed to identify high-probability trading opportunities at Golden Pocket zones using multiple timeframe analysis, order blocks, liquidity sweeps, and confluence scoring.
+
+🔹 KEY FEATURES:
+
+✨ MULTI-TIMEFRAME GOLDEN POCKET ZONES
+• Daily, Weekly, and Monthly Golden Pocket levels (0.618-0.65 Fibonacci retracement)
+• Previous period GP zones for historical reference
+• Cross-style visualization with customizable colors
+• Smart visibility based on price proximity
+
+📊 SIGNAL GENERATION SYSTEM
+• Grade-based signals (A+, A, B) with quality filtering
+• Comprehensive confluence scoring (0-100%)
+• Multiple confirmation requirements:
+  - Golden Pocket touch/over requirement
+  - High volume validation
+  - SMC pattern requirement (sweep or OB)
+
+🎯 SMART MONEY CONCEPTS (SMC)
+• High-quality Order Block detection with FVG requirement
+• Liquidity sweep identification with strict GP filtering
+• Regular bullish/bearish divergences
+• Market Maker reversal signals
+
+⚙️ ADVANCED SETTINGS
+• Configurable WT (Wave Trend) parameters
+• Customizable Order Block and Sweep detection
+• Adjustable confluence thresholds
+• Risk management with dynamic ATR-based stop loss and targets
+
+🔔 COMPREHENSIVE ALERT SYSTEM
+• 22+ alert conditions for complete market coverage:
+  - Grade-based signals (A+, A, B)
+  - Order Block alerts
+  - Sweep alerts
+  - Divergence alerts
+  - Market Maker signals
+  - High confluence zone alerts
+
+📈 VISUAL FEATURES
+• Cross-style GP lines with minimal thickness
+• Trail connections between signals (optional)
+• Risk level visualization (stop loss, targets)
+• Confluence background highlighting
+• Optional info table display
+
+🎨 CUSTOMIZATION OPTIONS
+• Color-coded GP zones (Daily/Weekly/Monthly)
+• Show/hide individual GP types
+• Adjustable visibility range
+• Multiple visual toggle options
+
+🔧 TECHNICAL SPECIFICATIONS
+• Built with Pine Script v6
+• Optimized performance with efficient calculations
+• Memory management for lines and objects
+• No repainting on security calls
+
+Perfect for traders looking for institutional-level entry points with multiple confirmation layers and comprehensive alert coverage.
+
+⚠️ DISCLAIMER: This indicator is for educational purposes. Past performance does not guarantee future results. Always use proper risk management and do your own analysis.
+
+
+
+
+
+
+
+

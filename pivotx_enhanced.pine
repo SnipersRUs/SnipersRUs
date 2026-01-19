@@ -1,0 +1,608 @@
+// @version=6
+// PivotX Indicator - Enhanced for Better Top Calls
+// Detects when major selling/buying has stopped and pivots are forming
+// Shows clean visual markers for exhaustion points and major reversals
+// ENHANCED: Better top detection with RSI divergence, volume climax, and stronger rejection patterns
+
+indicator(title="PivotX Enhanced", shorttitle="PivotX+", overlay=true, max_labels_count=500)
+
+// ============================================================================
+// INPUTS
+// ============================================================================
+grpDetection = "🔍 Detection Settings"
+grpPivots = "📊 Pivot Detection"
+grpVisual = "🎨 Visual Settings"
+grpAlerts = "🔔 Alerts"
+grpTopDetection = "🎯 Enhanced Top Detection"
+
+// Detection Settings
+lookback_period = input.int(20, "Lookback Period", minval=5, maxval=100, group=grpDetection)
+volume_threshold = input.float(1.5, "Volume Threshold", minval=1.0, maxval=5.0, step=0.1, group=grpDetection)
+exhaustion_periods = input.int(3, "Exhaustion Periods", minval=2, maxval=10, group=grpDetection)
+min_price_move = input.float(2.0, "Min Price Move %", minval=0.5, maxval=10.0, step=0.5, group=grpDetection)
+pivot_strength = input.int(3, "Pivot Strength", minval=2, maxval=10, group=grpPivots, tooltip="Bars on each side for pivot confirmation")
+
+// Enhanced Top Detection Settings
+use_rsi_divergence = input.bool(true, "Use RSI Divergence", group=grpTopDetection)
+rsi_length = input.int(14, "RSI Length", minval=5, maxval=50, group=grpTopDetection)
+rsi_overbought = input.int(70, "RSI Overbought", minval=60, maxval=90, group=grpTopDetection)
+use_volume_climax = input.bool(true, "Use Volume Climax", group=grpTopDetection)
+volume_climax_multiplier = input.float(2.5, "Volume Climax Multiplier", minval=1.5, maxval=5.0, step=0.1, group=grpTopDetection)
+use_momentum_exhaustion = input.bool(true, "Use Momentum Exhaustion", group=grpTopDetection)
+momentum_period = input.int(10, "Momentum Period", minval=5, maxval=20, group=grpTopDetection)
+use_rejection_strength = input.bool(true, "Enhanced Rejection Analysis", group=grpTopDetection)
+min_wick_ratio = input.float(0.4, "Min Wick Ratio for Rejection", minval=0.2, maxval=0.8, step=0.1, group=grpTopDetection)
+
+// Visual Settings
+show_exhaustion_arrows = input.bool(true, "Show Exhaustion Arrows", group=grpVisual)
+show_pivot_points = input.bool(true, "Show Pivot Points", group=grpVisual)
+show_pivot_lines = input.bool(true, "Show Pivot Lines", group=grpVisual)
+show_top_signals = input.bool(true, "Show Enhanced Top Signals", group=grpVisual)
+buy_exhaustion_color = input.color(color.rgb(255, 0, 100), "Buy Exhaustion (Red)", group=grpVisual)
+sell_exhaustion_color = input.color(color.rgb(0, 255, 150), "Sell Exhaustion (Green)", group=grpVisual)
+pivot_low_color = input.color(color.rgb(0, 255, 150), "Pivot Low (Neon Green)", group=grpVisual)
+pivot_high_color = input.color(color.rgb(255, 0, 100), "Pivot High (Neon Red)", group=grpVisual)
+top_signal_color = input.color(color.rgb(255, 100, 0), "Enhanced Top Signal (Orange)", group=grpVisual)
+
+// Alerts
+enable_alerts = input.bool(true, "Enable Alerts", group=grpAlerts)
+
+// ============================================================================
+// CALCULATIONS
+// ============================================================================
+
+// Volume Analysis
+avg_volume = ta.sma(volume, lookback_period)
+volume_ratio = volume / avg_volume
+high_volume = volume_ratio >= volume_threshold
+volume_climax = volume_ratio >= volume_climax_multiplier
+
+// RSI Calculation
+rsi = ta.rsi(close, rsi_length)
+rsi_overbought_zone = rsi >= rsi_overbought
+
+// Momentum Calculation
+momentum = ta.mom(close, momentum_period)
+momentum_ma = ta.sma(momentum, momentum_period)
+momentum_exhaustion = momentum < momentum_ma and momentum < 0  // Momentum declining and negative
+
+// Price Action Analysis
+price_change_pct = ((close - close[lookback_period]) / close[lookback_period]) * 100
+is_selloff = price_change_pct <= -min_price_move
+is_rally = price_change_pct >= min_price_move
+
+// Calculate buying pressure score (0-100)
+calc_buying_pressure() =>
+    pressure = 0.0
+
+    // Base pressure from price action
+    if close > open
+        pressure += 30.0
+    if close > close[1]
+        pressure += 20.0
+
+    // Volume contribution
+    if high_volume
+        pressure += 30.0
+        // High volume with price rise = strong buying
+        if close > open and (close - open) / open > 0.01
+            pressure += 20.0
+
+    // Upper wick analysis (rejection of highs = selling)
+    body_high = math.max(close, open)
+    body_low = math.min(close, open)
+    lower_wick = body_low - low
+    upper_wick = high - body_high
+    total_range = high - low
+
+    if total_range > 0
+        // Small upper wick during rally = continued buying pressure
+        if is_rally and upper_wick / total_range < 0.1
+            pressure += 10.0
+        // Large upper wick = sellers stepping in (reduces pressure)
+        if upper_wick / total_range > 0.3
+            pressure -= 15.0
+
+    math.max(0, math.min(100, pressure))
+
+// Calculate selling pressure score (0-100)
+calc_selling_pressure() =>
+    pressure = 0.0
+
+    // Base pressure from price action
+    if close < open
+        pressure += 30.0
+    if close < close[1]
+        pressure += 20.0
+
+    // Volume contribution
+    if high_volume
+        pressure += 30.0
+        // High volume with price decline = strong selling
+        if close < open and (close - open) / open < -0.01
+            pressure += 20.0
+
+    // Lower wick analysis (rejection of lows = buying)
+    body_high = math.max(close, open)
+    body_low = math.min(close, open)
+    lower_wick = body_low - low
+    upper_wick = high - body_high
+    total_range = high - low
+
+    if total_range > 0
+        // Small lower wick during selloff = continued selling pressure
+        if is_selloff and lower_wick / total_range < 0.1
+            pressure += 10.0
+        // Large lower wick = buyers stepping in (reduces pressure)
+        if lower_wick / total_range > 0.3
+            pressure -= 15.0
+
+    math.max(0, math.min(100, pressure))
+
+buying_pressure = calc_buying_pressure()
+selling_pressure = calc_selling_pressure()
+
+// Calculate moving averages for pressure (extracted for consistency)
+avg_buying_pressure = ta.sma(buying_pressure, exhaustion_periods)
+avg_selling_pressure = ta.sma(selling_pressure, exhaustion_periods)
+
+// Detect pivot points (local highs and lows)
+pivot_high_val = ta.pivothigh(high, pivot_strength, pivot_strength)
+pivot_low_val = ta.pivotlow(low, pivot_strength, pivot_strength)
+is_pivot_high = not na(pivot_high_val)
+is_pivot_low = not na(pivot_low_val)
+
+// Store pivot levels
+var float last_pivot_high = na
+var float last_pivot_low = na
+var int last_pivot_high_bar = na
+var int last_pivot_low_bar = na
+
+if is_pivot_high
+    last_pivot_high := pivot_high_val
+    last_pivot_high_bar := bar_index - pivot_strength
+
+if is_pivot_low
+    last_pivot_low := pivot_low_val
+    last_pivot_low_bar := bar_index - pivot_strength
+
+// ============================================================================
+// ENHANCED TOP DETECTION FUNCTIONS
+// ============================================================================
+
+// Detect RSI Bearish Divergence (price makes higher high, RSI makes lower high)
+detect_rsi_bearish_divergence() =>
+    divergence = false
+    strength = 0.0
+
+    if use_rsi_divergence and bar_index >= 20
+        // Look for recent higher high in price
+        recent_high_idx = ta.highestbars(high, 10)
+        recent_high = high[recent_high_idx]
+        prev_high_idx = ta.highestbars(high, 20)
+        prev_high = high[prev_high_idx]
+
+        // Look for corresponding RSI values
+        recent_rsi = rsi[recent_high_idx]
+        prev_rsi = rsi[prev_high_idx]
+
+        // Bearish divergence: price higher high, RSI lower high
+        if recent_high > prev_high and recent_rsi < prev_rsi and recent_rsi >= 60
+            divergence := true
+            strength := (prev_rsi - recent_rsi) / prev_rsi * 100  // Percentage difference
+
+    [divergence, strength]
+
+// Detect Volume Climax at Top
+detect_volume_climax_top() =>
+    climax = false
+    strength = 0.0
+
+    if use_volume_climax
+        // Volume climax: extremely high volume with minimal price advance
+        if volume_climax
+            body_size = math.abs(close - open)
+            total_range = high - low
+            if total_range > 0
+                body_ratio = body_size / total_range
+                // Small body with huge volume = distribution
+                if body_ratio < 0.3 and close <= open
+                    climax := true
+                    strength := volume_ratio
+                // Even if green, if volume is extreme and price advance is small
+                if body_ratio < 0.4 and (close - open) / open < 0.01 and volume_ratio >= volume_climax_multiplier * 1.2
+                    climax := true
+                    strength := volume_ratio
+
+    [climax, strength]
+
+// Detect Strong Rejection Pattern
+detect_strong_rejection_top() =>
+    rejection = false
+    strength = 0.0
+
+    if use_rejection_strength
+        body_high = math.max(close, open)
+        body_low = math.min(close, open)
+        upper_wick = high - body_high
+        lower_wick = body_low - low
+        total_range = high - low
+
+        if total_range > 0
+            upper_wick_ratio = upper_wick / total_range
+            body_ratio = (body_high - body_low) / total_range
+
+            // Strong rejection: large upper wick, small body, bearish close
+            if upper_wick_ratio >= min_wick_ratio and body_ratio < 0.3 and close < open
+                rejection := true
+                strength := upper_wick_ratio * 100
+
+            // Shooting star pattern: small body at bottom, large upper wick
+            if upper_wick_ratio >= 0.5 and body_ratio < 0.2 and close < open
+                rejection := true
+                strength := upper_wick_ratio * 100 + 20  // Extra strength for shooting star
+
+    [rejection, strength]
+
+// Detect selling exhaustion with buyers stepping in
+detect_selling_exhaustion() =>
+    exhausted = false
+    exhaustion_strength = 0.0
+    is_major_pivot = false
+
+    // Check if we had a recent selloff
+    recent_selloff = false
+    selloff_strength = 0.0
+    for i = 1 to exhaustion_periods + 5
+        if i <= bar_index
+            past_price_change = ((close[i] - close[i + lookback_period]) / close[i + lookback_period]) * 100
+            if past_price_change <= -min_price_move
+                recent_selloff := true
+                selloff_strength := math.abs(past_price_change)
+                break
+
+    if recent_selloff
+        signals = 0
+
+        // 1. Volume exhaustion - volume decreasing after selloff
+        volume_decreasing = true
+        for i = 1 to exhaustion_periods
+            if i <= bar_index
+                if volume[i] >= volume[i-1] * 1.1
+                    volume_decreasing := false
+                    break
+
+        if volume_decreasing and volume_ratio < volume_threshold * 0.7
+            signals += 1
+            exhaustion_strength += 25.0
+
+        // 2. Price stabilization - price holding at a level
+        recent_low = ta.lowest(low, exhaustion_periods)
+        recent_high = ta.highest(high, exhaustion_periods)
+        price_range_pct = ((recent_high - recent_low) / recent_low) * 100
+
+        if price_range_pct < 1.0  // Tight range
+            signals += 1
+            exhaustion_strength += 25.0
+
+        // 3. Absorption pattern - high volume with minimal price movement
+        body_size = math.abs(close - open)
+        total_range = high - low
+        if total_range > 0
+            body_ratio = body_size / total_range
+            // Small body, high volume = absorption
+            if body_ratio < 0.3 and volume_ratio >= volume_threshold * 0.8 and close >= open
+                signals += 1
+                exhaustion_strength += 30.0
+
+        // 4. Lower wick rejection - buyers rejecting lower prices
+        lower_wick = math.min(close, open) - low
+        upper_wick = high - math.max(close, open)
+        if lower_wick > upper_wick * 1.5 and lower_wick > 0
+            signals += 1
+            exhaustion_strength += 20.0
+
+        // 5. Selling pressure decreasing
+        current_pressure = selling_pressure
+        if current_pressure < avg_selling_pressure * 0.7
+            signals += 1
+            exhaustion_strength += 15.0
+
+        // 6. Pivot low confirmation - major support found
+        pivot_low_detected = is_pivot_low
+        near_pivot_low = not na(last_pivot_low) and math.abs(low - last_pivot_low) / last_pivot_low < 0.005
+        if pivot_low_detected or near_pivot_low
+            signals += 1
+            exhaustion_strength += 25.0
+            is_major_pivot := true
+
+        // 7. Price reversal confirmation - close above previous close
+        if close > close[1] and close > open
+            signals += 1
+            exhaustion_strength += 15.0
+
+        // Require at least 3 signals for confirmation (more accurate)
+        if signals >= 3
+            exhausted := true
+
+    [exhausted, exhaustion_strength, is_major_pivot]
+
+// ENHANCED: Detect buying exhaustion with sellers stepping in (BETTER TOP CALLS)
+detect_buying_exhaustion() =>
+    exhausted = false
+    exhaustion_strength = 0.0
+    is_major_pivot = false
+
+    // Check if we had a recent rally
+    recent_rally = false
+    rally_strength = 0.0
+    for i = 1 to exhaustion_periods + 5
+        if i <= bar_index
+            past_price_change = ((close[i] - close[i + lookback_period]) / close[i + lookback_period]) * 100
+            if past_price_change >= min_price_move
+                recent_rally := true
+                rally_strength := past_price_change
+                break
+
+    if recent_rally
+        signals = 0
+        enhanced_signals = 0  // Track enhanced top detection signals
+
+        // ===== STANDARD EXHAUSTION SIGNALS =====
+
+        // 1. Volume exhaustion - volume decreasing after rally
+        volume_decreasing = true
+        for i = 1 to exhaustion_periods
+            if i <= bar_index
+                if volume[i] >= volume[i-1] * 1.1
+                    volume_decreasing := false
+                    break
+
+        if volume_decreasing and volume_ratio < volume_threshold * 0.7
+            signals += 1
+            exhaustion_strength += 25.0
+
+        // 2. Price stabilization - price holding at a level
+        recent_low = ta.lowest(low, exhaustion_periods)
+        recent_high = ta.highest(high, exhaustion_periods)
+        price_range_pct = ((recent_high - recent_low) / recent_low) * 100
+
+        if price_range_pct < 1.0  // Tight range
+            signals += 1
+            exhaustion_strength += 25.0
+
+        // 3. Distribution pattern - high volume with minimal price movement
+        body_size = math.abs(close - open)
+        total_range = high - low
+        if total_range > 0
+            body_ratio = body_size / total_range
+            // Small body, high volume = distribution
+            if body_ratio < 0.3 and volume_ratio >= volume_threshold * 0.8 and close <= open
+                signals += 1
+                exhaustion_strength += 30.0
+
+        // 4. Upper wick rejection - sellers rejecting higher prices
+        lower_wick = math.min(close, open) - low
+        upper_wick = high - math.max(close, open)
+        if upper_wick > lower_wick * 1.5 and upper_wick > 0
+            signals += 1
+            exhaustion_strength += 20.0
+
+        // 5. Buying pressure decreasing
+        current_pressure = buying_pressure
+        if current_pressure < avg_buying_pressure * 0.7
+            signals += 1
+            exhaustion_strength += 15.0
+
+        // 6. Pivot high confirmation - major resistance found
+        pivot_high_detected = is_pivot_high
+        near_pivot_high = not na(last_pivot_high) and math.abs(high - last_pivot_high) / last_pivot_high < 0.005
+        if pivot_high_detected or near_pivot_high
+            signals += 1
+            exhaustion_strength += 25.0
+            is_major_pivot := true
+
+        // 7. Price reversal confirmation - close below previous close
+        if close < close[1] and close < open
+            signals += 1
+            exhaustion_strength += 15.0
+
+        // ===== ENHANCED TOP DETECTION SIGNALS =====
+
+        // 8. RSI Bearish Divergence
+        [rsi_div, rsi_strength] = detect_rsi_bearish_divergence()
+        if rsi_div
+            enhanced_signals += 1
+            signals += 1
+            exhaustion_strength += 30.0  // High weight for divergence
+
+        // 9. RSI Overbought + Declining
+        if rsi_overbought_zone and rsi < rsi[1] and rsi < rsi[2]
+            enhanced_signals += 1
+            signals += 1
+            exhaustion_strength += 20.0
+
+        // 10. Volume Climax at Top
+        [vol_climax, vol_climax_strength] = detect_volume_climax_top()
+        if vol_climax
+            enhanced_signals += 1
+            signals += 1
+            exhaustion_strength += 35.0  // Very high weight for volume climax
+
+        // 11. Strong Rejection Pattern
+        [rejection, rejection_strength] = detect_strong_rejection_top()
+        if rejection
+            enhanced_signals += 1
+            signals += 1
+            exhaustion_strength += 25.0  // High weight for strong rejection
+
+        // 12. Momentum Exhaustion
+        if use_momentum_exhaustion and momentum_exhaustion
+            enhanced_signals += 1
+            signals += 1
+            exhaustion_strength += 20.0
+
+        // 13. Multiple Rejection Wicks (2-3 bars in a row)
+        consecutive_rejections = 0
+        for i = 0 to 2
+            if i <= bar_index
+                past_body_high = math.max(close[i], open[i])
+                past_upper_wick = high[i] - past_body_high
+                past_total = high[i] - low[i]
+                if past_total > 0 and past_upper_wick / past_total >= min_wick_ratio
+                    consecutive_rejections += 1
+
+        if consecutive_rejections >= 2
+            enhanced_signals += 1
+            signals += 1
+            exhaustion_strength += 25.0
+
+        // 14. Price at Resistance + Rejection
+        if not na(last_pivot_high)
+            distance_from_resistance = math.abs(high - last_pivot_high) / last_pivot_high
+            if distance_from_resistance < 0.01  // Within 1% of resistance
+                upper_wick = high - math.max(close, open)
+                total_range = high - low
+                if total_range > 0 and upper_wick / total_range >= min_wick_ratio
+                    enhanced_signals += 1
+                    signals += 1
+                    exhaustion_strength += 30.0  // Very strong signal
+
+        // Require at least 3 signals for confirmation
+        // BUT: If we have 2+ enhanced signals, we can accept with fewer total signals
+        min_signals_required = enhanced_signals >= 2 ? 2 : 3
+
+        if signals >= min_signals_required
+            exhausted := true
+            // Boost strength if we have multiple enhanced signals
+            if enhanced_signals >= 2
+                exhaustion_strength += 20.0  // Bonus for multiple enhanced confirmations
+
+    [exhausted, exhaustion_strength, is_major_pivot]
+
+[sell_exhausted, sell_strength, sell_is_pivot] = detect_selling_exhaustion()
+[buy_exhausted, buy_strength, buy_is_pivot] = detect_buying_exhaustion()
+
+// Enhanced top signal (combines multiple enhanced signals)
+[enhanced_rsi_div, _] = detect_rsi_bearish_divergence()
+[enhanced_vol_climax, _] = detect_volume_climax_top()
+[enhanced_rejection, _] = detect_strong_rejection_top()
+enhanced_top_signal = buy_exhausted and (enhanced_rsi_div or enhanced_vol_climax or enhanced_rejection) and rsi_overbought_zone
+
+// ============================================================================
+// VISUALIZATION
+// ============================================================================
+
+// Selling exhaustion (green x - buyers stepping in)
+plotshape(
+     series=show_exhaustion_arrows and sell_exhausted,
+     title="Sell Exhaustion",
+     location=location.belowbar,
+     color=sell_exhaustion_color,
+     style=shape.xcross,
+     size=size.tiny)
+
+// Buying exhaustion (red x - sellers stepping in)
+plotshape(
+     series=show_exhaustion_arrows and buy_exhausted,
+     title="Buy Exhaustion",
+     location=location.abovebar,
+     color=buy_exhaustion_color,
+     style=shape.xcross,
+     size=size.tiny)
+
+// ENHANCED: Top signal marker (orange triangle - strongest top signal)
+plotshape(
+     series=show_top_signals and enhanced_top_signal,
+     title="Enhanced Top Signal",
+     location=location.abovebar,
+     color=top_signal_color,
+     style=shape.triangleup,
+     size=size.small,
+     text="TOP")
+
+// Major pivot points
+plotshape(
+     series=show_pivot_points and is_pivot_low and sell_is_pivot,
+     title="Major Pivot Low",
+     location=location.belowbar,
+     color=pivot_low_color,
+     style=shape.diamond,
+     size=size.tiny)
+
+plotshape(
+     series=show_pivot_points and is_pivot_high and buy_is_pivot,
+     title="Major Pivot High",
+     location=location.abovebar,
+     color=pivot_high_color,
+     style=shape.diamond,
+     size=size.tiny)
+
+// Pivot lines
+var line pivot_high_line = na
+var line pivot_low_line = na
+
+pivot_high_condition = show_pivot_lines and is_pivot_high and buy_is_pivot
+if pivot_high_condition
+    if not na(pivot_high_line)
+        line.delete(pivot_high_line)
+    pivot_high_line := line.new(
+         x1=bar_index - pivot_strength,
+         y1=pivot_high_val,
+         x2=bar_index + 20,
+         y2=pivot_high_val,
+         color=color.new(pivot_high_color, 20),
+         width=2,
+         style=line.style_dashed,
+         extend=extend.right)
+
+pivot_low_condition = show_pivot_lines and is_pivot_low and sell_is_pivot
+if pivot_low_condition
+    if not na(pivot_low_line)
+        line.delete(pivot_low_line)
+    pivot_low_line := line.new(
+         x1=bar_index - pivot_strength,
+         y1=pivot_low_val,
+         x2=bar_index + 20,
+         y2=pivot_low_val,
+         color=color.new(pivot_low_color, 20),
+         width=2,
+         style=line.style_dashed,
+         extend=extend.right)
+
+// ============================================================================
+// ALERTS
+// ============================================================================
+if enable_alerts and sell_exhausted and barstate.isconfirmed
+    alert("Selling Exhaustion! Buyers stepping in. Strength: " + str.tostring(math.round(sell_strength)) + "%", alert.freq_once_per_bar)
+
+if enable_alerts and buy_exhausted and barstate.isconfirmed
+    alert("Buying Exhaustion! Sellers stepping in. Strength: " + str.tostring(math.round(buy_strength)) + "%", alert.freq_once_per_bar)
+
+if enable_alerts and enhanced_top_signal and barstate.isconfirmed
+    alert("🔴 ENHANCED TOP SIGNAL! Multiple confirmations: RSI Divergence/Volume Climax/Strong Rejection. High probability reversal!", alert.freq_once_per_bar)
+
+alertcondition(
+     condition=sell_exhausted and barstate.isconfirmed,
+     title="Selling Exhaustion",
+     message="Major selling has stopped - buyers are stepping in")
+
+alertcondition(
+     condition=buy_exhausted and barstate.isconfirmed,
+     title="Buying Exhaustion",
+     message="Major buying has stopped - sellers are stepping in")
+
+alertcondition(
+     condition=enhanced_top_signal and barstate.isconfirmed,
+     title="Enhanced Top Signal",
+     message="🔴 STRONG TOP SIGNAL: Multiple enhanced confirmations detected - High probability short opportunity!")
+
+major_pivot_low = is_pivot_low and sell_is_pivot
+major_pivot_high = is_pivot_high and buy_is_pivot
+alertcondition(
+     condition=major_pivot_low or major_pivot_high,
+     title="Major Pivot",
+     message="Major pivot point detected")
+
+
+

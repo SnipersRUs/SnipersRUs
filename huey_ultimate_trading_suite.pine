@@ -1,0 +1,165 @@
+//@version=6
+indicator("Huey Ultimate Trading Suite (Merged)", overlay=true, max_boxes_count=500, max_lines_count=500, max_labels_count=500)
+
+// ==================== INPUTS ====================
+
+// Pattern Scanner
+groupPattern = "📈 Pattern Scanner"
+bullishPatterns = input.bool(true, 'Show Bullish Patterns', group=groupPattern)
+bearishPatterns = input.bool(true, 'Show Bearish Patterns', group=groupPattern)
+showLabels = input.bool(true, 'Show Pattern Labels', group=groupPattern)
+volumeMultiplier = input.float(1.5, 'Volume Multiplier', minval=0.1, maxval=10.0, step=0.1, group=groupPattern)
+lookbackPeriod = input.int(20, 'Pattern Lookback', minval=5, maxval=100, group=groupPattern)
+
+// Golden Pocket Scanner
+groupGP = "🎯 Golden Pocket Scanner"
+showGoldenPocket = input.bool(true, 'Show Golden Pocket', group=groupGP)
+gpRetracement = input.float(61.8, 'GP Retracement %', minval=50.0, maxval=80.0, step=0.1, group=groupGP)
+gpLookback = input.int(50, 'GP Lookback Period', minval=10, maxval=200, group=groupGP)
+
+// Volume Analysis
+groupVolume = "📊 Volume Analysis"
+showVolumeSpikes = input.bool(true, 'Show Volume Spikes', group=groupVolume)
+volumeThreshold = input.float(2.0, 'Volume Threshold', minval=1.0, maxval=10.0, step=0.1, group=groupVolume)
+volumeLength = input.int(20, 'Volume Length', minval=5, maxval=100, group=groupVolume)
+
+// RSI Settings
+groupRSI = "📈 RSI Settings"
+showRSI = input.bool(true, 'Show RSI', group=groupRSI)
+rsiLength = input.int(14, 'RSI Length', minval=2, maxval=50, group=groupRSI)
+rsiOverbought = input.int(70, 'RSI Overbought', minval=60, maxval=90, group=groupRSI)
+rsiOversold = input.int(30, 'RSI Oversold', minval=10, maxval=40, group=groupRSI)
+
+// Moving Averages
+groupMA = "📊 Moving Averages"
+showEMA = input.bool(true, 'Show EMA', group=groupMA)
+emaLength = input.int(21, 'EMA Length', minval=5, maxval=100, group=groupMA)
+showVWAP = input.bool(true, 'Show VWAP', group=groupMA)
+
+// Alert Settings
+groupAlerts = "🔔 Alert Settings"
+enableAlerts = input.bool(true, 'Enable Alerts', group=groupAlerts)
+alertFrequency = input.string("Once Per Bar", 'Alert Frequency', options=["Once Per Bar", "Once Per Bar Close", "All"], group=groupAlerts)
+
+// ==================== CALCULATIONS ====================
+
+// RSI Calculation
+rsi = ta.rsi(close, rsiLength)
+
+// EMA Calculation
+ema = ta.ema(close, emaLength)
+
+// VWAP Calculation
+vwap = ta.vwap(hlc3)
+
+// Volume Analysis
+avgVolume = ta.sma(volume, volumeLength)
+volumeSpike = volume > avgVolume * volumeThreshold
+
+// Golden Pocket Calculation
+highestHigh = ta.highest(high, gpLookback)
+lowestLow = ta.lowest(low, gpLookback)
+priceRange = highestHigh - lowestLow
+gpLevel = highestHigh - (priceRange * gpRetracement / 100)
+
+// ==================== PATTERN DETECTION ====================
+
+// Bullish Patterns
+bullishEngulfing = close > open and close[1] < open[1] and close > open[1] and open < close[1]
+bullishHarami = close > open and close[1] > open[1] and close < open[1] and open > close[1]
+bullishHammer = (close > open) and (high - math.max(open, close)) > 2 * (math.max(open, close) - low) and (math.max(open, close) - low) > 0
+
+// Bearish Patterns
+bearishEngulfing = close < open and close[1] > open[1] and close < open[1] and open > close[1]
+bearishHarami = close < open and close[1] < open[1] and close > open[1] and open < close[1]
+bearishShootingStar = (open > close) and (high - math.max(open, close)) > 2 * (math.max(open, close) - low) and (math.max(open, close) - low) > 0
+
+// ==================== SIGNAL DETECTION ====================
+
+// Bullish Signals
+bullishSignal = bullishPatterns and (bullishEngulfing or bullishHarami or bullishHammer) and volumeSpike and rsi < rsiOversold
+
+// Bearish Signals
+bearishSignal = bearishPatterns and (bearishEngulfing or bearishHarami or bearishShootingStar) and volumeSpike and rsi > rsiOverbought
+
+// Golden Pocket Signals
+gpBullish = showGoldenPocket and close <= gpLevel * 1.02 and close >= gpLevel * 0.98 and rsi < rsiOversold
+gpBearish = showGoldenPocket and close >= gpLevel * 0.98 and close <= gpLevel * 1.02 and rsi > rsiOverbought
+
+// ==================== PLOTTING ====================
+
+// Plot Moving Averages
+plot(showEMA ? ema : na, "EMA", color=color.blue, linewidth=2)
+plot(showVWAP ? vwap : na, "VWAP", color=color.purple, linewidth=2)
+
+// Plot Golden Pocket
+plot(showGoldenPocket ? gpLevel : na, "Golden Pocket", color=color.yellow, linewidth=2, style=plot.style_line)
+
+// Plot RSI
+rsiPlot = showRSI ? rsi : na
+plot(rsiPlot, "RSI", color=color.gray, display=display.none)
+
+// ==================== LABELS ====================
+
+// Bullish Pattern Labels
+if bullishSignal and showLabels
+    label.new(bar_index, high, "🟢 BULLISH\n" + (bullishEngulfing ? "Engulfing" : bullishHarami ? "Harami" : "Hammer"), 
+              color=color.green, style=label.style_label_down, textcolor=color.white, size=size.normal)
+
+// Bearish Pattern Labels
+if bearishSignal and showLabels
+    label.new(bar_index, low, "🔴 BEARISH\n" + (bearishEngulfing ? "Engulfing" : bearishHarami ? "Harami" : "Shooting Star"), 
+              color=color.red, style=label.style_label_up, textcolor=color.white, size=size.normal)
+
+// Golden Pocket Labels
+if gpBullish and showLabels
+    label.new(bar_index, low, "🎯 GP BULLISH", color=color.yellow, style=label.style_label_up, textcolor=color.black, size=size.normal)
+
+if gpBearish and showLabels
+    label.new(bar_index, high, "🎯 GP BEARISH", color=color.yellow, style=label.style_label_down, textcolor=color.black, size=size.normal)
+
+// ==================== ALERTS ====================
+
+if enableAlerts
+    if bullishSignal
+        alert("🟢 BULLISH PATTERN DETECTED: " + syminfo.ticker, alert.freq_once_per_bar)
+    
+    if bearishSignal
+        alert("🔴 BEARISH PATTERN DETECTED: " + syminfo.ticker, alert.freq_once_per_bar)
+    
+    if gpBullish
+        alert("🎯 GOLDEN POCKET BULLISH: " + syminfo.ticker, alert.freq_once_per_bar)
+    
+    if gpBearish
+        alert("🎯 GOLDEN POCKET BEARISH: " + syminfo.ticker, alert.freq_once_per_bar)
+
+// ==================== BACKGROUND COLORS ====================
+
+// Volume Spike Background
+bgcolor(volumeSpike and showVolumeSpikes ? color.new(color.blue, 90) : na, title="Volume Spike")
+
+// RSI Overbought/Oversold Background
+bgcolor(rsi > rsiOverbought and showRSI ? color.new(color.red, 95) : rsi < rsiOversold and showRSI ? color.new(color.green, 95) : na, title="RSI Background")
+
+// ==================== TABLE DISPLAY ====================
+
+if barstate.islast
+    var table infoTable = table.new(position.top_right, 2, 6, bgcolor=color.white, border_width=1)
+    
+    table.cell(infoTable, 0, 0, "RSI", text_color=color.black, bgcolor=color.gray)
+    table.cell(infoTable, 1, 0, str.tostring(rsi, "#.##"), text_color=color.black)
+    
+    table.cell(infoTable, 0, 1, "EMA", text_color=color.black, bgcolor=color.gray)
+    table.cell(infoTable, 1, 1, str.tostring(ema, "#.##"), text_color=color.black)
+    
+    table.cell(infoTable, 0, 2, "VWAP", text_color=color.black, bgcolor=color.gray)
+    table.cell(infoTable, 1, 2, str.tostring(vwap, "#.##"), text_color=color.black)
+    
+    table.cell(infoTable, 0, 3, "GP Level", text_color=color.black, bgcolor=color.gray)
+    table.cell(infoTable, 1, 3, str.tostring(gpLevel, "#.##"), text_color=color.black)
+    
+    table.cell(infoTable, 0, 4, "Vol Ratio", text_color=color.black, bgcolor=color.gray)
+    table.cell(infoTable, 1, 4, str.tostring(volume / avgVolume, "#.##"), text_color=color.black)
+    
+    table.cell(infoTable, 0, 5, "Price", text_color=color.black, bgcolor=color.gray)
+    table.cell(infoTable, 1, 5, str.tostring(close, "#.##"), text_color=color.black)

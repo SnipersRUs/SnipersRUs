@@ -1,0 +1,40 @@
+//@version=6
+indicator("Sniper Mini VWAP - Fixed", overlay=true)
+
+// === INPUTS ===
+show1h     = input.bool(true, "Show 1H VWAP")
+show4h     = input.bool(true, "Show 4H VWAP")
+show8h     = input.bool(true, "Show 8H VWAP")
+showDaily  = input.bool(true, "Show Daily VWAP")
+
+// === COLORS ===
+c1h    = color.green
+c4h    = color.orange
+c8h    = color.purple
+cDaily = color.red
+
+// === VWAP FUNCTION - FIXED ===
+f_vwap(tf) =>
+    // Use lookahead_off to prevent repainting and jumbly behavior
+    vwap_val = request.security(syminfo.tickerid, tf, ta.vwap, lookahead=barmerge.lookahead_off)
+    vwap_val
+
+// === VWAPs ===
+vwap1h    = show1h    ? f_vwap("60")   : na
+vwap4h    = show4h    ? f_vwap("240")  : na
+vwap8h    = show8h    ? f_vwap("480")  : na
+vwapDaily = showDaily ? f_vwap("D")    : na
+
+// === PLOTS ===
+plot(vwap1h,    color=c1h,    title="1H VWAP",     linewidth=2, style=plot.style_line)
+plot(vwap4h,    color=c4h,    title="4H VWAP",     linewidth=2, style=plot.style_line)
+plot(vwap8h,    color=c8h,    title="8H VWAP",     linewidth=2, style=plot.style_line)
+plot(vwapDaily, color=cDaily, title="Daily VWAP", linewidth=2, style=plot.style_line)
+
+
+
+
+
+
+
+

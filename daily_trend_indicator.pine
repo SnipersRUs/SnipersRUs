@@ -1,0 +1,577 @@
+//@version=6
+indicator("Cloudfare", "CLOUDFARE", overlay=true, max_labels_count=500)
+
+// ============================================================================
+// INPUT PARAMETERS
+// ============================================================================
+ma_fast = input.int(20, "Fast MA", minval=5, maxval=50)
+ma_medium = input.int(50, "Medium MA", minval=20, maxval=100)
+ma_slow = input.int(200, "Slow MA", minval=100, maxval=300)
+confirmation_days = input.int(5, "Confirmation Days", minval=3, maxval=10)
+volume_threshold = input.float(1.2, "Volume Threshold", minval=1.0, maxval=2.0)
+atr_multiplier = input.float(1.5, "ATR Multiplier", minval=1.0, maxval=3.0)
+
+// ============================================================================
+// DYNAMIC CLOUD PARAMETERS
+// ============================================================================
+cloud_sensitivity = input.float(1.2, "Cloud Sensitivity", minval=0.3, maxval=3.0)
+volume_cloud_multiplier = input.float(0.8, "Volume Cloud Multiplier", minval=0.3, maxval=2.0)
+money_flow_period = input.int(14, "Money Flow Period", minval=5, maxval=50)
+order_flow_period = input.int(21, "Order Flow Period", minval=10, maxval=100)
+cloud_base_multiplier = input.float(0.6, "Cloud Base Size", minval=0.2, maxval=1.5)
+
+// ============================================================================
+// VWAP SETTINGS - OPTIMIZED VWAPs
+// ============================================================================
+show_1h_vwap = input.bool(false, "Show 1-Hour Anchored VWAP")
+show_2h_vwap = input.bool(false, "Show 2-Hour Anchored VWAP")
+show_6h_vwap = input.bool(false, "Show 6-Hour Anchored VWAP")
+show_4d_vwap = input.bool(true, "Show 4D VWAP")
+show_9d_vwap = input.bool(false, "Show 9-Day VWAP")
+show_weekly_vwap = input.bool(true, "Show Weekly VWAP")
+show_monthly_vwap = input.bool(false, "Show Monthly VWAP")
+show_yearly_vwap = input.bool(false, "Show Yearly VWAP")
+show_deviation_bands = input.bool(false, "Show Floating VWAP Deviation Bands")
+show_session_boxes = input.bool(false, "Show Asian Session Boxes")
+show_reversal_zones = input.bool(false, "Show Reversal Zones")
+// Removed VWAP stack signals input as they are not working
+
+// ============================================================================
+// COLOR SETTINGS
+// ============================================================================
+cloud_bull_color = input.color(#00FF00, "Cloud Bull Color")
+cloud_bear_color = input.color(#FF0000, "Cloud Bear Color")
+vwap_1h_color = input.color(#00FF00, "1H VWAP Color (Lime)")
+vwap_2h_color = input.color(#FF00FF, "2H VWAP Color (Pink)")
+vwap_6h_color = input.color(#FFFF00, "6H VWAP Color (Yellow)")
+vwap_4d_color = input.color(#00FFFF, "4D VWAP Color (Neon Blue)")
+vwap_9d_color = input.color(#0000FF, "9D VWAP Color (Blue)")
+vwap_weekly_color = input.color(#FFA500, "Weekly VWAP Color (Orange)")
+vwap_monthly_color = input.color(#FF00FF, "Monthly VWAP Color (Hot Pink)")
+vwap_yearly_color = input.color(#FFFFFF, "Yearly VWAP Color (White)")
+deviation_1_color = input.color(#808080, "1σ Deviation Color (Gray)")
+deviation_2_color = input.color(#FF0000, "2σ Deviation Color (Red)")
+session_box_color = input.color(#0000FF, "Session Box Color")
+
+// ============================================================================
+// SIGNAL SETTINGS
+// ============================================================================
+show_bull_confirm = input.bool(true, "Show Bull Confirmations")
+show_bear_confirm = input.bool(true, "Show Bear Confirmations")
+show_pre_bull = input.bool(true, "Show Pre-Bull Signals")
+show_pre_bear = input.bool(true, "Show Pre-Bear Signals")
+show_trend_line = input.bool(true, "Show Trend Line")
+show_dynamic_cloud = input.bool(true, "Show Dynamic Cloud")
+show_reversal_signals = input.bool(true, "Show Reversal Signals")
+
+// ============================================================================
+// CALCULATIONS
+// ============================================================================
+// Moving Averages
+ma20 = ta.sma(close, ma_fast)
+ma50 = ta.sma(close, ma_medium)
+ma200 = ta.sma(close, ma_slow)
+
+// Volume and ATR
+avg_volume = ta.sma(volume, 20)
+atr = ta.atr(14)
+volume_ok = volume > avg_volume * volume_threshold
+move_significant = math.abs(close - close[1]) > atr * atr_multiplier
+
+// ============================================================================
+// MONEY FLOW & ORDER FLOW CALCULATIONS
+// ============================================================================
+// Money Flow Index (MFI)
+mfi = ta.mfi(close, money_flow_period)
+money_flow_strength = (mfi - 50) / 50  // Normalize to -1 to 1
+
+// On Balance Volume (OBV) for order flow
+obv = ta.obv
+obv_change = obv - obv[1]
+obv_strength = ta.sma(obv_change, order_flow_period)
+
+// ============================================================================
+// VWAP CALCULATIONS - ALL VWAPs RESTORED
+// ============================================================================
+// Standard VWAP
+vwap = ta.vwap(hlc3)
+
+// Floating VWAP with Rolling Period
+vwap_period = input.int(20, "Floating VWAP Period", minval=5, maxval=100)
+
+// Calculate rolling VWAP using sum functions
+vwap_floating = ta.sma(hlc3, vwap_period)
+
+// Calculate rolling VWAP variance
+vwap_floating_variance = ta.sma(hlc3 * hlc3, vwap_period) - (vwap_floating * vwap_floating)
+vwap_floating_std = math.sqrt(math.max(vwap_floating_variance, 0))
+
+// Floating VWAP Deviation Bands
+vwap_floating_upper_1 = vwap_floating + vwap_floating_std
+vwap_floating_upper_2 = vwap_floating + (vwap_floating_std * 2)
+vwap_floating_lower_1 = vwap_floating - vwap_floating_std
+vwap_floating_lower_2 = vwap_floating - (vwap_floating_std * 2)
+
+// 1 Hour Anchored VWAP (resets every hour)
+is_new_1h = ta.change(time("60")) != 0
+var float vwap_1h_sum = 0.0
+var float vwap_1h_vol = 0.0
+if is_new_1h
+    vwap_1h_sum := hlc3 * volume
+    vwap_1h_vol := volume
+else
+    vwap_1h_sum += hlc3 * volume
+    vwap_1h_vol += volume
+vwap_1h = vwap_1h_vol > 0 ? vwap_1h_sum / vwap_1h_vol : na
+
+// 2 Hour Anchored VWAP (resets every 2 hours)
+is_new_2h = ta.change(time("120")) != 0
+var float vwap_2h_sum = 0.0
+var float vwap_2h_vol = 0.0
+if is_new_2h
+    vwap_2h_sum := hlc3 * volume
+    vwap_2h_vol := volume
+else
+    vwap_2h_sum += hlc3 * volume
+    vwap_2h_vol += volume
+vwap_2h = vwap_2h_vol > 0 ? vwap_2h_sum / vwap_2h_vol : na
+
+// 6 Hour Anchored VWAP (resets every 6 hours)
+is_new_6h = ta.change(time("360")) != 0
+var float vwap_6h_sum = 0.0
+var float vwap_6h_vol = 0.0
+if is_new_6h
+    vwap_6h_sum := hlc3 * volume
+    vwap_6h_vol := volume
+else
+    vwap_6h_sum += hlc3 * volume
+    vwap_6h_vol += volume
+vwap_6h = vwap_6h_vol > 0 ? vwap_6h_sum / vwap_6h_vol : na
+
+// Removed 3D VWAP as requested
+
+// Removed 4H and 3D VWAPs as they are redundant
+
+// 4 Day Anchored VWAP (resets every 4 days)
+is_new_4d = ta.change(time("4D")) != 0
+var float vwap_4d_sum = 0.0
+var float vwap_4d_vol = 0.0
+if is_new_4d
+    vwap_4d_sum := hlc3 * volume
+    vwap_4d_vol := volume
+else
+    vwap_4d_sum += hlc3 * volume
+    vwap_4d_vol += volume
+vwap_4d = vwap_4d_vol > 0 ? vwap_4d_sum / vwap_4d_vol : na
+
+// 9 Day Anchored VWAP (resets every 9 days) with reversal zones
+is_new_9d = ta.change(time("9D")) != 0
+var float vwap_9d_sum = 0.0
+var float vwap_9d_vol = 0.0
+if is_new_9d
+    vwap_9d_sum := hlc3 * volume
+    vwap_9d_vol := volume
+else
+    vwap_9d_sum += hlc3 * volume
+    vwap_9d_vol += volume
+vwap_9d = vwap_9d_vol > 0 ? vwap_9d_sum / vwap_9d_vol : na
+
+// 9-Day VWAP Standard Deviation Bands for Reversal Zones
+// Use the same VWAP calculation as the main VWAP
+vwap_9d_calc = vwap_9d
+
+// Calculate standard deviation for reversal zones
+length_9d = 9
+src_9d = hlc3
+sum_src_9d = 0.0
+sum_vol_9d = 0.0
+sum_src_sq_9d = 0.0
+
+for i = 0 to length_9d - 1
+    price_9d = src_9d[i]
+    vol_9d = volume[i]
+    sum_src_9d += price_9d * vol_9d
+    sum_vol_9d += vol_9d
+    sum_src_sq_9d += price_9d * price_9d * vol_9d
+
+// Declare std_dev_9d outside the if block
+var float std_dev_9d = 0.0
+if sum_vol_9d > 0
+    vwap_9d_calc := sum_src_9d / sum_vol_9d
+    variance_9d = (sum_src_sq_9d / sum_vol_9d) - (vwap_9d_calc * vwap_9d_calc)
+    std_dev_9d := math.sqrt(math.max(variance_9d, 0))
+else
+    std_dev_9d := 0.0
+
+// Reversal zones (2 standard deviations)
+vwap_9d_upper_reversal = vwap_9d_calc + (std_dev_9d * 2.0)
+vwap_9d_lower_reversal = vwap_9d_calc - (std_dev_9d * 2.0)
+
+// Reversal zone detection
+in_upper_reversal_zone = close > vwap_9d_upper_reversal
+in_lower_reversal_zone = close < vwap_9d_lower_reversal
+
+// Weekly Anchored VWAP (resets every week)
+is_new_week = ta.change(time("1W")) != 0
+var float vwap_weekly_sum = 0.0
+var float vwap_weekly_vol = 0.0
+if is_new_week
+    vwap_weekly_sum := hlc3 * volume
+    vwap_weekly_vol := volume
+else
+    vwap_weekly_sum += hlc3 * volume
+    vwap_weekly_vol += volume
+vwap_weekly = vwap_weekly_vol > 0 ? vwap_weekly_sum / vwap_weekly_vol : na
+
+// Monthly Anchored VWAP (resets every month)
+is_new_month = ta.change(time("1M")) != 0
+var float vwap_monthly_sum = 0.0
+var float vwap_monthly_vol = 0.0
+if is_new_month
+    vwap_monthly_sum := hlc3 * volume
+    vwap_monthly_vol := volume
+else
+    vwap_monthly_sum += hlc3 * volume
+    vwap_monthly_vol += volume
+vwap_monthly = vwap_monthly_vol > 0 ? vwap_monthly_sum / vwap_monthly_vol : na
+
+// Yearly Anchored VWAP (resets every year)
+is_new_year = ta.change(time("12M")) != 0
+var float vwap_yearly_sum = 0.0
+var float vwap_yearly_vol = 0.0
+if is_new_year
+    vwap_yearly_sum := hlc3 * volume
+    vwap_yearly_vol := volume
+else
+    vwap_yearly_sum += hlc3 * volume
+    vwap_yearly_vol += volume
+vwap_yearly = vwap_yearly_vol > 0 ? vwap_yearly_sum / vwap_yearly_vol : na
+
+// ============================================================================
+// SESSION BOX CALCULATIONS (TRANSPARENT LIKE ORIGINAL)
+// ============================================================================
+// Asian session times (UTC+8, 00:00-12:00 UTC)
+is_asian_session = hour >= 0 and hour < 12
+asian_session_start = is_asian_session and not is_asian_session[1]
+asian_session_end = not is_asian_session and is_asian_session[1]
+
+// Track Asian session high/low
+var float asian_high = na
+var float asian_low = na
+var int asian_start_bar = na
+
+if asian_session_start
+    asian_high := high
+    asian_low := low
+    asian_start_bar := bar_index
+else if is_asian_session
+    asian_high := math.max(asian_high, high)
+    asian_low := math.min(asian_low, low)
+
+// Removed liquidity flush detection as requested
+
+// ============================================================================
+// TREND SCORING SYSTEM (0-10 scale)
+// ============================================================================
+score = 0.0
+
+// Price vs Moving Averages (5 points)
+if close > ma200
+    score += 3
+if close > ma50
+    score += 2
+
+// MA Relationship (2 points)
+if ma50 > ma200
+    score += 2
+
+// Momentum (2 points)
+if ma20 > ma20[1]
+    score += 1
+if close > close[1]
+    score += 1
+
+// Pattern Recognition (1 point)
+if close > close[5] and close[1] > close[6]
+    score += 1
+
+// ============================================================================
+// TREND CLASSIFICATION
+// ============================================================================
+trend_strength = switch
+    score >= 8 => "Strong Bull"
+    score >= 6 => "Bull Market"
+    score >= 4 => "Neutral"
+    score >= 2 => "Bear Market"
+    => "Strong Bear"
+
+trend_color = switch
+    score >= 8 => color.new(color.green, 0)
+    score >= 6 => color.new(color.lime, 20)
+    score >= 4 => color.new(color.yellow, 40)
+    score >= 2 => color.new(color.orange, 20)
+    => color.new(color.red, 0)
+
+// ============================================================================
+// TREND CHANGE DETECTION
+// ============================================================================
+// Bull signal: score crosses above 6
+bull_signal = score > 6 and score[1] <= 6 and volume_ok and move_significant
+// Bear signal: score drops below 4
+bear_signal = score < 4 and score[1] >= 4 and volume_ok and move_significant
+
+// Confirmation tracking
+var int bull_confirmation = 0
+var int bear_confirmation = 0
+var bool confirmed_bull = false
+var bool confirmed_bear = false
+
+// Update confirmation counters
+if bull_signal
+    bull_confirmation := 1
+    bear_confirmation := 0
+    confirmed_bear := false
+else if bear_signal
+    bear_confirmation := 1
+    bull_confirmation := 0
+    confirmed_bull := false
+else
+    if bull_confirmation > 0 and score > 6
+        bull_confirmation += 1
+        if bull_confirmation >= confirmation_days
+            confirmed_bull := true
+    else if bear_confirmation > 0 and score < 4
+        bear_confirmation += 1
+        if bear_confirmation >= confirmation_days
+            confirmed_bear := true
+    else
+        bull_confirmation := 0
+        bear_confirmation := 0
+
+// ============================================================================
+// TREND LINE CALCULATION
+// ============================================================================
+trend_line = switch
+    score >= 6 => ma50
+    score <= 4 => ma50
+    => na
+
+// ============================================================================
+// ENHANCED PRE-CONFIRM DETECTION (RESTORED ORIGINAL LOGIC)
+// ============================================================================
+// RSI for momentum confirmation
+rsi = ta.rsi(close, 14)
+rsi_oversold = rsi < 30
+rsi_overbought = rsi > 70
+
+// Strong MA bounces with additional confirmation
+ma50_strong_bull = close > ma50 and close[1] <= ma50 and close > close[1] and volume_ok and rsi_oversold
+ma50_strong_bear = close < ma50 and close[1] >= ma50 and close < close[1] and volume_ok and rsi_overbought
+
+// 200 MA bounces (major support/resistance)
+ma200_strong_bull = close > ma200 and close[1] <= ma200 and close > close[1] and volume_ok and close > close[5]
+ma200_strong_bear = close < ma200 and close[1] >= ma200 and close < close[1] and volume_ok and close < close[5]
+
+// Trend line bounces
+trend_bounce_bull = close > trend_line and close[1] <= trend_line and close > close[1] and volume_ok and score > 4
+trend_bounce_bear = close < trend_line and close[1] >= trend_line and close < close[1] and volume_ok and score < 6
+
+// Combined pre-confirm signals
+var bool pre_bull_signal = false
+var bool pre_bear_signal = false
+
+pre_bull_signal := (ma50_strong_bull or ma200_strong_bull or trend_bounce_bull) and not pre_bull_signal[1]
+pre_bear_signal := (ma50_strong_bear or ma200_strong_bear or trend_bounce_bear) and not pre_bear_signal[1]
+
+// ============================================================================
+// VWAP STACK SIGNALS (RESTORED)
+// ============================================================================
+// VWAP stack analysis for optimal entries
+vwap_stack_bull = close > vwap_1h and close > vwap_2h and close > vwap_6h and close > vwap_4d and close > vwap_weekly and close > vwap_monthly and close > vwap_yearly
+vwap_stack_bear = close < vwap_1h and close < vwap_2h and close < vwap_6h and close < vwap_4d and close < vwap_weekly and close < vwap_monthly and close < vwap_yearly
+
+// Volume divergence detection
+volume_surge = volume > avg_volume * 1.5
+volume_divergence_bull = close > close[5] and volume < avg_volume * 0.8
+volume_divergence_bear = close < close[5] and volume < avg_volume * 0.8
+
+// Major pivot detection
+major_pivot_bull = close > ta.highest(high, 10) and close > close[3]
+major_pivot_bear = close < ta.lowest(low, 10) and close < close[3]
+
+// RSI confirmation (using existing variables from earlier)
+rsi_divergence_bull = close > close[5] and rsi > rsi[5]
+rsi_divergence_bear = close < close[5] and rsi < rsi[5]
+
+// Removed HH/LL signals as they are not working properly
+
+// Additional reversal patterns with toggle
+reversal_bull = show_reversal_signals and close > open and close > close[1] and volume > avg_volume * 1.5 and rsi < 40
+reversal_bear = show_reversal_signals and close < open and close < close[1] and volume > avg_volume * 1.5 and rsi > 60
+
+// Removed reversal zone candle detection as candle coloring is not working
+
+// Removed debug plots to unclutter the code
+
+// ============================================================================
+// DYNAMIC CLOUD CALCULATION
+// ============================================================================
+cloud_base_size = atr * cloud_base_multiplier
+
+// Breathing effect
+breathing_factor = 1 + math.sin(bar_index * 0.1) * 0.2
+
+// Volume and money flow expansion
+volume_ratio = volume / avg_volume
+volume_expansion = (volume_ratio - 1) * volume_cloud_multiplier * 0.5
+money_flow_expansion = math.abs(money_flow_strength) * cloud_sensitivity * 0.3
+order_flow_expansion = math.abs(obv_strength) / 2000000
+
+// ============================================================================
+// LIQUIDITY FLUSH DETECTION (ENHANCED & RECOGNIZABLE)
+// ============================================================================
+// Detect massive volume spikes and price movements
+volume_spike = volume > avg_volume * 3.0  // 3x average volume
+price_spike = math.abs(close - close[1]) > atr * 2.0  // 2x ATR move
+
+// Detect liquidity sweeps (price taking out recent highs/lows)
+liquidity_sweep_up = high > ta.highest(high, 20) and volume_spike
+liquidity_sweep_down = low < ta.lowest(low, 20) and volume_spike
+
+// Detect stop hunts (quick reversals after liquidity sweeps)
+stop_hunt_up = liquidity_sweep_up and close < close[1] and close < close[2]
+stop_hunt_down = liquidity_sweep_down and close > close[1] and close > close[2]
+
+// Combined liquidity flush detection
+liquidity_flush_bull = liquidity_sweep_up or stop_hunt_up
+liquidity_flush_bear = liquidity_sweep_down or stop_hunt_down
+
+// Liquidity flush expansion (MORE RECOGNIZABLE)
+liquidity_expansion = (liquidity_flush_bull or liquidity_flush_bear) ? 3.0 : 0.0  // Increased from 2.0 to 3.0
+liquidity_cloud_expansion = liquidity_expansion
+
+// Combined expansion (INCLUDING liquidity expansion for recognition)
+total_expansion = breathing_factor + (volume_expansion + money_flow_expansion + order_flow_expansion + liquidity_cloud_expansion) / 4
+
+// Dynamic cloud boundaries
+cloud_upper = trend_line + (cloud_base_size * total_expansion)
+cloud_lower = trend_line - (cloud_base_size * total_expansion)
+
+// Dynamic cloud color (WITH LIQUIDITY FLUSH RECOGNITION)
+cloud_color = if liquidity_flush_bull or liquidity_flush_bear
+    color.new(color.yellow, 30)  // BRIGHT YELLOW for liquidity flushes (MORE RECOGNIZABLE)
+else if money_flow_strength > 0
+    if money_flow_strength > 0.5
+        color.new(color.green, 85)  // Bright green for strong bull
+    else
+        color.new(color.lime, 85)   // Darker green for weak bull
+else if money_flow_strength < 0
+    if money_flow_strength < -0.5
+        color.new(color.red, 85)   // Bright red for strong bear
+    else
+        color.new(color.maroon, 85) // Darker red for weak bear
+else
+    color.new(color.gray, 85)      // Gray for neutral
+
+// ============================================================================
+// VISUAL OUTPUT
+// ============================================================================
+// Flags for official confirmations
+if show_bull_confirm and confirmed_bull and not confirmed_bull[1]
+    label.new(bar_index, low, "🏳️", color=na, textcolor=color.white,
+              style=label.style_label_up, size=size.normal, yloc=yloc.belowbar)
+
+if show_bear_confirm and confirmed_bear and not confirmed_bear[1]
+    label.new(bar_index, high, "🏳️", color=na, textcolor=color.purple,
+              style=label.style_label_down, size=size.normal)
+
+// Arrows for pre-confirm signals
+if show_pre_bull and pre_bull_signal
+    label.new(bar_index, low, "▲", color=na, textcolor=color.orange,
+              style=label.style_label_up, size=size.small)
+
+if show_pre_bear and pre_bear_signal
+    label.new(bar_index, high, "▼", color=na, textcolor=color.orange,
+              style=label.style_label_down, size=size.small)
+
+// ============================================================================
+// PLOT ALL ELEMENTS
+// ============================================================================
+// Plot trend line
+plot(show_trend_line ? trend_line : na, "Trend Line", color=trend_color, linewidth=3)
+
+// Plot optimized VWAPs (Cross lines and thin lines)
+plot(show_1h_vwap ? vwap_1h : na, "1H VWAP", color=vwap_1h_color, linewidth=1, style=plot.style_cross)
+plot(show_2h_vwap ? vwap_2h : na, "2H VWAP", color=vwap_2h_color, linewidth=1, style=plot.style_cross)
+plot(show_6h_vwap ? vwap_6h : na, "6H VWAP", color=vwap_6h_color, linewidth=1, style=plot.style_cross)
+plot(show_4d_vwap ? vwap_4d : na, "4D VWAP", color=vwap_4d_color, linewidth=1, style=plot.style_cross)
+plot(show_9d_vwap ? vwap_9d : na, "9D VWAP", color=vwap_9d_color, linewidth=1, style=plot.style_cross)
+plot(show_weekly_vwap ? vwap_weekly : na, "Weekly VWAP", color=vwap_weekly_color, linewidth=1, style=plot.style_cross)
+plot(show_monthly_vwap ? vwap_monthly : na, "Monthly VWAP", color=vwap_monthly_color, linewidth=1, style=plot.style_cross)
+plot(show_yearly_vwap ? vwap_yearly : na, "Yearly VWAP", color=vwap_yearly_color, linewidth=1, style=plot.style_cross)
+
+// Plot Floating VWAP Deviation Bands
+plot(show_deviation_bands ? vwap_floating : na, "Floating VWAP", color=color.white, linewidth=2, style=plot.style_line)
+plot(show_deviation_bands ? vwap_floating_upper_2 : na, "Floating VWAP +2σ", color=deviation_2_color, linewidth=1, style=plot.style_line)
+plot(show_deviation_bands ? vwap_floating_upper_1 : na, "Floating VWAP +1σ", color=deviation_1_color, linewidth=1, style=plot.style_line)
+plot(show_deviation_bands ? vwap_floating_lower_1 : na, "Floating VWAP -1σ", color=deviation_1_color, linewidth=1, style=plot.style_line)
+plot(show_deviation_bands ? vwap_floating_lower_2 : na, "Floating VWAP -2σ", color=deviation_2_color, linewidth=1, style=plot.style_line)
+
+// Plot reversal zones (NEON COLORS - MORE VIBRANT)
+p_upper_reversal = plot(show_reversal_zones ? vwap_9d_upper_reversal : na, "Upper Reversal Zone", color=color.new(color.fuchsia, 40), linewidth=2, style=plot.style_circles)
+p_lower_reversal = plot(show_reversal_zones ? vwap_9d_lower_reversal : na, "Lower Reversal Zone", color=color.new(color.lime, 40), linewidth=2, style=plot.style_circles)
+
+// Removed HH/LL signal plots as they are not working
+
+// Plot Reversal Signals (with toggles)
+plotshape(reversal_bull, "Reversal Bull Signal", shape.diamond, location.belowbar, color.lime, size=size.tiny)
+plotshape(reversal_bear, "Reversal Bear Signal", shape.diamond, location.abovebar, color.maroon, size=size.tiny)
+
+// Removed liquidity flush signals as they are not working
+
+// Removed VWAP stack signals as they are not working
+
+// Plot dynamic cloud boundaries
+cloud_upper_plot = plot(show_dynamic_cloud ? cloud_upper : na, "Cloud Upper", color=cloud_color, linewidth=1)
+cloud_lower_plot = plot(show_dynamic_cloud ? cloud_lower : na, "Cloud Lower", color=cloud_color, linewidth=1)
+
+// Fill the cloud area
+fill(cloud_upper_plot, cloud_lower_plot, color=show_dynamic_cloud ? cloud_color : na, title="Dynamic Cloud")
+
+// ============================================================================
+// SESSION BOXES (TRANSPARENT LIKE ORIGINAL)
+// ============================================================================
+// Draw Asian session boxes with transparency
+if show_session_boxes and asian_session_end and not na(asian_high) and not na(asian_low)
+    box.new(asian_start_bar, asian_high, bar_index, asian_low, border_color=color.new(session_box_color, 70), bgcolor=color.new(session_box_color, 90), border_width=1, extend=extend.none)
+
+// Removed candle color overlay as it is not working properly
+
+// ============================================================================
+// ALERTS
+// ============================================================================
+alertcondition(confirmed_bull, "Bull Confirmation", "🟢 BULL CONFIRMED")
+alertcondition(confirmed_bear, "Bear Confirmation", "🔴 BEAR CONFIRMED")
+// Removed HH/LL and VWAP stack alerts as they are not working
+alertcondition(reversal_bull, "Reversal Bull Signal", "💎 REVERSAL BULL SIGNAL")
+alertcondition(reversal_bear, "Reversal Bear Signal", "💎 REVERSAL BEAR SIGNAL")
+// Removed liquidity flush alerts as they are not working
+// Removed 3D VWAP alerts as requested
+alertcondition(ta.crossover(ma50, ma200), "Golden Cross", "🌟 GOLDEN CROSS")
+alertcondition(ta.crossunder(ma50, ma200), "Death Cross", "💀 DEATH CROSS")
+
+// 2H and 6H VWAP Alerts
+alertcondition(ta.crossover(close, vwap_2h), "2H VWAP Break Above", "📈 2H VWAP BREAK ABOVE")
+alertcondition(ta.crossunder(close, vwap_2h), "2H VWAP Break Below", "📉 2H VWAP BREAK BELOW")
+alertcondition(ta.crossover(close, vwap_6h), "6H VWAP Break Above", "📈 6H VWAP BREAK ABOVE")
+alertcondition(ta.crossunder(close, vwap_6h), "6H VWAP Break Below", "📉 6H VWAP BREAK BELOW")
+
+// Floating VWAP Deviation Band Alerts
+alertcondition(ta.crossover(close, vwap_floating_upper_2), "Floating VWAP +2σ Break Above", "🚀 FLOATING VWAP +2σ BREAK ABOVE - EXTREME OVERBOUGHT")
+alertcondition(ta.crossunder(close, vwap_floating_upper_2), "Floating VWAP +2σ Break Below", "📉 FLOATING VWAP +2σ BREAK BELOW - RETURNING TO NORMAL")
+alertcondition(ta.crossover(close, vwap_floating_lower_2), "Floating VWAP -2σ Break Above", "📈 FLOATING VWAP -2σ BREAK ABOVE - RETURNING TO NORMAL")
+alertcondition(ta.crossunder(close, vwap_floating_lower_2), "Floating VWAP -2σ Break Below", "🚨 FLOATING VWAP -2σ BREAK BELOW - EXTREME OVERSOLD")
+alertcondition(ta.crossover(close, vwap_floating_upper_1), "Floating VWAP +1σ Break Above", "📈 FLOATING VWAP +1σ BREAK ABOVE - STRONG BULLISH")
+alertcondition(ta.crossunder(close, vwap_floating_lower_1), "Floating VWAP -1σ Break Below", "📉 FLOATING VWAP -1σ BREAK BELOW - STRONG BEARISH")
+alertcondition(ta.crossover(close, vwap_floating), "Floating VWAP Break Above", "📈 FLOATING VWAP BREAK ABOVE - BULLISH BIAS")
+alertcondition(ta.crossunder(close, vwap_floating), "Floating VWAP Break Below", "📉 FLOATING VWAP BREAK BELOW - BEARISH BIAS")

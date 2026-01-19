@@ -1,0 +1,229 @@
+//@version=6
+indicator("Spot Flow", overlay=true, max_labels_count=500)
+
+// ========================================
+// SPOT BUY/SELL SIGNALS FOR FUTURES
+// ========================================
+// Correlates heavy spot buying/selling with price action
+// Generates LONG/SHORT signals for futures trading
+// ========================================
+
+// === INPUT GROUPS ===
+grpDetection = "🔍 Detection Settings"
+grpSignals = "⚡ Trading Signals"
+grpDisplay = "📊 Display Settings"
+grpColors = "🎨 Colors"
+
+// === DETECTION SETTINGS ===
+volumeLookback = input.int(20, "Volume Lookback", minval=5, maxval=100, group=grpDetection, tooltip="Bars to analyze for volume patterns")
+volumeThreshold = input.float(3.5, "Volume Spike Threshold", minval=3.0, maxval=10.0, step=0.5, group=grpDetection, tooltip="Volume must be X times average (HEAVY BUYS/SELLS ONLY)")
+minVolumeRatio = input.float(3.0, "Min Volume Ratio", minval=2.5, maxval=8.0, step=0.5, group=grpDetection, tooltip="Minimum volume ratio to trigger signals")
+
+// === SIGNAL SETTINGS ===
+priceLookback = input.int(10, "Price Trend Lookback", minval=5, maxval=50, group=grpSignals, tooltip="Bars to check for price trend")
+priceDropThreshold = input.float(-0.5, "Price Drop % for Long Signal", minval=-5.0, maxval=0.0, step=0.1, group=grpSignals, tooltip="Price must drop this % for accumulation long signal")
+priceRiseThreshold = input.float(0.5, "Price Rise % for Short Signal", minval=0.0, maxval=5.0, step=0.1, group=grpSignals, tooltip="Price must rise this % for distribution short signal")
+minBuyPressure = input.float(65.0, "Min Buy Pressure for Long", minval=50.0, maxval=90.0, step=1.0, group=grpSignals, tooltip="Minimum buy pressure to trigger long signal")
+minSellPressure = input.float(65.0, "Min Sell Pressure for Short", minval=50.0, maxval=90.0, step=1.0, group=grpSignals, tooltip="Minimum sell pressure to trigger short signal")
+showDivergenceSignals = input.bool(true, "Show Divergence Signals", group=grpSignals, tooltip="Price down + heavy buying = LONG, Price up + heavy selling = SHORT")
+showContinuationSignals = input.bool(true, "Show Continuation Signals", group=grpSignals, tooltip="Price up + heavy buying = LONG, Price down + heavy selling = SHORT")
+
+// === DISPLAY SETTINGS ===
+showMarkers = input.bool(true, "Show Signal Markers", group=grpDisplay)
+showHeavyBackground = input.bool(true, "Show Heavy Activity Background", group=grpDisplay, tooltip="Highlight bars with heavy buying/selling")
+circleSize = input.string("Tiny", "Circle Size", options=["Tiny", "Small", "Normal"], group=grpDisplay)
+
+// === COLORS ===
+longSignalColor = input.color(color.new(color.lime, 0), "Long Signal", group=grpColors)
+shortSignalColor = input.color(color.new(color.red, 0), "Short Signal", group=grpColors)
+heavyBuyColor = input.color(color.new(color.aqua, 30), "Heavy Buy Background", group=grpColors)
+heavySellColor = input.color(color.new(color.orange, 30), "Heavy Sell Background", group=grpColors)
+
+// === CALCULATIONS ===
+
+// Calculate volume ratio
+avgVolume = ta.sma(volume, volumeLookback)
+volumeRatio = volume / math.max(avgVolume, 1)
+volumeSpike = volumeRatio >= volumeThreshold
+
+// Calculate buy pressure (0-100)
+calcBuyPressure() =>
+    priceChange = (close - open) / open * 100
+    bodySize = math.abs(close - open)
+    upperWick = high - math.max(close, open)
+    lowerWick = math.min(close, open) - low
+    totalRange = high - low
+
+    buyScore = 0.0
+
+    // Only count if volume spike is significant
+    if volumeSpike and volumeRatio >= minVolumeRatio
+        // Base score for volume spike
+        buyScore := 30.0
+
+        // Price action favors buying
+        if close > open
+            buyScore += 25.0
+        if priceChange > 0.2
+            buyScore += 20.0
+
+        // Absorption pattern (high volume, minimal price movement)
+        if totalRange > 0
+            bodyRatio = bodySize / totalRange
+            if bodyRatio < 0.3 and volumeRatio >= 4.0  // Small body, huge volume = absorption
+                buyScore += 25.0
+            if lowerWick > upperWick * 2  // Strong rejection of lows
+                buyScore += 15.0
+
+    math.max(0, math.min(100, buyScore))
+
+// Calculate sell pressure (0-100)
+calcSellPressure() =>
+    priceChange = (close - open) / open * 100
+    bodySize = math.abs(close - open)
+    upperWick = high - math.max(close, open)
+    lowerWick = math.min(close, open) - low
+    totalRange = high - low
+
+    sellScore = 0.0
+
+    // Only count if volume spike is significant
+    if volumeSpike and volumeRatio >= minVolumeRatio
+        // Base score for volume spike
+        sellScore := 30.0
+
+        // Price action favors selling
+        if close < open
+            sellScore += 25.0
+        if priceChange < -0.2
+            sellScore += 20.0
+
+        // Distribution pattern (high volume, minimal price movement)
+        if totalRange > 0
+            bodyRatio = bodySize / totalRange
+            if bodyRatio < 0.3 and volumeRatio >= 4.0  // Small body, huge volume = distribution
+                sellScore += 25.0
+            if upperWick > lowerWick * 2  // Strong rejection of highs
+                sellScore += 15.0
+
+    math.max(0, math.min(100, sellScore))
+
+// Get buy and sell pressures
+buyPressure = calcBuyPressure()
+sellPressure = calcSellPressure()
+
+// Calculate price trend
+priceTrend = ta.change(close, priceLookback) / close[priceLookback] * 100
+
+// Determine if this is a significant event
+isHeavyBuy = buyPressure >= minBuyPressure and volumeRatio >= minVolumeRatio
+isHeavySell = sellPressure >= minSellPressure and volumeRatio >= minVolumeRatio
+
+// === SIGNAL LOGIC ===
+
+// LONG SIGNALS:
+// 1. Divergence: Price dropping + heavy spot buying = accumulation (BEST SIGNAL)
+longDivergence = showDivergenceSignals and priceTrend < priceDropThreshold and isHeavyBuy
+
+// 2. Continuation: Price rising + heavy spot buying = strong momentum
+longContinuation = showContinuationSignals and priceTrend > 0.3 and isHeavyBuy and not longDivergence
+
+// Combined long signal
+longSignal = longDivergence or longContinuation
+
+// SHORT SIGNALS:
+// 1. Divergence: Price rising + heavy spot selling = distribution (BEST SIGNAL)
+shortDivergence = showDivergenceSignals and priceTrend > priceRiseThreshold and isHeavySell
+
+// 2. Continuation: Price dropping + heavy spot selling = strong down momentum
+shortContinuation = showContinuationSignals and priceTrend < -0.3 and isHeavySell and not shortDivergence
+
+// Combined short signal
+shortSignal = shortDivergence or shortContinuation
+
+// === VISUALIZATION ===
+
+// Background colors for heavy activity (no signal backgrounds)
+bgcolor(showHeavyBackground and isHeavyBuy and not longSignal and not shortSignal ? heavyBuyColor : na, title="Heavy Buy")
+bgcolor(showHeavyBackground and isHeavySell and not longSignal and not shortSignal ? heavySellColor : na, title="Heavy Sell")
+
+// Circle size (default to smallest)
+circleSizeValue = switch circleSize
+    "Tiny" => size.tiny
+    "Small" => size.small
+    "Normal" => size.normal
+    => size.tiny
+
+// LONG signals - single circle below bar
+if showMarkers and longSignal and not longDivergence
+    label.new(bar_index, low - (high - low) * 0.1, "", color=longSignalColor, textcolor=longSignalColor, style=label.style_circle, size=circleSizeValue)
+
+// LONG divergence - two circles stacked using labels (one under the other)
+if showMarkers and longDivergence
+    // Top circle
+    label.new(bar_index, low - (high - low) * 0.1, "", color=longSignalColor, textcolor=longSignalColor, style=label.style_circle, size=circleSizeValue)
+    // Bottom circle (stacked)
+    label.new(bar_index, low - (high - low) * 0.2, "", color=longSignalColor, textcolor=longSignalColor, style=label.style_circle, size=circleSizeValue)
+
+// SHORT signals - single circle above bar
+if showMarkers and shortSignal and not shortDivergence
+    label.new(bar_index, high + (high - low) * 0.1, "", color=shortSignalColor, textcolor=shortSignalColor, style=label.style_circle, size=circleSizeValue)
+
+// SHORT divergence - two circles stacked using labels (one above the other)
+if showMarkers and shortDivergence
+    // Bottom circle
+    label.new(bar_index, high + (high - low) * 0.1, "", color=shortSignalColor, textcolor=shortSignalColor, style=label.style_circle, size=circleSizeValue)
+    // Top circle (stacked)
+    label.new(bar_index, high + (high - low) * 0.2, "", color=shortSignalColor, textcolor=shortSignalColor, style=label.style_circle, size=circleSizeValue)
+
+// === ALERTS ===
+
+// LONG Divergence Alert (Price down + Heavy spot buying)
+if longDivergence
+    alert("🟢 LONG DIVERGENCE: Price dropping (" + str.tostring(math.round(priceTrend, 2)) + "%) but heavy spot buying detected (" + str.tostring(math.round(buyPressure, 1)) + "%). Volume: " + str.tostring(math.round(volumeRatio, 2)) + "x average. Potential accumulation signal.", alert.freq_once_per_bar)
+
+// LONG Continuation Alert (Price up + Heavy spot buying)
+if longContinuation
+    alert("🟢 LONG CONTINUATION: Price rising (" + str.tostring(math.round(priceTrend, 2)) + "%) with heavy spot buying (" + str.tostring(math.round(buyPressure, 1)) + "%). Volume: " + str.tostring(math.round(volumeRatio, 2)) + "x average. Strong momentum signal.", alert.freq_once_per_bar)
+
+// SHORT Divergence Alert (Price up + Heavy spot selling)
+if shortDivergence
+    alert("🔴 SHORT DIVERGENCE: Price rising (" + str.tostring(math.round(priceTrend, 2)) + "%) but heavy spot selling detected (" + str.tostring(math.round(sellPressure, 1)) + "%). Volume: " + str.tostring(math.round(volumeRatio, 2)) + "x average. Potential distribution signal.", alert.freq_once_per_bar)
+
+// SHORT Continuation Alert (Price down + Heavy spot selling)
+if shortContinuation
+    alert("🔴 SHORT CONTINUATION: Price dropping (" + str.tostring(math.round(priceTrend, 2)) + "%) with heavy spot selling (" + str.tostring(math.round(sellPressure, 1)) + "%). Volume: " + str.tostring(math.round(volumeRatio, 2)) + "x average. Strong down momentum signal.", alert.freq_once_per_bar)
+
+// Heavy Buying Activity Alert
+if isHeavyBuy and not longSignal
+    alert("📈 HEAVY SPOT BUYING: Significant buying pressure detected (" + str.tostring(math.round(buyPressure, 1)) + "%). Volume: " + str.tostring(math.round(volumeRatio, 2)) + "x average. Watch for potential long signal.", alert.freq_once_per_bar)
+
+// Heavy Selling Activity Alert
+if isHeavySell and not shortSignal
+    alert("📉 HEAVY SPOT SELLING: Significant selling pressure detected (" + str.tostring(math.round(sellPressure, 1)) + "%). Volume: " + str.tostring(math.round(volumeRatio, 2)) + "x average. Watch for potential short signal.", alert.freq_once_per_bar)
+
+// === TABLE DISPLAY ===
+if barstate.islast
+    var table infoTable = table.new(position.top_right, 2, 6, bgcolor=color.new(color.black, 85), border_width=1)
+    table.cell(infoTable, 0, 0, "Buy Pressure", text_color=color.white, text_size=size.small)
+    buyText = isHeavyBuy ? str.tostring(math.round(buyPressure, 1)) + "%" : str.tostring(math.round(buyPressure, 1)) + "%"
+    buyTextColor = isHeavyBuy ? longSignalColor : color.gray
+    table.cell(infoTable, 1, 0, buyText, text_color=buyTextColor, text_size=size.small)
+    table.cell(infoTable, 0, 1, "Sell Pressure", text_color=color.white, text_size=size.small)
+    sellText = isHeavySell ? str.tostring(math.round(sellPressure, 1)) + "%" : str.tostring(math.round(sellPressure, 1)) + "%"
+    sellTextColor = isHeavySell ? shortSignalColor : color.gray
+    table.cell(infoTable, 1, 1, sellText, text_color=sellTextColor, text_size=size.small)
+    table.cell(infoTable, 0, 2, "Price Trend", text_color=color.white, text_size=size.small)
+    table.cell(infoTable, 1, 2, str.tostring(math.round(priceTrend, 2)) + "%", text_color=priceTrend < 0 ? color.red : color.green, text_size=size.small)
+    table.cell(infoTable, 0, 3, "Volume Ratio", text_color=color.white, text_size=size.small)
+    volText = str.tostring(math.round(volumeRatio, 2)) + "x"
+    volColor = volumeRatio >= 4.0 ? color.lime : volumeRatio >= 3.0 ? color.aqua : color.gray
+    table.cell(infoTable, 1, 3, volText, text_color=volColor, text_size=size.small)
+    table.cell(infoTable, 0, 4, "Signal", text_color=color.white, text_size=size.small)
+    signalText = longSignal ? (longDivergence ? "🟢 LONG (Div)" : "🟢 LONG") : shortSignal ? (shortDivergence ? "🔴 SHORT (Div)" : "🔴 SHORT") : "—"
+    signalTextColor = longSignal ? longSignalColor : shortSignal ? shortSignalColor : color.gray
+    table.cell(infoTable, 1, 4, signalText, text_color=signalTextColor, text_size=size.small)
+    table.cell(infoTable, 0, 5, "Activity", text_color=color.white, text_size=size.small)
+    activityText = isHeavyBuy ? "HEAVY BUY" : isHeavySell ? "HEAVY SELL" : "—"
+    activityColor = isHeavyBuy ? longSignalColor : isHeavySell ? shortSignalColor : color.gray
+    table.cell(infoTable, 1, 5, activityText, text_color=activityColor, text_size=size.small)

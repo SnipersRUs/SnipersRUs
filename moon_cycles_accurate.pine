@@ -1,0 +1,283 @@
+//@version=6
+indicator("Wen Moon", overlay=true, max_labels_count=500, max_lines_count=100)
+
+// Input parameters
+showNewMoon = input.bool(true, "Show New Moon", group="Display")
+showFullMoon = input.bool(true, "Show Full Moon", group="Display")
+showFirstQuarter = input.bool(false, "Show First Quarter", group="Display")
+showLastQuarter = input.bool(false, "Show Last Quarter", group="Display")
+showBackground = input.bool(false, "Show Background Color", group="Display")
+showBearBull = input.bool(true, "Show Bear/Bull Indicators", group="Display", tooltip="Shows ▲ for bullish phases and ▼ for bearish phases")
+bearBullFrequency = input.string("Phase Changes Only", "Signal Frequency", options=["Every Day", "Phase Changes Only", "Major Phases Only"], group="Display", tooltip="How often to show bear/bull signals")
+showBearBullBackground = input.bool(false, "Show Bear/Bull Background", group="Display", tooltip="Green background = Bullish, Red background = Bearish")
+
+// Moon-based indicators (off by default)
+showMoonMA = input.bool(false, "Show Moon Phase MA", group="Moon Indicators", tooltip="Adaptive moving average based on moon phase")
+moonMAPeriod = input.int(20, "Base MA Period", minval=5, maxval=100, group="Moon Indicators", tooltip="Base period for moon phase MA")
+
+// Phase-specific VWAPs
+showNewMoonVWAP = input.bool(true, "Show New Moon VWAP", group="Moon Phase VWAPs", tooltip="VWAP that resets at each New Moon")
+showFullMoonVWAP = input.bool(true, "Show Full Moon VWAP", group="Moon Phase VWAPs", tooltip="VWAP that resets at each Full Moon")
+
+// Colors
+newMoonColor = input.color(color.new(color.black, 0), "New Moon", group="Colors")
+fullMoonColor = input.color(color.new(color.yellow, 0), "Full Moon", group="Colors")
+quarterColor = input.color(color.new(color.gray, 0), "Quarter Moon", group="Colors")
+bullColor = input.color(color.new(color.lime, 0), "Bullish Phase", group="Colors")
+bearColor = input.color(color.new(color.red, 0), "Bearish Phase", group="Colors")
+moonMAColor = input.color(color.new(color.blue, 0), "Moon Phase MA", group="Colors")
+newMoonVWAPColor = input.color(color.new(#FF6B9D, 0), "New Moon VWAP", group="Colors")
+fullMoonVWAPColor = input.color(color.new(#FFD93D, 0), "Full Moon VWAP", group="Colors")
+
+// Helper function for floating point modulo (wraps angles to 0-360 range)
+fmod(value, modulus) =>
+    value - math.floor(value / modulus) * modulus
+
+// Helper function to convert degrees to radians
+deg2rad(degrees) =>
+    degrees * math.pi / 180
+
+// Function to calculate Julian Date (JD) from date/time (midday for day-level precision)
+get_jd(yr, mo, dy) =>
+    a = math.floor((14 - mo) / 12)
+    y = yr + 4800 - a
+    m = mo + 12 * a - 3
+    jd_int = dy + math.floor((153 * m + 2) / 5) + 365 * y + math.floor(y / 4) - math.floor(y / 100) + math.floor(y / 400) - 32045
+    jd_int  // Midday UTC approximation
+
+// Function to calculate New Moon JD using Meeus algorithm
+get_new_moon_jd(k) =>
+    T = k / 1236.85
+    JDE = 2451550.09766 + 29.530588861 * k + 0.00015437 * math.pow(T, 2) - 0.000000150 * math.pow(T, 3) + 0.00000000073 * math.pow(T, 4)
+    E = 1 - 0.002516 * T - 0.0000074 * math.pow(T, 2)
+    M_deg = fmod(2.5534 + 29.10535670 * k - 0.0000014 * math.pow(T, 2) - 0.00000011 * math.pow(T, 3), 360)
+    M = deg2rad(M_deg)
+    Mprime_deg = fmod(201.5643 + 385.81693528 * k + 0.0107582 * math.pow(T, 2) + 0.00001238 * math.pow(T, 3) - 0.000000058 * math.pow(T, 4), 360)
+    Mprime = deg2rad(Mprime_deg)
+    F_deg = fmod(160.7108 + 390.67050284 * k - 0.0016118 * math.pow(T, 2) - 0.00000227 * math.pow(T, 3) + 0.000000011 * math.pow(T, 4), 360)
+    F = deg2rad(F_deg)
+    Omega_deg = fmod(124.7746 - 1.5635 * T + 0.0020672 * math.pow(T, 2) + 0.00000215 * math.pow(T, 3), 360)
+    Omega = deg2rad(Omega_deg)
+    correction = -0.40720 * math.sin(Mprime) + 0.17241 * E * math.sin(M) + 0.01608 * math.sin(2 * Mprime) + 0.01039 * math.sin(2 * F) + 0.00739 * E * math.sin(Mprime - M) - 0.00514 * E * math.sin(Mprime + M) + 0.00208 * E * E * math.sin(2 * M) - 0.00111 * math.sin(Mprime - 2 * F) - 0.00057 * math.sin(Mprime + 2 * F) + 0.00056 * E * math.sin(2 * Mprime + M) - 0.00042 * math.sin(3 * Mprime) + 0.00042 * E * math.sin(M + 2 * F) + 0.00038 * E * math.sin(M - 2 * F) - 0.00024 * E * math.sin(2 * Mprime - M) - 0.00017 * math.sin(Omega) - 0.00007 * math.sin(Mprime + 2 * M) + 0.00004 * math.sin(2 * Mprime - 2 * F) + 0.00004 * math.sin(3 * M) + 0.00003 * math.sin(Mprime + M - 2 * F) + 0.00003 * math.sin(2 * Mprime + 2 * F) - 0.00003 * math.sin(Mprime + M + 2 * F) + 0.00003 * math.sin(Mprime - M + 2 * F) - 0.00002 * math.sin(Mprime - M - 2 * F) - 0.00002 * math.sin(3 * Mprime + M) + 0.00002 * math.sin(4 * Mprime)
+    JDE + correction
+
+// Cache calculations to only recalculate on day changes
+var float cached_jd = na
+var float cached_phase = na
+var int cached_day = na
+
+// Check if day has changed
+dayChange = ta.change(dayofmonth)
+day_changed = not na(dayChange) and dayChange != 0
+
+// Calculate current JD (midday) - only recalculate when day changes
+current_jd = day_changed or na(cached_jd) ? get_jd(year, month, dayofmonth) : cached_jd
+if day_changed or na(cached_jd)
+    cached_jd := current_jd
+
+// Approximate lunation number k
+decimal_year = year + (month - 0.5) / 12.0
+k = math.floor((decimal_year - 2000) * 12.3685)
+
+// Get JD for nearby new moons
+jd_new = get_new_moon_jd(k)
+jd_new_prev = get_new_moon_jd(k - 1)
+jd_new_next = get_new_moon_jd(k + 1)
+
+// Determine last and next new moon JD
+float last_jd = na
+float next_jd = na
+if jd_new > current_jd
+    last_jd := jd_new_prev
+    next_jd := jd_new
+else
+    last_jd := jd_new
+    next_jd := jd_new_next
+
+// Calculate accurate phase (0 = new moon, 0.5 = full moon) - only recalculate when day changes
+phase = day_changed or na(cached_phase) ? (current_jd - last_jd) / (next_jd - last_jd) : cached_phase
+if day_changed or na(cached_phase)
+    cached_phase := phase
+    cached_day := dayofmonth
+
+// Determine moon type (with buffers for ~1 day window)
+isNewMoon = phase < 0.03 or phase > 0.97
+isFullMoon = phase > 0.47 and phase < 0.53
+isFirstQuarter = phase > 0.22 and phase < 0.28
+isLastQuarter = phase > 0.72 and phase < 0.78
+
+// ========== CALCULATE PHASE-SPECIFIC VWAPs (needed for bull/bear logic) ==========
+// New Moon VWAP - accumulates on day changes only (smoother, less reactive)
+var float newMoonVWAPSum = 0.0
+var float newMoonVolumeSum = 0.0
+var int lastNewMoonVWAPBar = -1
+isNewMoonVWAPReset = day_changed and isNewMoon and (bar_index != lastNewMoonVWAPBar)
+if isNewMoonVWAPReset
+    lastNewMoonVWAPBar := bar_index
+    newMoonVWAPSum := close * volume
+    newMoonVolumeSum := volume
+else if day_changed
+    // Only accumulate once per day to avoid sticking to price
+    newMoonVWAPSum := newMoonVWAPSum + close * volume
+    newMoonVolumeSum := newMoonVolumeSum + volume
+newMoonVWAP = newMoonVolumeSum > 0 ? newMoonVWAPSum / newMoonVolumeSum : na
+
+// Full Moon VWAP - accumulates on day changes only (smoother, less reactive)
+var float fullMoonVWAPSum = 0.0
+var float fullMoonVolumeSum = 0.0
+var int lastFullMoonVWAPBar = -1
+isFullMoonVWAPReset = day_changed and isFullMoon and (bar_index != lastFullMoonVWAPBar)
+if isFullMoonVWAPReset
+    lastFullMoonVWAPBar := bar_index
+    fullMoonVWAPSum := close * volume
+    fullMoonVolumeSum := volume
+else if day_changed
+    // Only accumulate once per day to avoid sticking to price
+    fullMoonVWAPSum := fullMoonVWAPSum + close * volume
+    fullMoonVolumeSum := fullMoonVolumeSum + volume
+fullMoonVWAP = fullMoonVolumeSum > 0 ? fullMoonVWAPSum / fullMoonVolumeSum : na
+
+
+// Determine if phase is bullish or bearish based on price position relative to VWAP
+// Dynamic logic: Price position determines squeeze direction
+isWaxing = phase < 0.5 and not isNewMoon
+isWaning = phase > 0.5 and not isFullMoon
+
+// Get relevant VWAP for current phase and determine trend direction
+float currentPhaseVWAP = na
+float prevPhaseVWAP = na
+
+if isNewMoon
+    currentPhaseVWAP := newMoonVWAP
+    prevPhaseVWAP := newMoonVWAP[1]
+else if isFullMoon
+    currentPhaseVWAP := fullMoonVWAP
+    prevPhaseVWAP := fullMoonVWAP[1]
+else if isWaxing
+    // Waxing period - use New Moon VWAP
+    currentPhaseVWAP := newMoonVWAP
+    prevPhaseVWAP := newMoonVWAP[1]
+else
+    // Waning period - use Full Moon VWAP
+    currentPhaseVWAP := fullMoonVWAP
+    prevPhaseVWAP := fullMoonVWAP[1]
+
+// Determine VWAP trend direction (moving average trend)
+vwapTrendingUp = not na(currentPhaseVWAP) and not na(prevPhaseVWAP) and currentPhaseVWAP > prevPhaseVWAP
+vwapTrendingDown = not na(currentPhaseVWAP) and not na(prevPhaseVWAP) and currentPhaseVWAP < prevPhaseVWAP
+
+// Price position relative to VWAP
+priceAboveVWAP = not na(currentPhaseVWAP) and close > currentPhaseVWAP
+priceBelowVWAP = not na(currentPhaseVWAP) and close < currentPhaseVWAP
+
+// Dynamic bull/bear determination based on VWAP trend direction (moving average)
+// VWAP trending up + price above VWAP = BULLISH
+// VWAP trending up + price below VWAP = potential squeeze up (BULLISH)
+// VWAP trending down + price below VWAP = BEARISH
+// VWAP trending down + price above VWAP = potential rejection (BEARISH)
+isBullish = false
+isBearish = false
+
+if not na(currentPhaseVWAP) and not na(prevPhaseVWAP)
+    // Use VWAP trend direction as the primary signal
+    if vwapTrendingUp
+        // VWAP rising = bullish trend
+        isBullish := true
+        isBearish := false
+    else if vwapTrendingDown
+        // VWAP falling = bearish trend
+        isBullish := false
+        isBearish := true
+    else
+        // VWAP flat, use price position
+        isBullish := priceBelowVWAP  // Below VWAP = squeeze up
+        isBearish := priceAboveVWAP  // Above VWAP = rejection down
+else if not na(currentPhaseVWAP)
+    // No previous VWAP, use price position only
+    isBullish := priceBelowVWAP
+    isBearish := priceAboveVWAP
+else
+    // Fallback when no VWAP available: use phase-based logic
+    isBullish := isWaxing or (isNewMoon and phase < 0.5)
+    isBearish := isWaning or (isFullMoon and phase > 0.5)
+
+// Track previous phase state to detect transitions
+var bool prevIsBullish = false
+var bool prevIsBearish = false
+var float prevPhase = na
+
+// Detect phase transitions
+phaseChanged = not na(prevPhase) and math.abs(phase - prevPhase) > 0.01  // Significant phase change
+// Use prevPhase to check if we've initialized (prevPhase is na on first bar)
+bullishTransition = not na(prevPhase) and prevIsBearish and isBullish  // Bearish → Bullish
+bearishTransition = not na(prevPhase) and prevIsBullish and isBearish  // Bullish → Bearish
+majorPhaseChange = isNewMoon or isFullMoon or isFirstQuarter or isLastQuarter  // Major phase event
+
+// Determine when to show signals based on frequency setting
+shouldShowSignal = false
+if bearBullFrequency == "Every Day"
+    shouldShowSignal := day_changed
+else if bearBullFrequency == "Phase Changes Only"
+    shouldShowSignal := day_changed and (phaseChanged or bullishTransition or bearishTransition)
+else if bearBullFrequency == "Major Phases Only"
+    shouldShowSignal := day_changed and majorPhaseChange
+
+// Plot markers only when conditions are met
+if shouldShowSignal and showBearBull
+    // Only show when transitioning or at major phases
+    if isBullish and (bullishTransition or majorPhaseChange or bearBullFrequency == "Every Day")
+        label.new(bar_index, low, "▲", style=label.style_label_up, color=bullColor, textcolor=color.white, size=size.normal, tooltip="Bullish Moon Phase")
+
+    if isBearish and (bearishTransition or majorPhaseChange or bearBullFrequency == "Every Day")
+        label.new(bar_index, low, "▼", style=label.style_label_up, color=bearColor, textcolor=color.white, size=size.normal, tooltip="Bearish Moon Phase")
+
+// Update previous state
+if day_changed
+    prevIsBullish := isBullish
+    prevIsBearish := isBearish
+    prevPhase := phase
+
+    // Moon phase markers
+    if showNewMoon and isNewMoon
+        label.new(bar_index, high, "🌑", style=label.style_label_down, color=newMoonColor, textcolor=color.white, size=size.small)
+
+    if showFullMoon and isFullMoon
+        label.new(bar_index, high, "🌕", style=label.style_label_down, color=fullMoonColor, textcolor=color.black, size=size.small)
+
+    if showFirstQuarter and isFirstQuarter
+        label.new(bar_index, high, "🌓", style=label.style_label_down, color=quarterColor, textcolor=color.white, size=size.small)
+
+    if showLastQuarter and isLastQuarter
+        label.new(bar_index, high, "🌗", style=label.style_label_down, color=quarterColor, textcolor=color.white, size=size.small)
+
+// Background colors - only show on major phases (new moon/full moon)
+bgColor = showBackground and (isNewMoon or isFullMoon) ? (isNewMoon ? color.new(color.black, 97) : color.new(color.yellow, 97)) : na
+
+// Bear/Bull background colors - more subtle (higher transparency), show current state
+bearBullBg = showBearBullBackground ? (isBullish ? color.new(color.lime, 97) : isBearish ? color.new(color.red, 97) : na) : na
+
+bgcolor(bgColor)
+bgcolor(bearBullBg)
+
+// ========== MOON PHASE MOVING AVERAGE ==========
+// Adaptive MA based on moon phase - faster during waxing (bullish), slower during waning (bearish)
+// Calculate adaptive MA period based on moon phase
+// Waxing (bullish): faster MA (shorter period) = more responsive
+// Waning (bearish): slower MA (longer period) = smoother
+phaseWeight = phase < 0.5 ? (1.0 - phase * 2.0) : (phase - 0.5) * 2.0  // 1.0 at new moon, 0.0 at full, back to 1.0
+adaptivePeriod = math.round(moonMAPeriod * (1.0 - phaseWeight * 0.5))  // 50% to 100% of base period
+adaptivePeriod := math.max(5, math.min(100, adaptivePeriod))  // Clamp between 5 and 100
+
+// Moon Phase MA
+moonMA = ta.sma(close, adaptivePeriod)
+plot(showMoonMA ? moonMA : na, "Moon Phase MA", color=moonMAColor, linewidth=2)
+
+// ========== PLOT PHASE-SPECIFIC VWAPs ==========
+// Plot the VWAPs (already calculated above for bull/bear logic)
+plot(showNewMoonVWAP ? newMoonVWAP : na, "New Moon VWAP", color=newMoonVWAPColor, linewidth=2, style=plot.style_line)
+plot(showFullMoonVWAP ? fullMoonVWAP : na, "Full Moon VWAP", color=fullMoonVWAPColor, linewidth=2, style=plot.style_line)
+
+// Plot phase as a separate panel indicator
+plot(phase, "Lunar Phase", color=color.new(color.blue, 0), display=display.data_window)
+hline(0.0, "New Moon", color=color.gray, linestyle=hline.style_dotted)
+hline(0.5, "Full Moon", color=color.yellow, linestyle=hline.style_dotted)

@@ -1,415 +1,986 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Snipers-R-Us | The Sniper Suite</title>
-  <link href="https://fonts.googleapis.com/css?family=Montserrat:700,400&display=swap" rel="stylesheet"/>
-  <style>
-    :root {
-      --purple: #8c1aff;
-      --dark: #15151e;
-      --green: #21ce99;
-      --accent: #00ff99;
-      --gray: #21212b;
-      --white: #fff;
-      --text: #dadada;
-      --shadow: 0 6px 40px #0008;
-    }
-    body {
-      background: var(--dark);
-      color: var(--text);
-      font-family: 'Montserrat', Arial, sans-serif;
-      margin: 0; padding: 0;
-    }
-    header {
-      background: var(--gray);
-      padding: 2.3rem 1rem 1.5rem 1rem;
-      text-align: center;
-      box-shadow: var(--shadow);
-    }
-    .main-title {
-      color: var(--white);
-      font-size: 2.6rem;
-      font-weight: 900;
-      letter-spacing: 2px;
-      margin-bottom: 0.2rem;
-      margin-top: 0.2rem;
-      text-shadow: 0 2px 16px #0005;
-      word-spacing: 0.2em;
-    }
-    .main-title .r-green { color: var(--green);}
-    .main-title .us-purple { color: var(--purple);}
-    .subtitle {
-      color: var(--accent);
-      font-size: 1.28rem;
-      font-weight: 600;
-      margin-bottom: 1.4rem;
-      letter-spacing: 1.2px;
-    }
-    .links {
-      margin: 1.3rem 0 0.5rem 0;
-      display: flex;
-      justify-content: center;
-      gap: 1.2rem;
-      flex-wrap: wrap;
-    }
-    .links a {
-      color: var(--white);
-      background: var(--purple);
-      border-radius: 8px;
-      padding: 0.8rem 2.1rem;
-      text-decoration: none;
-      font-weight: 700;
-      font-size: 1.13rem;
-      letter-spacing: 1px;
-      transition: background 0.18s, color 0.18s;
-      border: none;
-      outline: none;
-      box-shadow: 0 2px 12px #0004;
-      display: inline-block;
-    }
-    .links a:hover {
-      background: var(--green);
-      color: var(--dark);
-    }
-    .discord-callout {
-      margin: 1.5rem 0 0.4rem 0;
-      text-align: center;
-    }
-    .discord-callout a {
-      background: linear-gradient(90deg, #21ce99 0%, #00ff99 100%);
-      color: #181825;
-      font-size: 1.36rem;
-      font-weight: 900;
-      border-radius: 16px;
-      padding: 1.1rem 2.4rem;
-      text-decoration: none;
-      display: inline-block;
-      box-shadow: 0 2px 24px #1db38588, 0 2px 16px #0003;
-      transition: background 0.16s, color 0.16s, box-shadow 0.2s;
-      letter-spacing: 1.5px;
-      border: none;
-      margin-top: 0.2rem;
-    }
-    .discord-callout a:hover {
-      background: linear-gradient(90deg, #8c1aff 0%, #21ce99 100%);
-      color: #fff;
-      box-shadow: 0 4px 32px #8c1aff88;
-    }
-    .laws-main {
-      max-width: 1020px;
-      margin: 2.8rem auto 2.2rem auto;
-      padding: 1.7rem 1.5rem;
-      background: #201c2c;
-      border-radius: 1.6rem;
-      box-shadow: var(--shadow);
-    }
-    .laws-header {
-      text-align: center;
-      margin-bottom: 2.2rem;
-    }
-    .laws-header h2 {
-      font-size: 2.1rem;
-      color: var(--purple);
-      font-weight: 900;
-      letter-spacing: 1px;
-      margin-bottom: 0.2rem;
-      margin-top: 0.3rem;
-    }
-    .laws-header p {
-      font-size: 1.22rem;
-      color: var(--green);
-      margin-top: 0.2rem;
-      margin-bottom: 0.7rem;
-      font-weight: 500;
-    }
-    .law-cards {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 2rem;
-      justify-content: center;
-      margin: 1rem 0 1.3rem 0;
-    }
-    .law-card {
-      background: #24173b;
-      border-left: 7px solid var(--purple);
-      border-radius: 1.1rem;
-      padding: 1.5rem 1.3rem 1.2rem 1.3rem;
-      box-shadow: 0 2px 14px #0003;
-      min-width: 255px;
-      max-width: 320px;
-      flex: 1 1 250px;
-      text-align: left;
-      position: relative;
-      transition: box-shadow 0.15s;
-    }
-    .law-card:hover {
-      box-shadow: 0 4px 24px #0008;
-    }
-    .law-card h3 {
-      color: var(--green);
-      font-size: 1.28rem;
-      font-weight: 800;
-      margin-bottom: 0.8rem;
-      margin-top: 0.4rem;
-      letter-spacing: 1px;
-    }
-    .law-icon {
-      position: absolute;
-      right: 20px;
-      top: 20px;
-      font-size: 2.1rem;
-      opacity: 0.22;
-      user-select: none;
-    }
-    .law-card ul {
-      margin-top: 0.2rem;
-      margin-bottom: 0.7rem;
-      padding-left: 1.1rem;
-    }
-    .law-card ul li {
-      margin-bottom: 0.3rem;
-      font-size: 1.06rem;
-    }
-    .law-card .pro-tip {
-      color: var(--accent);
-      font-size: 0.97rem;
-      font-weight: 600;
-      margin-top: 0.6rem;
-      display: block;
-    }
-    .callout {
-      background: #171723;
-      border-left: 6px solid var(--green);
-      padding: 1rem 1rem 1rem 1.6rem;
-      border-radius: 0.9rem;
-      margin: 2rem 0 1.3rem 0;
-      color: #b2ffef;
-      font-size: 1.08rem;
-      font-weight: 500;
-    }
-    .join-now {
-      text-align: center;
-      margin: 3.1rem 0 2rem 0;
-    }
-    .join-now a {
-      background: var(--green);
-      color: var(--dark);
-      font-size: 1.35rem;
-      font-weight: 900;
-      border-radius: 9px;
-      padding: 1.2rem 2.9rem;
-      text-decoration: none;
-      transition: background 0.2s;
-      box-shadow: 0 4px 20px #0005;
-      display: inline-block;
-      letter-spacing: 1.3px;
-      margin-top: 0.4rem;
-    }
-    .join-now a:hover {
-      background: var(--purple);
-      color: #fff;
-    }
-    .tiers {
-      max-width: 980px;
-      margin: 1.6rem auto 1.4rem auto;
-      background: var(--gray);
-      border-radius: 1.25rem;
-      padding: 2rem 1.25rem;
-      box-shadow: 0 2px 18px #0003;
-    }
-    .tiers h2 {
-      color: var(--accent);
-      margin-top: 0;
-      font-size: 1.5rem;
-      font-weight: 800;
-      margin-bottom: 1.2rem;
-      letter-spacing: 1px;
-    }
-    .tier-list {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 2rem;
-      justify-content: center;
-    }
-    .tier-card {
-      background: #1e1e28;
-      border-radius: 1rem;
-      padding: 1.3rem 1.1rem;
-      box-shadow: 0 2px 18px #0004;
-      min-width: 220px;
-      max-width: 320px;
-      flex: 1 1 240px;
-      margin-bottom: 1rem;
-      border-left: 7px solid var(--purple);
-      position: relative;
-    }
-    .tier-card h3 {
-      margin-top: 0;
-      color: var(--green);
-      font-size: 1.14rem;
-      margin-bottom: 0.6rem;
-      font-weight: 800;
-      letter-spacing: 0.6px;
-    }
-    .tier-card p {
-      margin: 0.5rem 0 0.7rem 0;
-      color: #d5fbe7;
-      font-size: 0.99rem;
-      min-height: 58px;
-    }
-    .tier-card a {
-      display: inline-block;
-      margin-top: 0.6rem;
-      color: #fff;
-      background: var(--purple);
-      padding: 0.5rem 1rem;
-      border-radius: 6px;
-      text-decoration: none;
-      font-weight: 600;
-      transition: background 0.2s;
-      letter-spacing: 1px;
-    }
-    .tier-card a:hover {
-      background: var(--green);
-      color: #15151e;
-    }
-    .free-trial {
-      color: var(--accent);
-      font-weight: bold;
-      font-size: 1rem;
-    }
-    .disclaimer {
-      color: #b5b5b5;
-      font-size: 0.93rem;
-      margin: 0.7rem 0 0.2rem 0;
-      text-align: center;
-    }
-    footer {
-      text-align: center;
-      color: #b9b9b9;
-      padding: 2rem 1rem 2.2rem 1rem;
-      font-size: 1.02rem;
-      background: #171723;
-      border-top: 1px solid #22222c;
-    }
-    @media (max-width: 900px) {
-      .law-cards, .tier-list {flex-direction:column;align-items:center;}
-      .law-card, .tier-card {width:92vw;max-width:99vw;}
-      .laws-main, .tiers {padding:1.1rem 0.3rem;}
-      .main-title {font-size:2rem;}
-      .subtitle {font-size:1.02rem;}
-      .discord-callout a {font-size:1.1rem;padding:0.85rem 1.2rem;}
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GoldenPocket Pro | Educational Scanner & Paper Trading</title>
+    <style>
+        :root {
+            --bg-dark: #0b0e11;
+            --bg-panel: #151a21;
+            --bg-input: #2a2e39;
+            --text-primary: #eaecef;
+            --text-secondary: #848e9c;
+            --accent-green: #0ecb81; /* Bull/Profit */
+            --accent-red: #f6465d;   /* Bear/Loss */
+            --accent-gold: #f0b90b;  /* GPS/Golden */
+            --accent-purple: #9c27b0; /* Piv X / Oath Keeper */
+            --accent-blue: #2962ff;  /* VWAP */
+            --border-color: #2b3139;
+            --font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-primary);
+            font-family: var(--font-family);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* --- Header --- */
+        header {
+            background-color: var(--bg-panel);
+            border-bottom: 1px solid var(--border-color);
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 60px;
+        }
+
+        .logo {
+            font-weight: 700;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .logo span { color: var(--accent-gold); }
+
+        .account-info {
+            display: flex;
+            gap: 20px;
+            font-size: 0.9rem;
+            align-items: center;
+        }
+
+        .badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .badge.free { background: var(--bg-input); color: var(--text-secondary); }
+        .badge.vip { background: var(--accent-gold); color: #000; box-shadow: 0 0 10px rgba(240, 185, 11, 0.3); }
+
+        .daily-pnl { font-family: monospace; font-weight: bold; }
+        .pnl-pos { color: var(--accent-green); }
+        .pnl-neg { color: var(--accent-red); }
+
+        /* --- Main Layout --- */
+        .main-container {
+            display: flex;
+            flex: 1;
+            height: calc(100vh - 60px);
+        }
+
+        /* --- Chart Section --- */
+        .chart-section {
+            flex: 3;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            border-right: 1px solid var(--border-color);
+        }
+
+        .chart-header {
+            padding: 10px;
+            background: var(--bg-panel);
+            display: flex;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .pair-selector {
+            background: var(--bg-input);
+            color: white;
+            border: 1px solid var(--border-color);
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .canvas-container {
+            flex: 1;
+            position: relative;
+            background: var(--bg-dark);
+            overflow: hidden;
+            cursor: crosshair;
+        }
+
+        canvas { display: block; width: 100%; height: 100%; }
+
+        /* Overlays */
+        .chart-overlay {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            pointer-events: none;
+        }
+        .price-display {
+            font-size: 2rem;
+            font-weight: 700;
+            font-family: monospace;
+        }
+
+        /* --- Sidebar / Scanner --- */
+        .sidebar {
+            flex: 1;
+            min-width: 320px;
+            max-width: 400px;
+            background-color: var(--bg-panel);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        .section-title {
+            padding: 15px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+        }
+
+        /* Indicator Cards */
+        .indicator-grid {
+            padding: 15px;
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 12px;
+        }
+
+        .ind-card {
+            background: var(--bg-input);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 12px;
+            position: relative;
+            transition: transform 0.2s, border-color 0.2s;
+        }
+        
+        .ind-card.active-gps { border-color: var(--accent-gold); box-shadow: 0 0 5px rgba(240, 185, 11, 0.2); }
+        .ind-card.active-div { border-color: var(--accent-purple); box-shadow: 0 0 5px rgba(156, 39, 176, 0.2); }
+        .ind-card.active-vol { border-color: var(--text-primary); }
+
+        .ind-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+        
+        .ind-status {
+            font-size: 0.75rem;
+            padding: 2px 6px;
+            border-radius: 3px;
+            background: #000;
+        }
+
+        .ind-value {
+            font-family: monospace;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+
+        /* Confluence Score */
+        .confluence-meter {
+            padding: 20px;
+            text-align: center;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .score-circle {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            border: 4px solid var(--border-color);
+            margin: 0 auto 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: var(--text-primary);
+            position: relative;
+        }
+        
+        .score-circle::after {
+            content: '';
+            position: absolute;
+            top: -4px; left: -4px; right: -4px; bottom: -4px;
+            border-radius: 50%;
+            border: 4px solid transparent;
+            border-top-color: var(--accent-gold);
+            animation: spin 2s linear infinite;
+            display: none; /* Hidden until high score */
+        }
+
+        .score-high .score-circle { border-color: var(--accent-green); color: var(--accent-green); }
+        .score-high .score-circle::after { display: block; }
+
+        .signal-badge {
+            margin-top: 5px;
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            background: var(--border-color);
+            color: var(--text-secondary);
+        }
+        
+        .signal-a-plus { background: var(--accent-gold); color: #000; box-shadow: 0 0 10px var(--accent-gold); }
+
+        /* --- Trading Panel --- */
+        .trade-panel {
+            padding: 15px;
+            border-top: 1px solid var(--border-color);
+            background: var(--bg-panel);
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+        
+        .input-group label {
+            display: block;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-bottom: 5px;
+        }
+
+        .trade-input {
+            width: 100%;
+            background: var(--bg-input);
+            border: 1px solid var(--border-color);
+            color: white;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 4px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: opacity 0.2s;
+            color: #fff;
+        }
+        .btn:hover { opacity: 0.9; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .btn-buy { background: var(--accent-green); }
+        .btn-sell { background: var(--accent-red); }
+
+        .risk-warning {
+            margin-top: 10px;
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            background: rgba(246, 70, 93, 0.1);
+            padding: 8px;
+            border-radius: 4px;
+            border-left: 2px solid var(--accent-red);
+        }
+
+        /* --- Active Trades List --- */
+        .trades-list {
+            flex: 1;
+            overflow-y: auto;
+        }
+        
+        .trade-item {
+            padding: 10px 15px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.85rem;
+        }
+        
+        .trade-item.long { border-left: 3px solid var(--accent-green); }
+        .trade-item.short { border-left: 3px solid var(--accent-red); }
+
+        .trade-pnl { font-family: monospace; font-weight: bold; }
+
+        /* --- Toast Notification --- */
+        .toast-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 1000;
+        }
+        
+        .toast {
+            background: var(--bg-panel);
+            border-left: 4px solid var(--text-primary);
+            padding: 15px;
+            border-radius: 4px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+            min-width: 250px;
+            animation: slideIn 0.3s ease-out;
+            color: var(--text-primary);
+        }
+
+        .toast.success { border-color: var(--accent-green); }
+        .toast.error { border-color: var(--accent-red); }
+        .toast.warning { border-color: var(--accent-gold); }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+
+        /* Modal for VIP */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            display: none;
+        }
+        
+        .modal {
+            background: var(--bg-panel);
+            padding: 30px;
+            border-radius: 8px;
+            border: 1px solid var(--accent-gold);
+            max-width: 400px;
+            text-align: center;
+        }
+
+        .modal h2 { color: var(--accent-gold); margin-bottom: 10px; }
+        .modal p { color: var(--text-secondary); margin-bottom: 20px; font-size: 0.9rem; }
+        .btn-vip { background: var(--accent-gold); color: #000; width: 100%; }
+
+    </style>
 </head>
 <body>
-  <header>
-    <div class="main-title">
-      SNIPERS-<span class="r-green">R</span>-<span class="us-purple">US</span>
-    </div>
-    <div class="subtitle">
-      Precision Trading. Real Results.<br>
-      The home of the Sniper Suite.
-    </div>
-    <div class="links">
-      <a href="https://discord.gg/jnT3hHk" target="_blank">Join Discord</a>
-      <a href="https://www.youtube.com/@rickytspanish" target="_blank">YouTube</a>
-      <a href="https://x.com/Bishop_Bizzle" target="_blank">Twitter</a>
-      <a href="https://www.tradingview.com/u/rickytspanish/" target="_blank">TradingView</a>
-    </div>
-    <div class="discord-callout">
-      <a href="https://discord.gg/jnT3hHk" target="_blank">
-        🎯 <b>Join the Discord Chat for Free!</b> 🎯
-      </a>
-    </div>
-  </header>
 
-  <div class="laws-main">
-    <div class="laws-header">
-      <h2>THE THREE LAWS OF SNIPING</h2>
-      <p>A Precision Trading System for Crypto Markets</p>
-      <div style="font-size:1.01rem;color:#b8fae1;">
-        When all three laws align, win rate potential: <b>80%+</b> <br>
-        One law ≈ 30% | Two laws ≈ 60% | All three ≈ 80%+ <br>
-        <span style="color:#00ff99;">Trust the process. Risk only 1% per trade.</span>
-      </div>
-    </div>
-    <div class="law-cards">
-      <div class="law-card">
-        <span class="law-icon">🕸️</span>
-        <h3>1. SPIDERLINE CONFIRMATION</h3>
-        <ul>
-          <li>Draw dynamic trendlines (Spiderlines) from significant highs/lows using the ray tool.</li>
-          <li>Look for multiple line confluence and strong price/volume reactions.</li>
-          <li>Color: Green→Yellow (up), Red→Purple (down).</li>
-        </ul>
-        <span class="pro-tip">Pro tip: More line confluence = higher probability.</span>
-      </div>
-      <div class="law-card">
-        <span class="law-icon">🔄</span>
-        <h3>2. DIVERGENCE CONFIRMATION</h3>
-        <ul>
-          <li>Spot regular and hidden divergences across timeframes (momentum, volume, structure).</li>
-          <li>Confirm with clear swing points, strong momentum shifts, and volume alignment.</li>
-        </ul>
-        <span class="pro-tip">Pro tip: Use multi-timeframe divergence for the strongest setups.</span>
-      </div>
-      <div class="law-card">
-        <span class="law-icon">📊</span>
-        <h3>3. VOLUME CONFIRMATION</h3>
-        <ul>
-          <li>Only enter on 3x average volume, clear price action, and visible institutional footprint.</li>
-          <li>Look for strong price reaction at clean technical levels.</li>
-        </ul>
-        <span class="pro-tip">Pro tip: Volume surge + confluence = sniper entry.</span>
-      </div>
-    </div>
-    <div class="callout">
-      Entry rules: All three laws must be present. Risk 1% max per trade. Use proper stops and scale profits.<br>
-      <b>For full tutorials, join the Discord or check our YouTube channel.</b>
-    </div>
-    <div class="join-now">
-      <a href="https://discord.gg/jnT3hHk" target="_blank">Join the Snipers</a>
-    </div>
-  </div>
+    <!-- Header -->
+    <header>
+        <div class="logo">
+            <span>GoldenPocket</span> Syndicate
+        </div>
+        <div class="account-info">
+            <div>Daily P&L: <span id="dailyPnl" class="daily-pnl pnl-pos">$0.00</span></div>
+            <div>Drawdown: <span id="drawdownVal">0%</span></div>
+            <div id="vipBadge" class="badge free">Free Tier</div>
+            <div>Balance: <span id="balanceDisplay">$10,000.00</span></div>
+        </div>
+    </header>
 
-  <div class="tiers">
-    <h2>Membership Tiers</h2>
-    <div class="tier-list">
-      <div class="tier-card">
-        <h3>🔹 Headhunters<br>$20/month</h3>
-        <p>
-          <b>All indicators, full education, daily analysis & trade ideas, exclusive channels.<br>
-          Take trades at your own discretion, with our guidance.</b>
-        </p>
-        <a href="https://upgrade.chat/734621342069948446/p/ath" target="_blank">Secure Headhunters Access</a>
-      </div>
-      <div class="tier-card">
-        <h3>🔹 Bounty Seekers<br>$60/month</h3>
-        <p>
-          <b>Everything in Headhunters, PLUS:</b> Real-time access to my personal trades, exact entries & exits, full reasoning, mirror my trades, exclusive server.<br>
-          <span class="free-trial">NEW: 7-Day Free Trial!</span>
-        </p>
-        <a href="https://upgrade.chat/734621342069948446/p/e4097a76-84f4-4138-a754-f0cfaae66291" target="_blank">Start Free Trial</a>
-      </div>
-      <div class="tier-card">
-        <h3>🔹 Lifetime<br>$333 (one-time)</h3>
-        <p>
-          <b>Permanent Bounty Hunter role, full access to ALL content (current & future), never pay monthly fees again.</b>
-        </p>
-        <a href="https://upgrade.chat/734621342069948446/p/lifetime" target="_blank">Lifetime Access</a>
-      </div>
-    </div>
-    <div class="disclaimer">
-      <b>Note:</b> Prices may increase soon. Lock in your rate now.
-    </div>
-  </div>
+    <!-- Main Content -->
+    <div class="main-container">
+        
+        <!-- Chart Section -->
+        <section class="chart-section">
+            <div class="chart-header">
+                <select id="pairSelect" class="pair-selector">
+                    <option value="BTCUSDT">BTC/USDT</option>
+                    <option value="ETHUSDT" disabled>ETH/USDT (VIP)</option>
+                    <option value="SOLUSDT" disabled>SOL/USDT (VIP)</option>
+                </select>
+                <div style="font-size:0.8rem; color:var(--text-secondary);">Market Status: <span style="color:var(--accent-green);">Open</span></div>
+            </div>
+            
+            <div class="canvas-container">
+                <div class="chart-overlay">
+                    <div id="currentPrice" class="price-display">0.00</div>
+                    <div id="priceChange" style="font-size: 0.9rem;">0.00%</div>
+                </div>
+                <canvas id="mainChart"></canvas>
+            </div>
+        </section>
 
-  <footer>
-    &copy; 2025 Snipers-R-Us. All rights reserved.<br>
-    <span style="color:#666;">Not financial advice. For educational purposes only. Questions? DM on Discord or Twitter.</span>
-  </footer>
+        <!-- Sidebar / Scanner -->
+        <aside class="sidebar">
+            
+            <!-- Confluence Scanner -->
+            <div class="section-title">
+                <span>Scanner Analysis</span>
+                <span style="font-size: 10px;">Real-Time</span>
+            </div>
+
+            <div class="confluence-meter">
+                <div id="confluenceBox" class="score-circle">
+                    <span id="scoreVal">0%</span>
+                </div>
+                <div id="signalLabel" class="signal-badge">NO SIGNAL</div>
+            </div>
+
+            <div class="indicator-grid">
+                <!-- GPS Indicator -->
+                <div id="card-gps" class="ind-card">
+                    <div class="ind-header">
+                        <span>GPS Pro</span>
+                        <span id="gps-status" class="ind-status">IDLE</span>
+                    </div>
+                    <div id="gps-val" class="ind-value">Zone: 0.00 - 0.00</div>
+                </div>
+
+                <!-- Piv X Indicator -->
+                <div id="card-pivx" class="ind-card">
+                    <div class="ind-header">
+                        <span>Piv X (Williams)</span>
+                        <span id="pivx-status" class="ind-status">NEUTRAL</span>
+                    </div>
+                    <div id="pivx-val" class="ind-value">Divergence: None</div>
+                </div>
+
+                <!-- VPSR Indicator -->
+                <div id="card-vpsr" class="ind-card">
+                    <div class="ind-header">
+                        <span>VPSR (Volume)</span>
+                        <span id="vpsr-status" class="ind-status">NORMAL</span>
+                    </div>
+                    <div id="vpsr-val" class="ind-value">RVOL: 1.0x</div>
+                </div>
+
+                <!-- Oath Keeper Indicator -->
+                <div id="card-oath" class="ind-card">
+                    <div class="ind-header">
+                        <span>Oath Keeper</span>
+                        <span id="oath-status" class="ind-status">WAIT</span>
+                    </div>
+                    <div id="oath-val" class="ind-value">Money Flow: 50</div>
+                </div>
+            </div>
+
+            <!-- Trade Panel -->
+            <div class="section-title">Paper Trading</div>
+            
+            <div class="trades-list" id="activeTradesContainer">
+                <!-- Trades will be injected here -->
+            </div>
+
+            <div class="trade-panel">
+                <div class="input-group">
+                    <label>Strategy Logic</label>
+                    <div style="font-size:0.75rem; color:var(--text-secondary); margin-bottom:5px;">
+                        Target: 2.5% | Stop: ATR 1.5x | Risk: 1%
+                    </div>
+                </div>
+                <div class="btn-group">
+                    <button id="btnLong" class="btn btn-buy" onclick="app.placeTrade('long')">Long</button>
+                    <button id="btnShort" class="btn btn-sell" onclick="app.placeTrade('short')">Short</button>
+                </div>
+                <div class="risk-warning">
+                    <strong>Educational Use Only.</strong> Paper trading simulates market conditions. Max daily drawdown is 5%. 
+                    <br><br>
+                    <em>"The GPS zones provide high probability entries when combined with Volume Spikes."</em>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- VIP Modal -->
+    <div class="modal-overlay" id="vipModal">
+        <div class="modal">
+            <h2>Upgrade to VIP</h2>
+            <p>Unlock all pairs on the OXK Exchange including ETH, SOL, and 100+ futures pairs.</p>
+            <p><strong>Current Tier:</strong> Free (BTC Only)</p>
+            <button class="btn btn-vip" onclick="app.closeVipModal()">Close (Demo)</button>
+        </div>
+    </div>
+
+    <script>
+        /**
+         * GoldenPocket Pro - Core Logic
+         * Handles Charting, Indicator Simulation, and Paper Trading
+         */
+
+        const CONFIG = {
+            startBalance: 10000,
+            riskPercent: 0.02, // 2% risk per trade
+            targetPercent: 0.025, // 2.5% TP
+            maxDrawdown: 0.05, // 5% max daily loss
+            tickSpeed: 100, // ms per update
+        };
+
+        // --- Utilities ---
+        const $ = (id) => document.getElementById(id);
+        const formatMoney = (num) => '$' + num.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        
+        function random(min, max) { return Math.random() * (max - min) + min; }
+
+        // --- Toast System ---
+        function showToast(message, type = 'info') {
+            const container = $('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerText = message;
+            container.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // --- Charting Engine ---
+        class ChartEngine {
+            constructor(canvasId) {
+                this.canvas = $(canvasId);
+                this.ctx = this.canvas.getContext('2d');
+                this.prices = [];
+                this.volume = [];
+                this.gpZone = { high: 0, low: 0, active: false };
+                this.resize();
+                window.addEventListener('resize', () => this.resize());
+                
+                // Initialize with 100 candles
+                let price = 42000;
+                for(let i=0; i<100; i++) {
+                    this.prices.push(price);
+                    this.volume.push(random(50, 150));
+                    price = price + random(-50, 50);
+                }
+            }
+
+            resize() {
+                this.canvas.width = this.canvas.parentElement.clientWidth;
+                this.canvas.height = this.canvas.parentElement.clientHeight;
+            }
+
+            updatePrice(newPrice, vol) {
+                this.prices.push(newPrice);
+                if(this.prices.length > 200) this.prices.shift();
+                
+                this.volume.push(vol);
+                if(this.volume.length > 200) this.volume.shift();
+                
+                this.draw();
+            }
+
+            setGPZone(high, low) {
+                this.gpZone = { high, low, active: true };
+            }
+
+            draw() {
+                const { width, height } = this.canvas;
+                const ctx = this.ctx;
+                
+                // Clear
+                ctx.clearRect(0, 0, width, height);
+                
+                // Calculate Scaling
+                const minPrice = Math.min(...this.prices) * 0.998;
+                const maxPrice = Math.max(...this.prices) * 1.002;
+                const range = maxPrice - minPrice;
+                
+                const getY = (p) => height - ((p - minPrice) / range) * (height - 50) - 25;
+                const getX = (i) => (i / (this.prices.length - 1)) * width;
+
+                // Draw Golden Pocket Zone
+                if (this.gpZone.active) {
+                    const yHigh = getY(this.gpZone.high);
+                    const yLow = getY(this.gpZone.low);
+                    ctx.fillStyle = 'rgba(240, 185, 11, 0.1)';
+                    ctx.fillRect(0, yLow, width, yHigh - yLow);
+                    ctx.strokeStyle = 'rgba(240, 185, 11, 0.5)';
+                    ctx.setLineDash([5, 5]);
+                    ctx.beginPath();
+                    ctx.moveTo(0, yHigh);
+                    ctx.lineTo(width, yHigh);
+                    ctx.moveTo(0, yLow);
+                    ctx.lineTo(width, yLow);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                    
+                    // Label
+                    ctx.fillStyle = '#f0b90b';
+                    ctx.font = '10px Arial';
+                    ctx.fillText('GPS ZONE', 10, yLow + 15);
+                }
+
+                // Draw Volume (Bottom)
+                const maxVol = Math.max(...this.volume);
+                this.volume.forEach((v, i) => {
+                    const x = getX(i);
+                    const barH = (v / maxVol) * (height * 0.15);
+                    const color = v > (maxVol*0.7) ? '#eaecef' : '#2a2e39';
+                    ctx.fillStyle = color;
+                    ctx.fillRect(x - 1, height - barH, 2, barH);
+                });
+
+                // Draw Price Line
+                ctx.beginPath();
+                ctx.strokeStyle = '#0ecb81';
+                ctx.lineWidth = 2;
+                this.prices.forEach((p, i) => {
+                    const x = getX(i);
+                    const y = getY(p);
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                });
+                ctx.stroke();
+
+                // Draw Price Dot at end
+                const lastX = getX(this.prices.length - 1);
+                const lastY = getY(this.prices[this.prices.length - 1]);
+                ctx.beginPath();
+                ctx.arc(lastX, lastY, 4, 0, Math.PI * 2);
+                ctx.fillStyle = '#0ecb81';
+                ctx.fill();
+            }
+        }
+
+        // --- App Logic ---
+        class TradingApp {
+            constructor() {
+                this.balance = CONFIG.startBalance;
+                this.startOfDayBalance = CONFIG.startBalance;
+                this.dailyPnl = 0;
+                this.trades = [];
+                this.price = 42000;
+                
+                this.chart = new ChartEngine('mainChart');
+                
+                // Indicator States
+                this.indicators = {
+                    gps: { score: 0, touch: false },
+                    pivx: { score: 0, div: false },
+                    vpsr: { score: 0, spike: false },
+                    oath: { score: 0, flow: 50 }
+                };
+
+                this.initEvents();
+                this.startSimulation();
+            }
+
+            initEvents() {
+                $('pairSelect').addEventListener('change', (e) => {
+                    if(e.target.value === 'VIP') {
+                        $('vipModal').style.display = 'flex';
+                        e.target.value = 'BTCUSDT'; // Reset
+                    }
+                });
+            }
+
+            closeVipModal() {
+                $('vipModal').style.display = 'none';
+                showToast('This is a demo. VIP would unlock all pairs.', 'info');
+            }
+
+            // --- Simulation Loop ---
+            startSimulation() {
+                setInterval(() => this.tick(), CONFIG.tickSpeed);
+            }
+
+            tick() {
+                // 1. Simulate Price Movement (Random Walk with drift)
+                const change = this.price * random(-0.002, 0.002);
+                this.price += change;
+                
+                // 2. Simulate Volume
+                const vol = random(50, 200);
+                
+                // 3. Update UI & Chart
+                $('currentPrice').innerText = this.price.toFixed(2);
+                $('currentPrice').style.color = change >= 0 ? 'var(--accent-green)' : 'var(--accent-red)';
+                $('priceChange').innerText = (change / this.price * 100).toFixed(3) + '%';
+                
+                this.chart.updatePrice(this.price, vol);
+                
+                // 4. Run Indicators Logic
+                this.runIndicators(vol);
+                
+                // 5. Update Open Trades
+                this.updateTrades();
+                
+                // 6. Check Drawdown
+                this.checkRisk();
+            }
+
+            runIndicators(vol) {
+                // Simulated Logic based on User's Pine Script
+                
+                // GPS Logic: Find a range, place zone (0.618 - 0.65)
+                // Randomly "find" a zone occasionally
+                if(Math.random() > 0.99) {
+                    const range = this.price * 0.05;
+                    const low = this.price - range;
+                    const high = this.price - (range * 0.618);
+                    this.chart.setGPZone(high, low);
+                    $('gps-val').innerText = `Zone: ${low.toFixed(0)} - ${high.toFixed(0)}`;
+                    
+                    // Check Touch
+                    if(this.price >= low && this.price <= high) {
+                        this.indicators.gps.touch = true;
+                        this.indicators.gps.score = 30;
+                        $('card-gps').classList.add('active-gps');
+                        $('gps-status').innerText = "ACTIVE";
+                        $('gps-status').style.color = "#f0b90b";
+                    } else {
+                        this.indicators.gps.touch = false;
+                        this.indicators.gps.score = 0;
+                        $('card-gps').classList.remove('active-gps');
+                        $('gps-status').innerText = "WATCHING";
+                        $('gps-status').style.color = "#848e9c";
+                    }
+                }
+
+                // VPSR Logic: Volume Spike?
+                const avgVol = 120; // Simulated MA
+                const rvol = vol / avgVol;
+                $('vpsr-val').innerText = `RVOL: ${rvol.toFixed(1)}x`;
+                
+                if(rvol > 1.5) {
+                    this.indicators.vpsr.spike = true;
+                    this.indicators.vpsr.score = 25;
+                    $('card-vpsr').classList.add('active-vol');
+                    $('vpsr-status').innerText = "SPIKE";
+                    $('vpsr-status').style.color = "var(--accent-green)";
+                } else {
+                    this.indicators.vpsr.spike = false;
+                    this.indicators.vpsr.score = 0;
+                    $('card-vpsr').classList.remove('active-vol');
+                    $('vpsr-status').innerText = "NORMAL";
+                    $('vpsr-status').style.color = "#848e9c";
+                }
+
+                // Piv X Logic: Simulated Williams Divergence
+                // Just random chance for demo
+                if(Math.random() > 0.98) {
+                    this.indicators.pivx.div = true;
+                    this.indicators.pivx.score = 25;
+                    $('card-pivx').classList.add('active-div');
+                    $('pivx-status').innerText = "DIVERGENCE";
+                    $('pivx-status').style.color = "var(--accent-purple)";
+                    $('pivx-val').innerText = "Type: Regular Bull";
+                } else {
+                    this.indicators.pivx.div = false;
+                    this.indicators.pivx.score = 0;
+                    $('card-pivx').classList.remove('active-div');
+                    $('pivx-status').innerText = "NEUTRAL";
+                    $('pivx-status').style.color = "#848e9c";
+                    $('pivx-val').innerText = "Divergence: None";
+                }
+
+                // Oath Keeper Logic: Money Flow
+                // Simulating Oscillator
+                let flow = random(0, 100);
+                this.indicators.oath.flow = flow;
+                $('oath-val').innerText = `Money Flow: ${flow.toFixed(0)}`;
+                
+                if(flow > 70) {
+                    this.indicators.oath.score = 20;
+                    $('oath-status').innerText = "OVERBOUGHT";
+                    $('oath-status').style.color = "var(--accent-red)";
+                } else if (flow < 30) {
+                    this.indicators.oath.score = 20;
+                    $('oath-status').innerText = "OVERSOLD";
+                    $('oath-status').style.color = "var(--accent-green)";
+                } else {
+                    this.indicators.oath.score = 0;
+                    $('oath-status').innerText = "NEUTRAL";
+                    $('oath-status').style.color = "#848e9c";
+                }
+
+                this.calculateConfluence();
+            }
+
+            calculateConfluence() {
+                const total = this.indicators.gps.score + 
+                              this.indicators.vpsr.score + 
+                              this.indicators.pivx.score + 
+                              this.indicators.oath.score;
+                
+                const scoreBox = $('confluenceBox');
+                const scoreVal = $('scoreVal');
+                const sigLabel = $('signalLabel');
+
+                scoreVal.innerText = total + "%";
+                
+                if(total >= 80) {
+                    // A+ SETUP
+                    scoreBox.parentElement.classList.add('score-high');
+                    sigLabel.innerText = "A+ SETUP";
+                    sigLabel.classList.add('signal-a-plus');
+                    if(!this.lastSignal || Date.now() - this.lastSignal > 10000) {
+                        showToast("A+ Setup Detected! Confluence > 80%", "success");
+                        this.lastSignal = Date.now();
+                    }
+                } else if (total >= 50) {
+                    scoreBox.parentElement.classList.remove('score-high');
+                    sigLabel.innerText = "POTENTIAL ENTRY";
+                    sigLabel.classList.remove('signal-a-plus');
+                } else {
+                    scoreBox.parentElement.classList.remove('score-high');
+                    sigLabel.innerText = "NO SIGNAL";
+                    sigLabel.classList.remove('signal-a-plus');
+                }
+            }
+
+            // --- Trading Logic ---
+            placeTrade(direction) {
+                // Check Drawdown
+                const currentDD = (this.startOfDayBalance - this.balance) / this.startOfDayBalance;
+                if(currentDD >= CONFIG.maxDrawdown) {
+                    showToast("Daily Drawdown Limit Reached. Trading Halted.", "error");
+                    return;
+                }
+
+                // Check Confluence (Soft validation)
+                if(this.indicators.gps.score + this.indicators.vpsr.score < 30) {
+                    showToast("Warning: Entry not confirmed by GPS or Volume.", "warning");
+                    // We allow it for educational purposes, but warn user
+                }
+
+                const amount = this.balance * CONFIG.riskPercent; // 2% risk
+                const entry = this.price;
+                
+                // Calculate TP and SL
+                // User said: 2-3% moves per trade. Let's use 2.5%.
+                // SL: Using ATR logic (simulated as 1.5% here)
+                const tp = direction === 'long' ? entry * (1 + CONFIG.targetPercent) : entry * (1 - CONFIG.targetPercent);
+                const sl = direction === 'long' ? entry * (1 - 0.015) : entry * (1 + 0.015);
+
+                const trade = {
+                    id: Date.now(),
+                    direction,
+                    entry,
+                    size: amount, // In USD terms for simplicity
+                    tp,
+                    sl,
+                    pnl: 0
+                };
+
+                this.trades.push(trade);
+                this.renderTrades();
+                showToast(`${direction.toUpperCase()} Order Placed at ${entry.toFixed(2)}`, direction === 'long' ? 'success' : 'error');
+            }
+
+            updateTrades() {
+                const container = $('activeTradesContainer');
+                let pnlUpdate = 0;
+
+                this.trades = this.trades.filter(t => {
+                    // Calculate unrealized PnL
+                    const diff = this.price - t.entry;
+                    const percentChange = diff / t.entry;
+                    const pnl = t.size * percentChange; // Simplified calculation
+                    t.pnl = pnl;
+
+                    // Check TP/SL
+                    if(t.direction === 'long') {
+                        if(this.price >= t.tp) return this.closeTrade(t, pnl, 'TP Hit');
+                        if(this.price <= t.sl) return this.closeTrade(t, pnl, 'SL Hit');
+                    } else {
+                        if(this.price <= t.tp) return this.closeTrade(t, pnl, 'TP Hit');
+                        if(this.price >= t.sl) return this.closeTrade(t, pnl, 'SL Hit');
+                    }
+                    return true;
+                });
+
+                // Update DOM elements directly for performance instead of full re-render
+                this.trades.forEach(t => {
+                    const el = $(`trade-${t.id}`);
+                    if(el) {
+                        const pnlEl = el.querySelector('.trade-pnl');
+                        pnlEl.innerText = (t.pnl >= 0 ? '+' : '') + formatMoney(t.pnl);
+                        pnlEl.style.color = t.pnl >= 0 ? 'var(--accent-green)' : 'var(--accent-red)';
+                    }
+                });
+            }
+
+            closeTrade(trade, pnl, reason) {
+                this.balance += pnl;
+                this.dailyPnl += pnl;
+                this.updateBalanceUI();
+                
+                // Remove element
+                const el = $(`trade-${trade.id}`);
+                if(el) el.remove();
+
+                showToast(`Trade Closed: ${reason}. PnL: ${formatMoney(pnl)}`, pnl >= 0 ? 'success' : 'error');
+                return false; // remove from array
+            }
+
+            renderTrades() {
+                const container = $('activeTradesContainer');
+                // Only append new ones (simple check)
+                this.trades.forEach(t => {
+                    if(!$(`trade-${t.id}`)) {
+                        const div = document.createElement('div');
+                        div.id = `trade-${t.id}`;
+                        div.className = `trade-item ${t.direction}`;
+                        div.innerHTML = `
+                            <div>
+                                <div style="font-weight:bold">${t.direction.toUpperCase()} BTC</div>
+                                <div style="font-size:0.75rem; color:#888;">${t.entry.toFixed(2)}</div>
+                            </div>
+                            <div style="text-align:right">
+                                <div class="trade-pnl">$0.00</div>
+                                <div style="font-size:0.75rem; color:#888;">TP: ${t.tp.toFixed(0)}</div>
+                            </div>
+                        `;
+                        container.prepend(div);
+                    }
+                });
+            }
+
+            updateBalanceUI() {
+                $('balanceDisplay').innerText = formatMoney(this.balance);
+                const pnlEl = $('dailyPnl');
+                pnlEl.innerText = (this.dailyPnl >= 0 ? '+' : '') + formatMoney(this.dailyPnl);
+                pnlEl.className = `daily-pnl ${this.dailyPnl >= 0 ? 'pnl-pos' : 'pnl-neg'}`;
+                
+                const dd = (this.startOfDayBalance - this.balance) / this.startOfDayBalance;
+                $('drawdownVal').innerText = Math.max(0, dd * 100).toFixed(2) + '%';
+            }
+
+            checkRisk() {
+                const currentDD = (this.startOfDayBalance - this.balance) / this.startOfDayBalance;
+                const btns = document.querySelectorAll('.btn-group .btn');
+                
+                if(currentDD >= CONFIG.maxDrawdown) {
+                    btns.forEach(b => b.disabled = true);
+                    if(!this.limitReached) {
+                        this.limitReached = true;
+                        showToast("MAX DRAWDOWN REACHED. TRADING DISABLED.", "error");
+                    }
+                } else {
+                    this.limitReached = false;
+                    btns.forEach(b => b.disabled = false);
+                }
+            }
+        }
+
+        // Initialize
+        const app = new TradingApp();
+
+    </script>
 </body>
 </html>

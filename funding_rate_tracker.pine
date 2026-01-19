@@ -1,0 +1,298 @@
+//@version=6
+indicator("Funding Rate Tracker & Cycles", overlay=false, max_labels_count=500, max_lines_count=100)
+
+// ========================================
+// FUNDING RATE TRACKER & CYCLES
+// ========================================
+// Tracks funding rates for crypto perpetual futures
+// Funding rates are paid every 8 hours (00:00, 08:00, 16:00 UTC)
+// Extreme funding rates = overcrowded trades = reversal potential
+// ========================================
+// Note: Pine Script cannot directly fetch funding rates from exchanges
+// This indicator uses manual input or price-based proxies
+// ========================================
+
+// === INPUT GROUPS ===
+grpDataSource = "📊 Data Source"
+grpManual = "✏️ Manual Input (for testing)"
+grpProxies = "🔍 Price-Based Proxies"
+grpDisplay = "📈 Display Settings"
+grpAlerts = "🔔 Alerts"
+grpCycles = "🔄 Funding Cycle Settings"
+
+// === DATA SOURCE ===
+dataSource = input.string("Price Proxy", "Data Source", options=["Manual Input", "Price Proxy", "Both"], group=grpDataSource, tooltip="Choose how to track funding rates")
+
+// === MANUAL INPUT (for testing/backtesting) ===
+manualFundingRate = input.float(0.0, "Manual Funding Rate (%)", minval=-1.0, maxval=1.0, step=0.001, group=grpManual, tooltip="Enter funding rate manually (e.g., 0.01 = 0.01% = 0.0001)")
+useManualReset = input.bool(false, "Auto-Reset Every 8 Hours", group=grpManual, tooltip="Simulate 8-hour funding cycle with manual input")
+
+// === PRICE-BASED PROXIES ===
+// These proxies estimate funding rate behavior based on price action
+proxyMethod = input.string("Price vs MA", "Proxy Method", options=["Price vs MA", "RSI Divergence", "Volume Profile", "Combined"], group=grpProxies)
+
+// Price vs MA proxy (when price is far above MA, funding tends positive)
+maPeriod = input.int(20, "MA Period for Proxy", minval=5, maxval=200, group=grpProxies)
+maDeviationMult = input.float(2.0, "Deviation Multiplier", minval=0.5, step=0.1, group=grpProxies, tooltip="How many standard deviations = extreme funding")
+
+// RSI proxy (when RSI is extreme, funding tends to be extreme)
+rsiPeriod = input.int(14, "RSI Period", minval=5, maxval=50, group=grpProxies)
+
+// Volume proxy (high volume = high leverage = extreme funding)
+volumePeriod = input.int(20, "Volume Period", minval=5, maxval=100, group=grpProxies)
+
+// === DISPLAY INPUTS ===
+showFundingPlot = input.bool(true, "Show Funding Rate Plot", group=grpDisplay)
+showZones = input.bool(true, "Show Extreme Zones", group=grpDisplay)
+showCycleMarkers = input.bool(true, "Show 8-Hour Cycle Markers", group=grpDisplay)
+showHistory = input.bool(true, "Show Funding History", group=grpDisplay)
+showStats = input.bool(true, "Show Statistics Table", group=grpDisplay)
+
+// === ALERT INPUTS ===
+alertOnExtremePositive = input.bool(true, "Alert: Extreme Positive (>0.1%)", group=grpAlerts, tooltip="Too many longs = potential short squeeze down")
+alertOnExtremeNegative = input.bool(true, "Alert: Extreme Negative (<-0.1%)", group=grpAlerts, tooltip="Too many shorts = potential squeeze up")
+alertOnNeutral = input.bool(false, "Alert: Neutral Funding", group=grpAlerts, tooltip="Funding normalized, healthy market")
+
+// === FUNDING CYCLE INPUTS ===
+fundingInterval = input.int(8, "Funding Interval (hours)", minval=1, maxval=24, group=grpCycles, tooltip="Most exchanges: 8 hours (00:00, 08:00, 16:00 UTC)")
+showNextFundingTime = input.bool(true, "Show Next Funding Time", group=grpCycles)
+
+// === THRESHOLDS ===
+extremePositive = input.float(0.1, "Extreme Positive Threshold (%)", minval=0.01, step=0.01, group=grpDisplay)
+extremeNegative = input.float(-0.1, "Extreme Negative Threshold (%)", maxval=-0.01, step=0.01, group=grpDisplay)
+neutralUpper = input.float(0.05, "Neutral Upper Bound (%)", minval=0.0, step=0.01, group=grpDisplay)
+neutralLower = input.float(-0.05, "Neutral Lower Bound (%)", maxval=0.0, step=0.01, group=grpDisplay)
+
+// === COLORS ===
+grpColors = "🎨 Colors"
+extremePositiveColor = input.color(color.new(color.red, 0), "Extreme Positive (Crowded Longs)", group=grpColors)
+extremeNegativeColor = input.color(color.new(color.lime, 0), "Extreme Negative (Crowded Shorts)", group=grpColors)
+neutralColor = input.color(color.new(color.gray, 0), "Neutral", group=grpColors)
+positiveColor = input.color(color.new(color.orange, 0), "Positive (Slight)", group=grpColors)
+negativeColor = input.color(color.new(color.blue, 0), "Negative (Slight)", group=grpColors)
+
+// === CALCULATIONS ===
+// Calculate 8-hour funding cycle timestamps
+getNextFundingTime() =>
+    currentTime = time
+    // Funding happens at 00:00, 08:00, 16:00 UTC
+    // Get current UTC hour
+    hourUTC = hour(time, "UTC")
+
+    // Find next funding time
+    if hourUTC < 8
+        nextHour = 8
+    else if hourUTC < 16
+        nextHour = 16
+    else
+        nextHour = 24  // Next day 00:00
+
+    // Calculate timestamp for next funding
+    dayUTC = dayofweek(time, "UTC")
+    // This is simplified - actual implementation would need proper date math
+    // For now, we'll use a simpler approach
+    hoursUntil = nextHour - (hourUTC % 24)
+    if hoursUntil <= 0
+        hoursUntil := 8
+
+    [hoursUntil, nextHour]
+
+[hoursUntilNext, nextFundingHour] = getNextFundingTime()
+
+// === PRICE-BASED PROXIES ===
+// Proxy 1: Price vs Moving Average
+ma = ta.sma(close, maPeriod)
+priceDeviation = (close - ma) / ma * 100
+maStd = ta.stdev(priceDeviation, maPeriod)
+priceProxy = priceDeviation / (maStd * maDeviationMult) * 0.1  // Normalize to ~0.1% range
+
+// Proxy 2: RSI-based
+rsi = ta.rsi(close, rsiPeriod)
+rsiProxy = (rsi - 50) / 50 * 0.15  // Map RSI 0-100 to -0.15% to +0.15%
+
+// Proxy 3: Volume-based
+volSMA = ta.sma(volume, volumePeriod)
+volRatio = volume / volSMA
+volProxy = (volRatio - 1.0) * 0.05  // High volume = slight positive funding
+
+// Combined proxy
+combinedProxy = (priceProxy * 0.5) + (rsiProxy * 0.3) + (volProxy * 0.2)
+
+// Select proxy based on method
+proxyFunding = proxyMethod == "Price vs MA" ? priceProxy : proxyMethod == "RSI Divergence" ? rsiProxy : proxyMethod == "Volume Profile" ? volProxy : combinedProxy
+
+// === FUNDING RATE DETERMINATION ===
+// Use manual input if selected, otherwise use proxy
+finalFundingRate = dataSource == "Manual Input" ? manualFundingRate : dataSource == "Price Proxy" ? proxyFunding : (manualFundingRate + proxyFunding) / 2
+
+// Convert to percentage (if input is already in %, keep as is)
+fundingRatePct = finalFundingRate
+
+// === FUNDING RATE CLASSIFICATION ===
+isExtremePositive = fundingRatePct >= extremePositive
+isExtremeNegative = fundingRatePct <= extremeNegative
+isNeutral = fundingRatePct >= neutralLower and fundingRatePct <= neutralUpper
+isPositive = fundingRatePct > 0 and not isExtremePositive
+isNegative = fundingRatePct < 0 and not isExtremeNegative
+
+// === CYCLE TRACKING ===
+// Track funding rate history (last 24 hours = 3 funding periods)
+var float[] fundingHistory = array.new<float>()
+var int[] fundingTimes = array.new<int>()
+
+// Check if we're at a funding time (simplified - every 8 hours)
+hourUTC = hour(time, "UTC")
+minuteUTC = minute(time, "UTC")
+isFundingTime = (hourUTC == 0 or hourUTC == 8 or hourUTC == 16) and minuteUTC == 0
+
+if isFundingTime or (useManualReset and hourUTC % fundingInterval == 0)
+    array.push(fundingHistory, fundingRatePct)
+    array.push(fundingTimes, time)
+    // Keep only last 10 funding periods
+    if array.size(fundingHistory) > 10
+        array.shift(fundingHistory)
+        array.shift(fundingTimes)
+
+// === STATISTICS ===
+getFundingStats() =>
+    if array.size(fundingHistory) == 0
+        [na, na, na, na]
+    else
+        sum = 0.0
+        maxVal = array.get(fundingHistory, 0)
+        minVal = array.get(fundingHistory, 0)
+        for i = 0 to array.size(fundingHistory) - 1
+            val = array.get(fundingHistory, i)
+            sum += val
+            if val > maxVal
+                maxVal := val
+            if val < minVal
+                minVal := val
+        avg = sum / array.size(fundingHistory)
+        [avg, maxVal, minVal, array.size(fundingHistory)]
+
+[avgFunding, maxFunding, minFunding, sampleCount] = getFundingStats()
+
+// === TREND DETECTION ===
+fundingTrend = "Neutral"
+if array.size(fundingHistory) >= 3
+    recent = array.get(fundingHistory, array.size(fundingHistory) - 1)
+    previous = array.get(fundingHistory, array.size(fundingHistory) - 3)
+    if recent > previous + 0.01
+        fundingTrend := "Rising"
+    else if recent < previous - 0.01
+        fundingTrend := "Falling"
+    else
+        fundingTrend := "Neutral"
+
+// === VISUALIZATION ===
+// Plot funding rate
+plotColor = isExtremePositive ? extremePositiveColor : isExtremeNegative ? extremeNegativeColor : isNeutral ? neutralColor : isPositive ? positiveColor : negativeColor
+
+plot(showFundingPlot ? fundingRatePct : na, "Funding Rate (%)", color=plotColor, linewidth=2, style=plot.style_line)
+
+// Zero line
+hline(0, "Zero", color=color.gray, linestyle=hline.style_dotted)
+
+// Extreme zones
+hline(extremePositive, "Extreme Positive", color=extremePositiveColor, linestyle=hline.style_dashed)
+hline(extremeNegative, "Extreme Negative", color=extremeNegativeColor, linestyle=hline.style_dashed)
+
+// Neutral zone
+fill(hline(neutralUpper), hline(neutralLower), color=color.new(neutralColor, 90), title="Neutral Zone")
+
+// Background colors for extreme zones
+bgcolor(isExtremePositive ? color.new(extremePositiveColor, 97) : isExtremeNegative ? color.new(extremeNegativeColor, 97) : na)
+
+// Cycle markers
+if showCycleMarkers and isFundingTime
+    label.new(bar_index, fundingRatePct, "💰", style=label.style_label_center, color=color.new(color.yellow, 0), textcolor=color.black, size=size.small)
+
+// === LABELS ===
+if showHistory and barstate.islast
+    labelText = "Funding: " + str.tostring(fundingRatePct, "#.####") + "%"
+    if isExtremePositive
+        labelText += "\n⚠️ CROWDED LONGS"
+    else if isExtremeNegative
+        labelText += "\n⚠️ CROWDED SHORTS"
+
+    labelColor = isExtremePositive ? extremePositiveColor : isExtremeNegative ? extremeNegativeColor : neutralColor
+    label.new(bar_index, fundingRatePct, labelText, style=label.style_label_right, color=labelColor, textcolor=color.white, size=size.small)
+
+// Next funding time label
+if showNextFundingTime and barstate.islast
+    nextFundingText = "Next Funding: " + str.tostring(hoursUntilNext) + "h (" + str.tostring(nextFundingHour) + ":00 UTC)"
+    label.new(bar_index, fundingRatePct, nextFundingText, style=label.style_label_left, color=color.new(color.gray, 70), textcolor=color.white, size=size.tiny)
+
+// === ALERTS ===
+var bool prevExtremePositive = false
+var bool prevExtremeNegative = false
+var bool prevNeutral = false
+
+if alertOnExtremePositive and isExtremePositive and not prevExtremePositive
+    alert("⚠️ EXTREME POSITIVE FUNDING: " + str.tostring(fundingRatePct, "#.####") + "% - Too many longs, potential short squeeze down!", alert.freq_once_per_bar)
+
+if alertOnExtremeNegative and isExtremeNegative and not prevExtremeNegative
+    alert("⚠️ EXTREME NEGATIVE FUNDING: " + str.tostring(fundingRatePct, "#.####") + "% - Too many shorts, potential squeeze up!", alert.freq_once_per_bar)
+
+if alertOnNeutral and isNeutral and not prevNeutral
+    alert("✅ Funding Rate Normalized: " + str.tostring(fundingRatePct, "#.####") + "% - Healthy market", alert.freq_once_per_bar)
+
+// Update previous state
+if barstate.isconfirmed
+    prevExtremePositive := isExtremePositive
+    prevExtremeNegative := isExtremeNegative
+    prevNeutral := isNeutral
+
+// === STATISTICS TABLE ===
+var table statsTable = na
+if showStats and barstate.islast
+    if na(statsTable)
+        statsTable := table.new(position.top_right, 2, 8, bgcolor=color.new(color.black, 85), border_width=1)
+
+    // Headers
+    table.cell(statsTable, 0, 0, "Funding Rate Stats", text_color=color.white, text_size=size.normal, bgcolor=color.new(color.gray, 50))
+    table.cell(statsTable, 1, 0, "", text_color=color.white, text_size=size.normal, bgcolor=color.new(color.gray, 50))
+
+    // Current
+    currentText = str.tostring(fundingRatePct, "#.####") + "%"
+    currentColor = isExtremePositive ? extremePositiveColor : isExtremeNegative ? extremeNegativeColor : neutralColor
+    table.cell(statsTable, 0, 1, "Current", text_color=color.white, text_size=size.small)
+    table.cell(statsTable, 1, 1, currentText, text_color=currentColor, text_size=size.small)
+
+    // Status
+    statusText = isExtremePositive ? "⚠️ Crowded Longs" : isExtremeNegative ? "⚠️ Crowded Shorts" : "✅ Neutral"
+    statusColor = isExtremePositive ? extremePositiveColor : isExtremeNegative ? extremeNegativeColor : neutralColor
+    table.cell(statsTable, 0, 2, "Status", text_color=color.white, text_size=size.small)
+    table.cell(statsTable, 1, 2, statusText, text_color=statusColor, text_size=size.small)
+
+    // Trend
+    trendColor = fundingTrend == "Rising" ? positiveColor : fundingTrend == "Falling" ? negativeColor : neutralColor
+    table.cell(statsTable, 0, 3, "Trend", text_color=color.white, text_size=size.small)
+    table.cell(statsTable, 1, 3, fundingTrend, text_color=trendColor, text_size=size.small)
+
+    // Average
+    avgText = not na(avgFunding) ? str.tostring(avgFunding, "#.####") + "%" : "N/A"
+    table.cell(statsTable, 0, 4, "Avg (24h)", text_color=color.white, text_size=size.small)
+    table.cell(statsTable, 1, 4, avgText, text_color=color.white, text_size=size.small)
+
+    // Max
+    maxText = not na(maxFunding) ? str.tostring(maxFunding, "#.####") + "%" : "N/A"
+    table.cell(statsTable, 0, 5, "Max (24h)", text_color=color.white, text_size=size.small)
+    table.cell(statsTable, 1, 5, maxText, text_color=extremePositiveColor, text_size=size.small)
+
+    // Min
+    minText = not na(minFunding) ? str.tostring(minFunding, "#.####") + "%" : "N/A"
+    table.cell(statsTable, 0, 6, "Min (24h)", text_color=color.white, text_size=size.small)
+    table.cell(statsTable, 1, 6, minText, text_color=extremeNegativeColor, text_size=size.small)
+
+    // Samples
+    table.cell(statsTable, 0, 7, "Samples", text_color=color.white, text_size=size.small)
+    table.cell(statsTable, 1, 7, str.tostring(sampleCount), text_color=color.white, text_size=size.small)
+
+
+
+
+
+
+

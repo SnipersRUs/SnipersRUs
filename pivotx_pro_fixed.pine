@@ -1,0 +1,460 @@
+// © Venice.ai
+// @version=6
+indicator("PivotX Pro", shorttitle="PivotX Pro", overlay=true, max_labels_count=500, max_lines_count=500)
+
+// ============================================================================
+// INPUTS
+// ============================================================================
+grpPivotDetection = "🔍 Pivot Detection"
+grpMarketStructure = "📊 Market Structure"
+grpFilters = "🛡️ Filters"
+grpVisuals = "🎨 Visuals"
+grpAlerts = "🔔 Alerts"
+
+// Pivot Detection Inputs
+atr_multiplier = input.float(0.5, "ATR Pivot Strength Multiplier", minval=0.1, maxval=2.0, step=0.1, group=grpPivotDetection, tooltip="Multiplier for ATR to determine dynamic pivot lookback. Higher values = fewer, more significant pivots.")
+volume_threshold = input.float(1.5, "Volume Spike Threshold", minval=1.0, maxval=5.0, step=0.1, group=grpPivotDetection)
+exhaustion_periods = input.int(3, "Exhaustion Lookback", minval=2, maxval=10, group=grpPivotDetection)
+min_price_move = input.float(2.0, "Min Price Move % for Exhaustion", minval=0.5, maxval=10.0, step=0.5, group=grpPivotDetection)
+
+// Market Structure Inputs
+mss_enabled = input.bool(true, "Show Market Structure Shift (MSS)", group=grpMarketStructure)
+fib_enabled = input.bool(false, "Auto-Draw Fibonacci", group=grpMarketStructure)
+
+// Filter Inputs
+mtf_enabled = input.bool(true, "Enable HTF Trend Filter", group=grpFilters)
+htf_res = input.timeframe("240", "Higher Timeframe", group=grpFilters, tooltip="Higher timeframe in minutes (240 = 4H, 60 = 1H, etc.)")
+htf_ma_len = input.int(50, "HTF MA Length", minval=10, maxval=200, group=grpFilters)
+atr_confirm_enabled = input.bool(true, "Enable ATR Confirmation", group=grpFilters)
+atr_confirm_mult = input.float(0.2, "ATR Confirmation Multiplier", minval=0.1, maxval=1.0, step=0.1, group=grpFilters, tooltip="Price must close beyond Pivot +/- (ATR * this multiplier) to confirm.")
+
+// Visual Inputs
+show_zones = input.bool(true, "Show Pivot Zones", group=grpVisuals)
+show_labels = input.bool(true, "Show Pivot Labels", group=grpVisuals)
+zone_extend_bars = input.int(50, "Zone Extension (bars)", minval=10, maxval=200, group=grpVisuals)
+
+// Color Inputs
+c_bull = input.color(color.new(color.green, 20), "Bullish Color", group=grpVisuals)
+c_bear = input.color(color.new(color.red, 20), "Bearish Color", group=grpVisuals)
+c_mss = input.color(color.new(color.blue, 40), "MSS Line Color", group=grpVisuals)
+c_fib = input.color(color.gray, "Fibonacci Color", group=grpVisuals)
+c_golden_pocket = input.color(color.new(color.yellow, 0), "Golden Pocket (0.618) Color", group=grpVisuals)
+
+// Alert Inputs
+alert_pivot_high = input.bool(true, "Alert on Pivot High", group=grpAlerts)
+alert_pivot_low = input.bool(true, "Alert on Pivot Low", group=grpAlerts)
+alert_major_zones = input.bool(true, "Alert on Major Pivot Zones", group=grpAlerts)
+alert_mss = input.bool(true, "Alert on Market Structure Shift (CHoCH)", group=grpAlerts)
+alert_exhaustion = input.bool(true, "Alert on Exhaustion Signals", group=grpAlerts)
+alert_fib_levels = input.bool(false, "Alert on Fibonacci Level Touches", group=grpAlerts)
+
+
+// ============================================================================
+// CALCULATIONS
+// ============================================================================
+
+// --- Timeframe Filter ---
+// Disable on 1-minute charts (too many signals)
+is_1min = timeframe.period == "1"
+if is_1min
+    runtime.error("PivotX Pro is not available on 1-minute charts. Please use 3-minute or higher timeframes.")
+
+// Determine if we're on a lower timeframe that needs stricter filtering
+is_5m = timeframe.period == "5"
+is_15m = timeframe.period == "15"
+is_1h = timeframe.period == "60" or timeframe.period == "1H"
+is_lower_tf = timeframe.in_seconds() <= 300  // 5 minutes or less (3m, 5m)
+is_higher_tf = timeframe.in_seconds() >= 900  // 15 minutes or higher
+
+// A+ Setup Timeframes (5m, 15m, 1h)
+is_aplus_tf = is_5m or is_15m or is_1h
+
+// --- Core Calculations ---
+atr = ta.atr(14)
+avg_vol = ta.sma(volume, 20)
+vol_spike = volume > avg_vol * volume_threshold
+
+// --- Dynamic Pivot Strength (Optimized for 5m, 15m, 1h A+ Setups) ---
+// Make pivot strength adaptive to timeframe - cap to prevent "too far back" errors
+// Use a more reasonable calculation that works across all timeframes
+pivot_strength_raw = math.max(2, math.round(atr / syminfo.mintick * atr_multiplier))
+
+// Optimized pivot strength for A+ timeframes (5m, 15m, 1h)
+// FIXED: Use ternary operators to ensure variables are always in scope
+min_strength = is_5m ? 3 : is_15m ? 2 : is_1h ? 2 : (is_lower_tf ? 5 : 2)
+max_strength = is_5m ? 12 : is_15m ? 15 : is_1h ? 20 : (is_lower_tf ? 15 : (timeframe.isintraday ? 20 : 50))
+
+pivot_strength = math.max(min_strength, math.min(pivot_strength_raw, max_strength))
+ph = ta.pivothigh(high, pivot_strength, pivot_strength)
+pl = ta.pivotlow(low, pivot_strength, pivot_strength)
+
+// --- Higher Timeframe Trend Filter ---
+// Calculate HTF EMA values separately to avoid issues
+htf_ema = mtf_enabled ? request.security(syminfo.tickerid, htf_res, ta.ema(close, htf_ma_len), lookahead=barmerge.lookahead_on) : close
+htf_ema_prev = htf_ema[1]
+htf_trend_up = mtf_enabled ? htf_ema > htf_ema_prev : true
+htf_trend_down = mtf_enabled ? htf_ema < htf_ema_prev : true
+
+// --- Market Structure Tracking ---
+var float last_ph = na
+var float last_pl = na
+var float prev_ph = na
+var float prev_pl = na
+var int last_ph_bar = na
+var int last_pl_bar = na
+var bool bullish_struct = true
+var bool bearish_struct = true
+
+// Alert tracking variables
+var bool prev_ph_detected = false
+var bool prev_pl_detected = false
+var bool prev_major_pl = false
+var bool prev_major_ph = false
+var bool prev_choch_up = false
+var bool prev_choch_down = false
+var bool prev_sell_exhaustion = false
+var bool prev_buy_exhaustion = false
+
+if not na(ph)
+    prev_ph := last_ph
+    last_ph := ph
+    last_ph_bar := math.max(0, bar_index - pivot_strength)
+    bearish_struct := false // New PH breaks bearish structure
+if not na(pl)
+    prev_pl := last_pl
+    last_pl := pl
+    last_pl_bar := math.max(0, bar_index - pivot_strength)
+    bullish_struct := false // New PL breaks bullish structure
+
+// --- Market Structure Shift (CHoCH) Detection ---
+var line mss_line = na
+var label mss_label = na
+mss_detected = false
+
+choch_up = bullish_struct and not na(last_ph) and not na(prev_ph) and not na(last_pl) and not na(prev_pl) and last_ph > prev_ph and last_pl > prev_pl
+choch_down = bearish_struct and not na(last_ph) and not na(prev_ph) and not na(last_pl) and not na(prev_pl) and last_ph < prev_ph and last_pl < prev_pl
+
+if mss_enabled and choch_up
+    mss_detected := true
+    if not na(mss_line) and not na(mss_label)
+        line.delete(mss_line)
+        label.delete(mss_label)
+    mss_line := line.new(last_pl_bar, last_pl, bar_index, last_pl, color=c_mss, width=2, style=line.style_dashed)
+    mss_label := label.new(last_pl_bar, last_pl, "CHoCH", style=label.style_label_up, color=color.white, textcolor=color.blue, size=size.small)
+if mss_enabled and choch_down
+    mss_detected := true
+    if not na(mss_line) and not na(mss_label)
+        line.delete(mss_line)
+        label.delete(mss_label)
+    mss_line := line.new(last_ph_bar, last_ph, bar_index, last_ph, color=c_mss, width=2, style=line.style_dashed)
+    mss_label := label.new(last_ph_bar, last_ph, "CHoCH", style=label.style_label_down, color=color.white, textcolor=color.blue, size=size.small)
+
+// --- Exhaustion Detection (Simplified and Integrated) ---
+// Calculate ta.rising and ta.falling unconditionally to avoid series string errors
+price_rising = ta.rising(close, 1)
+price_falling = ta.falling(close, 1)
+
+// Detect recent selloff (price drop from past to now)
+is_selloff = false
+if bar_index >= exhaustion_periods
+    price_change_pct = ((close - close[exhaustion_periods]) / close[exhaustion_periods]) * 100
+    if price_change_pct <= -min_price_move
+        is_selloff := true
+
+// Detect recent rally (price increase from past to now)
+is_rally = false
+if bar_index >= exhaustion_periods
+    price_change_pct = ((close - close[exhaustion_periods]) / close[exhaustion_periods]) * 100
+    if price_change_pct >= min_price_move
+        is_rally := true
+
+sell_exhaustion = is_selloff and vol_spike and not price_rising
+buy_exhaustion = is_rally and vol_spike and not price_falling
+
+// --- ATR Confirmation ---
+atr_confirmed_pl = not na(pl) and (not atr_confirm_enabled or close > pl + (atr * atr_confirm_mult))
+atr_confirmed_ph = not na(ph) and (not atr_confirm_enabled or close < ph - (atr * atr_confirm_mult))
+
+// --- Multi-Timeframe Confirmation for A+ Setups (5m, 15m, 1h) ---
+// Get higher timeframe pivots for confirmation
+htf_5m_ph = is_5m ? na : (is_15m or is_1h ? request.security(syminfo.tickerid, "5", ph, lookahead=barmerge.lookahead_on) : na)
+htf_5m_pl = is_5m ? na : (is_15m or is_1h ? request.security(syminfo.tickerid, "5", pl, lookahead=barmerge.lookahead_on) : na)
+htf_15m_ph = is_1h ? request.security(syminfo.tickerid, "15", ph, lookahead=barmerge.lookahead_on) : na
+htf_15m_pl = is_1h ? request.security(syminfo.tickerid, "15", pl, lookahead=barmerge.lookahead_on) : na
+
+// A+ Setup Scoring System
+aplus_score_pl = 0
+aplus_score_ph = 0
+
+// Calculate A+ score for Pivot Low
+if is_aplus_tf and not na(pl) and atr_confirmed_pl
+    aplus_score_pl := 0
+    // Base confirmation (20 points)
+    if atr_confirmed_pl
+        aplus_score_pl += 20
+    // Volume confirmation (15 points)
+    if vol_spike
+        aplus_score_pl += 15
+    // HTF trend alignment (25 points)
+    if not mtf_enabled or htf_trend_up
+        aplus_score_pl += 25
+    // Exhaustion signal (20 points)
+    if sell_exhaustion
+        aplus_score_pl += 20
+    // Multi-timeframe confirmation (20 points)
+    if is_15m and not na(htf_5m_pl)
+        aplus_score_pl += 20
+    else if is_1h and (not na(htf_15m_pl) or not na(htf_5m_pl))
+        aplus_score_pl += 20
+
+// Calculate A+ score for Pivot High
+if is_aplus_tf and not na(ph) and atr_confirmed_ph
+    aplus_score_ph := 0
+    // Base confirmation (20 points)
+    if atr_confirmed_ph
+        aplus_score_ph += 20
+    // Volume confirmation (15 points)
+    if vol_spike
+        aplus_score_ph += 15
+    // HTF trend alignment (25 points)
+    if not mtf_enabled or htf_trend_down
+        aplus_score_ph += 25
+    // Exhaustion signal (20 points)
+    if buy_exhaustion
+        aplus_score_ph += 20
+    // Multi-timeframe confirmation (20 points)
+    if is_15m and not na(htf_5m_ph)
+        aplus_score_ph += 20
+    else if is_1h and (not na(htf_15m_ph) or not na(htf_5m_ph))
+        aplus_score_ph += 20
+
+// A+ Setup Detection (Score >= 80 for A+)
+is_aplus_pl = is_aplus_tf and aplus_score_pl >= 80
+is_aplus_ph = is_aplus_tf and aplus_score_ph >= 80
+
+// --- Final Pivot Conditions ---
+// Show pivots on all timeframes - only filter by HTF trend if MTF is enabled
+// For A+ timeframes, prioritize A+ setups
+major_pl = not na(pl) and atr_confirmed_pl and (not mtf_enabled or htf_trend_up)
+major_ph = not na(ph) and atr_confirmed_ph and (not mtf_enabled or htf_trend_down)
+
+// --- Fibonacci Drawing ---
+var line[] fib_lines = array.new_line()
+
+if fib_enabled and major_ph and not na(last_pl)
+    for eachLine in fib_lines
+        line.delete(eachLine)
+    array.clear(fib_lines)
+    // Only show key Fibonacci levels: 0.236, 0.382, 0.5, 0.618 (golden pocket), 0.786
+    levels = array.new<float>()
+    array.push(levels, 0.236)  // Shallow retracement
+    array.push(levels, 0.382)  // Moderate retracement
+    array.push(levels, 0.5)    // 50% psychological level
+    array.push(levels, 0.618)  // Golden ratio (golden pocket)
+    array.push(levels, 0.786)  // Deep retracement
+    for level in levels
+        y = last_pl - (last_pl - ph) * level
+        // Use special color for Golden Pocket (0.618), default color for others
+        line_color = level == 0.618 ? c_golden_pocket : c_fib
+        line_width = level == 0.618 ? 2 : 1  // Make GP slightly thicker
+        array.push(fib_lines, line.new(last_ph_bar, y, bar_index + zone_extend_bars, y, color=line_color, width=line_width, extend=extend.right))
+
+if fib_enabled and major_pl and not na(last_ph)
+    for eachLine in fib_lines
+        line.delete(eachLine)
+    array.clear(fib_lines)
+    // Only show key Fibonacci levels: 0.236, 0.382, 0.5, 0.618 (golden pocket), 0.786
+    levels = array.new<float>()
+    array.push(levels, 0.236)  // Shallow retracement
+    array.push(levels, 0.382)  // Moderate retracement
+    array.push(levels, 0.5)    // 50% psychological level
+    array.push(levels, 0.618)  // Golden ratio (golden pocket)
+    array.push(levels, 0.786)  // Deep retracement
+    for level in levels
+        y = last_ph + (pl - last_ph) * level
+        // Use special color for Golden Pocket (0.618), default color for others
+        line_color = level == 0.618 ? c_golden_pocket : c_fib
+        line_width = level == 0.618 ? 2 : 1  // Make GP slightly thicker
+        array.push(fib_lines, line.new(last_pl_bar, y, bar_index + zone_extend_bars, y, color=line_color, width=line_width, extend=extend.right))
+
+
+// ============================================================================
+// VISUALIZATION
+// ============================================================================
+
+// --- Pivot Zones ---
+var box pl_zone = na
+var box ph_zone = na
+
+// Zone labels (box.set_lefttext doesn't exist, so we use separate labels)
+var label pl_zone_label = na
+var label ph_zone_label = na
+
+if show_zones and major_pl
+    if not na(pl_zone)
+        box.delete(pl_zone)
+    // Better zone positioning: use ATR-based zone around the pivot, with tighter bounds
+    zone_top = last_pl + (atr * 0.3)  // Tighter zone above pivot
+    zone_bottom = last_pl - (atr * 0.3)  // Tighter zone below pivot
+    // A+ zones get special styling (thicker border, brighter color)
+    zone_border_color = is_aplus_pl ? color.new(color.yellow, 0) : c_bull
+    zone_bg_color = is_aplus_pl ? color.new(color.yellow, 85) : color.new(color.green, 90)
+    zone_border_width = is_aplus_pl ? 2 : 1
+    pl_zone := box.new(last_pl_bar, zone_bottom, bar_index + zone_extend_bars, zone_top, border_color=zone_border_color, bgcolor=zone_bg_color, border_width=zone_border_width)
+    if not na(pl_zone_label)
+        label.delete(pl_zone_label)
+    zone_label_text = is_aplus_pl ? "PL A+ Zone" : "PL Zone"
+    zone_label_color = is_aplus_pl ? color.new(color.yellow, 0) : color.new(color.green, 50)
+    pl_zone_label := label.new(last_pl_bar, last_pl, zone_label_text, style=label.style_label_left, color=zone_label_color, textcolor=color.white, size=size.small)
+
+if show_zones and major_ph
+    if not na(ph_zone)
+        box.delete(ph_zone)
+    // Better zone positioning: use ATR-based zone around the pivot, with tighter bounds
+    zone_top = last_ph + (atr * 0.3)  // Tighter zone above pivot
+    zone_bottom = last_ph - (atr * 0.3)  // Tighter zone below pivot
+    // A+ zones get special styling (thicker border, brighter color)
+    zone_border_color = is_aplus_ph ? color.new(color.yellow, 0) : c_bear
+    zone_bg_color = is_aplus_ph ? color.new(color.yellow, 85) : color.new(color.red, 90)
+    zone_border_width = is_aplus_ph ? 2 : 1
+    ph_zone := box.new(last_ph_bar, zone_bottom, bar_index + zone_extend_bars, zone_top, border_color=zone_border_color, bgcolor=zone_bg_color, border_width=zone_border_width)
+    if not na(ph_zone_label)
+        label.delete(ph_zone_label)
+    zone_label_text = is_aplus_ph ? "PH A+ Zone" : "PH Zone"
+    zone_label_color = is_aplus_ph ? color.new(color.yellow, 0) : color.new(color.red, 50)
+    ph_zone_label := label.new(last_ph_bar, last_ph, zone_label_text, style=label.style_label_left, color=zone_label_color, textcolor=color.white, size=size.small)
+
+// --- Pivot Labels ---
+// Show pivot labels for all detected pivots (not just major ones) so they appear on all timeframes
+// Special A+ labels for 5m, 15m, 1h timeframes
+if show_labels and not na(pl)
+    pivot_bar = math.max(0, bar_index - pivot_strength)
+    label_text = is_aplus_pl ? "PL A+" : "PL"
+    label_color = is_aplus_pl ? color.new(color.yellow, 0) : c_bull
+    label.new(pivot_bar, pl, label_text, style=label.style_label_up, color=label_color, textcolor=color.white, size=size.small)
+if show_labels and not na(ph)
+    pivot_bar = math.max(0, bar_index - pivot_strength)
+    label_text = is_aplus_ph ? "PH A+" : "PH"
+    label_color = is_aplus_ph ? color.new(color.yellow, 0) : c_bear
+    label.new(pivot_bar, ph, label_text, style=label.style_label_down, color=label_color, textcolor=color.white, size=size.small)
+
+// ============================================================================
+// ALERTS
+// ============================================================================
+
+// Alert: Pivot High Detection
+if alert_pivot_high and not na(ph) and not prev_ph_detected
+    alert("🔴 PivotX Pro: Pivot High detected at " + str.tostring(ph, "#.##"), alert.freq_once_per_bar)
+    prev_ph_detected := true
+if na(ph)
+    prev_ph_detected := false
+
+// Alert: Pivot Low Detection
+if alert_pivot_low and not na(pl) and not prev_pl_detected
+    alert("🟢 PivotX Pro: Pivot Low detected at " + str.tostring(pl, "#.##"), alert.freq_once_per_bar)
+    prev_pl_detected := true
+if na(pl)
+    prev_pl_detected := false
+
+// Alert: Major Pivot Zones
+if alert_major_zones and major_pl and not prev_major_pl
+    alert("🟢 PivotX Pro: Major Pivot Low Zone at " + str.tostring(last_pl, "#.##"), alert.freq_once_per_bar)
+    prev_major_pl := true
+if not major_pl
+    prev_major_pl := false
+
+if alert_major_zones and major_ph and not prev_major_ph
+    alert("🔴 PivotX Pro: Major Pivot High Zone at " + str.tostring(last_ph, "#.##"), alert.freq_once_per_bar)
+    prev_major_ph := true
+if not major_ph
+    prev_major_ph := false
+
+// Alert: Market Structure Shift (CHoCH)
+if alert_mss and mss_enabled and choch_up and not prev_choch_up
+    alert("📈 PivotX Pro: Bullish CHoCH (Change of Character) - Market Structure Shift Up", alert.freq_once_per_bar)
+    prev_choch_up := true
+if not choch_up
+    prev_choch_up := false
+
+if alert_mss and mss_enabled and choch_down and not prev_choch_down
+    alert("📉 PivotX Pro: Bearish CHoCH (Change of Character) - Market Structure Shift Down", alert.freq_once_per_bar)
+    prev_choch_down := true
+if not choch_down
+    prev_choch_down := false
+
+// Alert: Exhaustion Signals
+if alert_exhaustion and sell_exhaustion and not prev_sell_exhaustion
+    alert("🟢 PivotX Pro: Selling Exhaustion Detected - Potential Reversal Up", alert.freq_once_per_bar)
+    prev_sell_exhaustion := true
+if not sell_exhaustion
+    prev_sell_exhaustion := false
+
+if alert_exhaustion and buy_exhaustion and not prev_buy_exhaustion
+    alert("🔴 PivotX Pro: Buying Exhaustion Detected - Potential Reversal Down", alert.freq_once_per_bar)
+    prev_buy_exhaustion := true
+if not buy_exhaustion
+    prev_buy_exhaustion := false
+
+// Alert: Fibonacci Level Touches (if enabled)
+if alert_fib_levels and fib_enabled and major_ph and not na(last_pl)
+    fib_range = last_pl - ph
+    fib_236 = last_pl - fib_range * 0.236
+    fib_382 = last_pl - fib_range * 0.382
+    fib_50 = last_pl - fib_range * 0.5
+    fib_618 = last_pl - fib_range * 0.618
+    fib_786 = last_pl - fib_range * 0.786
+
+    tolerance = atr * 0.1
+    if math.abs(close - fib_618) <= tolerance
+        alert("📊 PivotX Pro: Price touching Golden Pocket (0.618) at " + str.tostring(fib_618, "#.##"), alert.freq_once_per_bar)
+    else if math.abs(close - fib_50) <= tolerance
+        alert("📊 PivotX Pro: Price touching 50% retracement at " + str.tostring(fib_50, "#.##"), alert.freq_once_per_bar)
+    else if math.abs(close - fib_382) <= tolerance
+        alert("📊 PivotX Pro: Price touching 0.382 retracement at " + str.tostring(fib_382, "#.##"), alert.freq_once_per_bar)
+    else if math.abs(close - fib_786) <= tolerance
+        alert("📊 PivotX Pro: Price touching 0.786 retracement at " + str.tostring(fib_786, "#.##"), alert.freq_once_per_bar)
+    else if math.abs(close - fib_236) <= tolerance
+        alert("📊 PivotX Pro: Price touching 0.236 retracement at " + str.tostring(fib_236, "#.##"), alert.freq_once_per_bar)
+
+if alert_fib_levels and fib_enabled and major_pl and not na(last_ph)
+    fib_range = pl - last_ph
+    fib_236 = last_ph + fib_range * 0.236
+    fib_382 = last_ph + fib_range * 0.382
+    fib_50 = last_ph + fib_range * 0.5
+    fib_618 = last_ph + fib_range * 0.618
+    fib_786 = last_ph + fib_range * 0.786
+
+    tolerance = atr * 0.1
+    if math.abs(close - fib_618) <= tolerance
+        alert("📊 PivotX Pro: Price touching Golden Pocket (0.618) at " + str.tostring(fib_618, "#.##"), alert.freq_once_per_bar)
+    else if math.abs(close - fib_50) <= tolerance
+        alert("📊 PivotX Pro: Price touching 50% retracement at " + str.tostring(fib_50, "#.##"), alert.freq_once_per_bar)
+    else if math.abs(close - fib_382) <= tolerance
+        alert("📊 PivotX Pro: Price touching 0.382 retracement at " + str.tostring(fib_382, "#.##"), alert.freq_once_per_bar)
+    else if math.abs(close - fib_786) <= tolerance
+        alert("📊 PivotX Pro: Price touching 0.786 retracement at " + str.tostring(fib_786, "#.##"), alert.freq_once_per_bar)
+    else if math.abs(close - fib_236) <= tolerance
+        alert("📊 PivotX Pro: Price touching 0.236 retracement at " + str.tostring(fib_236, "#.##"), alert.freq_once_per_bar)
+
+// ============================================================================
+// A+ SETUP ALERTS (5m, 15m, 1h)
+// ============================================================================
+
+var bool prev_aplus_pl = false
+var bool prev_aplus_ph = false
+
+// Alert: A+ Pivot Low Setup
+if is_aplus_pl and not prev_aplus_pl
+    tf_label = is_5m ? "5m" : (is_15m ? "15m" : "1h")
+    alert("⭐ A+ SETUP: Pivot Low on " + tf_label + " at " + str.tostring(last_pl, "#.##") + " (Score: " + str.tostring(aplus_score_pl) + "/100)", alert.freq_once_per_bar)
+    prev_aplus_pl := true
+if not is_aplus_pl
+    prev_aplus_pl := false
+
+// Alert: A+ Pivot High Setup
+if is_aplus_ph and not prev_aplus_ph
+    tf_label = is_5m ? "5m" : (is_15m ? "15m" : "1h")
+    alert("⭐ A+ SETUP: Pivot High on " + tf_label + " at " + str.tostring(last_ph, "#.##") + " (Score: " + str.tostring(aplus_score_ph) + "/100)", alert.freq_once_per_bar)
+    prev_aplus_ph := true
+if not is_aplus_ph
+    prev_aplus_ph := false

@@ -1,0 +1,7 @@
+{
+  "DISCORD_WEBHOOK": "https://discord.com/api/webhooks/1426820493033476116/5yyOcy72-ClXkNeJNHWXyXApHSGM0s59WnQJdoQXKWm6quNlIif-71K_Jc7m87a9DkbI",
+  "SCAN_INTERVAL_SEC": 1800,
+  "SCAN_INTERVAL_AFTER_TRADES_SEC": 7200,
+  "MESSAGE_COOLDOWN_SEC": 300,
+  "EXCHANGES": ["mexc", "bybit", "bitget"]
+}

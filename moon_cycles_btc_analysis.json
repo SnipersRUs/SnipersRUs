@@ -1,0 +1,93 @@
+{
+  "analysis_date": "2025-11-05T05:26:32.542948",
+  "total_days_analyzed": 366,
+  "date_range": {
+    "start": "2024-11-06T00:00:00",
+    "end": "2025-11-05T10:26:00"
+  },
+  "phase_statistics": {
+    "First Quarter": {
+      "count": 19,
+      "avg_return_1d": -0.9613609001348876,
+      "avg_return_3d": -1.5094490861873566,
+      "avg_return_7d": 1.660290215315835,
+      "win_rate_1d": 42.10526315789473,
+      "win_rate_3d": 26.31578947368421,
+      "win_rate_7d": 63.1578947368421,
+      "avg_volatility": 1.861175454336981,
+      "max_gain_7d": 18.808556091115292,
+      "max_loss_7d": -10.017742084778359
+    },
+    "Full Moon": {
+      "count": 23,
+      "avg_return_1d": 0.7995323091929908,
+      "avg_return_3d": 1.1136132549729514,
+      "avg_return_7d": 1.035976697979925,
+      "win_rate_1d": 56.52173913043478,
+      "win_rate_3d": 52.17391304347826,
+      "win_rate_7d": 52.17391304347826,
+      "avg_volatility": 2.3884881193293745,
+      "max_gain_7d": 9.94900428998271,
+      "max_loss_7d": -9.19317182231676
+    },
+    "Last Quarter": {
+      "count": 20,
+      "avg_return_1d": -0.212680490353937,
+      "avg_return_3d": 0.05064602077380589,
+      "avg_return_7d": -1.4947653933735225,
+      "win_rate_1d": 40.0,
+      "win_rate_3d": 45.0,
+      "win_rate_7d": 35.0,
+      "avg_volatility": 1.9798724774412821,
+      "max_gain_7d": 11.18028553574899,
+      "max_loss_7d": -13.899748423084969
+    },
+    "New Moon": {
+      "count": 57,
+      "avg_return_1d": -0.23068567812762528,
+      "avg_return_3d": -0.20679187386183756,
+      "avg_return_7d": 0.4193357340079752,
+      "win_rate_1d": 40.35087719298245,
+      "win_rate_3d": 47.368421052631575,
+      "win_rate_7d": 50.877192982456144,
+      "avg_volatility": 1.81154453430379,
+      "max_gain_7d": 11.605625735355973,
+      "max_loss_7d": -7.77436256053885
+    },
+    "Waning": {
+      "count": 136,
+      "avg_return_1d": -0.013785492239476959,
+      "avg_return_3d": -0.1541925562158889,
+      "avg_return_7d": -0.15413946579404558,
+      "win_rate_1d": 51.470588235294116,
+      "win_rate_3d": 52.94117647058824,
+      "win_rate_7d": 49.26470588235294,
+      "avg_volatility": 2.030363459027401,
+      "max_gain_7d": 12.245531926747667,
+      "max_loss_7d": -12.1633487136924
+    },
+    "Waxing": {
+      "count": 111,
+      "avg_return_1d": 0.6144097533111339,
+      "avg_return_3d": 1.502630042723744,
+      "avg_return_7d": 2.3941406552122215,
+      "win_rate_1d": 60.36036036036037,
+      "win_rate_3d": 67.56756756756756,
+      "win_rate_7d": 63.96396396396396,
+      "avg_volatility": 2.314571947911115,
+      "max_gain_7d": 27.30086974938366,
+      "max_loss_7d": -14.332881634409356
+    }
+  },
+  "summary": {
+    "phases_found": [
+      "First Quarter",
+      "Full Moon",
+      "Last Quarter",
+      "New Moon",
+      "Waning",
+      "Waxing"
+    ],
+    "total_samples": 366
+  }
+}
