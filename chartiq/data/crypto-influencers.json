@@ -1,0 +1,95 @@
+[
+  {
+    "id": "1",
+    "name": "Vitalik Buterin",
+    "handle": "@VitalikButerin",
+    "platform": "twitter",
+    "influence": "legendary",
+    "focus": [
+      "Ethereum",
+      "DeFi",
+      "Tech"
+    ]
+  },
+  {
+    "id": "2",
+    "name": "Elon Musk",
+    "handle": "@elonmusk",
+    "platform": "twitter",
+    "influence": "legendary",
+    "focus": [
+      "Dogecoin",
+      "Bitcoin",
+      "General"
+    ]
+  },
+  {
+    "id": "3",
+    "name": "CZ",
+    "handle": "@cz_binance",
+    "platform": "twitter",
+    "influence": "legendary",
+    "focus": [
+      "Binance",
+      "Trading",
+      "Regulation"
+    ]
+  },
+  {
+    "id": "4",
+    "name": "Donald Trump",
+    "handle": "@realDonaldTrump",
+    "platform": "twitter",
+    "influence": "legendary",
+    "focus": [
+      "Bitcoin",
+      "Regulation",
+      "General"
+    ]
+  },
+  {
+    "id": "5",
+    "name": "Andre Cronje",
+    "handle": "@AndreCronjeTech",
+    "platform": "twitter",
+    "influence": "high",
+    "focus": [
+      "DeFi",
+      "Tech"
+    ]
+  },
+  {
+    "id": "6",
+    "name": "a16z crypto",
+    "handle": "@a16zcrypto",
+    "platform": "twitter",
+    "influence": "high",
+    "focus": [
+      "DeFi",
+      "Tech",
+      "NFT"
+    ]
+  },
+  {
+    "id": "7",
+    "name": "Coinbase",
+    "handle": "@coinbase",
+    "platform": "twitter",
+    "influence": "high",
+    "focus": [
+      "Trading",
+      "Regulation"
+    ]
+  },
+  {
+    "id": "8",
+    "name": "Arthur Hayes",
+    "handle": "@CryptoHayes",
+    "platform": "twitter",
+    "influence": "high",
+    "focus": [
+      "Trading",
+      "Bitcoin"
+    ]
+  }
+]

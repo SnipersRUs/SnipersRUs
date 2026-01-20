@@ -1,19 +1,31 @@
 {
   "active_trades": {
-    "CATIUSDT": {
-      "entry_price": 0.0593,
-      "stop_loss": 0.059893,
-      "take_profit": 0.057520999999999996,
-      "signal_time": "2026-01-19T16:46:06.625453",
+    "HMSTRUSDT": {
+      "entry_price": 0.0002386,
+      "stop_loss": 0.000240986,
+      "take_profit": 0.000231442,
+      "signal_time": "2026-01-20T09:09:02.690343",
       "reasons": [
-        "Price at GPS Resistance Zone (0.06)",
+        "Price at GPS Resistance Zone (0.00)",
         "Deviation +3 Sigma Zone (Overextended)",
-        "Bearish Divergence (Price Up, RSI Exhausted)",
-        "Buyer Exhaustion Detected"
+        "15m Extreme Volume Spike (Potential Reversal)"
       ],
-      "score": 100,
+      "score": 95,
+      "status": "ACTIVE"
+    },
+    "XAUUSDT": {
+      "entry_price": 4737.8,
+      "stop_loss": 4785.178,
+      "take_profit": 4595.666,
+      "signal_time": "2026-01-20T09:09:02.691680",
+      "reasons": [
+        "Price at GPS Resistance Zone (4735.04)",
+        "Liquidity Sweep (SFP High)",
+        "15m Extreme Volume Spike (Potential Reversal)"
+      ],
+      "score": 70,
       "status": "ACTIVE"
     }
   },
-  "trade_counter": 1
+  "trade_counter": 2
 }

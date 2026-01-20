@@ -327,6 +327,73 @@
             border: 1px solid rgba(0, 0, 0, 0.08);
         }
 
+        .gps-clickable {
+            position: relative;
+            transition: background 0.2s ease, box-shadow 0.2s ease;
+        }
+        
+        .gps-clickable:hover {
+            background: linear-gradient(135deg, rgba(156, 39, 176, 0.3), rgba(14, 203, 129, 0.25));
+            box-shadow: 0 0 10px rgba(14, 203, 129, 0.3);
+        }
+        
+        .gps-popup {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            margin-top: 10px;
+            background: var(--bg-panel);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            padding: 16px;
+            min-width: 280px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            z-index: 1000;
+        }
+        
+        .gps-popup.active {
+            display: block;
+            animation: fadeInDown 0.2s ease;
+        }
+        
+        @keyframes fadeInDown {
+            from { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+            to { opacity: 1; transform: translateX(-50%) translateY(0); }
+        }
+        
+        .gps-popup-header {
+            font-weight: 700;
+            font-size: 1rem;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--glass-border);
+            color: var(--accent-green);
+        }
+        
+        .gps-popup-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 0;
+            font-size: 0.9rem;
+        }
+        
+        .gps-popup-row:not(:last-child) {
+            border-bottom: 1px dashed rgba(255,255,255,0.05);
+        }
+        
+        .gps-label {
+            color: var(--text-secondary);
+        }
+        
+        .gps-value {
+            font-family: monospace;
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
         .pair-switch {
             display: inline-flex;
             gap: 8px;
@@ -1277,136 +1344,6 @@
             border: 0;
         }
 
-        /* Breakout Scanner */
-        .breakout-section {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 60px 20px;
-        }
-
-        .breakout-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-            border-bottom: 1px solid var(--glass-border);
-            padding-bottom: 16px;
-            gap: 16px;
-            flex-wrap: wrap;
-        }
-
-        .breakout-title h2 {
-            margin: 0;
-            font-size: 1.6rem;
-        }
-
-        .breakout-title p {
-            margin: 6px 0 0;
-            color: var(--text-secondary);
-            font-size: 0.9rem;
-        }
-
-        .breakout-refresh {
-            background: var(--accent-green);
-            color: #0b0e11;
-            border: none;
-            padding: 10px 18px;
-            border-radius: 10px;
-            cursor: pointer;
-            font-weight: 700;
-            transition: opacity 0.2s ease;
-        }
-
-        .breakout-refresh:hover { opacity: 0.9; }
-
-        .breakout-hint {
-            color: var(--text-secondary);
-            font-size: 0.8rem;
-            margin-top: 6px;
-        }
-
-        .breakout-table {
-            width: 100%;
-            border-collapse: collapse;
-            background: var(--glass);
-            border: 1px solid var(--glass-border);
-            border-radius: 16px;
-            overflow: hidden;
-            box-shadow: var(--shadow-soft);
-        }
-
-        .breakout-table th,
-        .breakout-table td {
-            padding: 14px 16px;
-            text-align: left;
-            border-bottom: 1px solid var(--glass-border);
-        }
-
-        .breakout-table th {
-            background: rgba(255, 255, 255, 0.06);
-            color: var(--text-secondary);
-            font-size: 0.85rem;
-            text-transform: uppercase;
-            font-weight: 700;
-        }
-
-        .breakout-table tr:hover { background-color: rgba(255,255,255,0.03); }
-
-        .breakout-coin {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .breakout-coin img {
-            width: 26px;
-            height: 26px;
-            border-radius: 50%;
-        }
-
-        .breakout-mono {
-            font-family: monospace;
-        }
-
-        .breakout-positive { color: var(--accent-green); }
-        .breakout-negative { color: var(--accent-purple); }
-
-        .breakout-link {
-            text-decoration: none;
-            color: var(--text-secondary);
-            border: 1px solid var(--glass-border);
-            padding: 6px 10px;
-            border-radius: 8px;
-            font-size: 0.8rem;
-            margin-right: 6px;
-        }
-
-        .breakout-link:hover {
-            border-color: var(--accent-white);
-            color: var(--accent-white);
-        }
-
-        #breakout-loading {
-            text-align: center;
-            padding: 30px;
-            color: var(--text-secondary);
-            border: 1px dashed var(--glass-border);
-            border-radius: 16px;
-        }
-
-        .breakout-bias {
-            display: inline-block;
-            padding: 4px 10px;
-            border-radius: 999px;
-            font-size: 0.75rem;
-            font-weight: 700;
-            background: rgba(255,255,255,0.06);
-            border: 1px solid var(--glass-border);
-        }
-
-        .breakout-bias.long { color: var(--accent-green); }
-        .breakout-bias.short { color: var(--accent-purple); }
-
         /* Canvas */
         canvas {
             display: block;
@@ -1457,7 +1394,6 @@
             <a href="#indicators">Our Indicators</a>
             <a href="#rules">Rules</a>
             <a href="#live">Live Scanner</a>
-            <a href="#breakout-scanner">Breakout Scanner</a>
             <a href="#trades">Active Trades</a>
             <a href="#membership">Membership</a>
             <a href="#arcade">Arcade</a>
@@ -1552,8 +1488,8 @@
                     <div class="price-change" id="btcChange">--</div>
                     <div class="scan-summary">
                         <span class="summary-pill">Session: <span id="sessionStatus">--</span></span>
-                        <span class="summary-pill">Last Session High: <span id="sessionHigh">--</span></span>
-                        <span class="summary-pill">Last Session Low: <span id="sessionLow">--</span></span>
+                        <span class="summary-pill"><span id="sessionLabel">Last</span> Session High: <span id="sessionHigh">--</span></span>
+                        <span class="summary-pill"><span id="sessionLabel2">Last</span> Session Low: <span id="sessionLow">--</span></span>
                         <button class="summary-pill signal-toggle" id="signalToggle" type="button">Signals: <span id="signalCount">--</span></button>
                         <button class="summary-pill signal-toggle" id="watchlistToggle" type="button">Watchlist: <span id="watchlistCount">--</span></button>
                     </div>
@@ -1582,7 +1518,40 @@
                     <div>Bot status: <strong id="botStatus">ACTIVE</strong></div>
                     <div>Next scan: <strong id="nextScanTimer">--:--</strong></div>
                     <div>Last scan: <strong id="lastScanAt">--</strong></div>
-                    <div class="distance-pill">GPS distance: <span id="gpsDistance">--</span></div>
+                    <div class="distance-pill gps-clickable" id="gpsPill" style="cursor:pointer;">
+                        GPS distance: <span id="gpsDistance">--</span>
+                        <div class="gps-popup" id="gpsPopup">
+                            <div class="gps-popup-header">Golden Pocket Zones</div>
+                            <div class="gps-popup-row">
+                                <span class="gps-label">Current Price:</span>
+                                <span class="gps-value" id="gpsCurrentPrice">--</span>
+                            </div>
+                            <div class="gps-popup-row">
+                                <span class="gps-label">Daily GP High:</span>
+                                <span class="gps-value" id="gpsDailyHigh">--</span>
+                            </div>
+                            <div class="gps-popup-row">
+                                <span class="gps-label">Daily GP Low:</span>
+                                <span class="gps-value" id="gpsDailyLow">--</span>
+                            </div>
+                            <div class="gps-popup-row">
+                                <span class="gps-label">Weekly GP High:</span>
+                                <span class="gps-value" id="gpsWeeklyHigh">--</span>
+                            </div>
+                            <div class="gps-popup-row">
+                                <span class="gps-label">Weekly GP Low:</span>
+                                <span class="gps-value" id="gpsWeeklyLow">--</span>
+                            </div>
+                            <div class="gps-popup-row">
+                                <span class="gps-label">Support:</span>
+                                <span class="gps-value" id="gpsSupportPrice">--</span>
+                            </div>
+                            <div class="gps-popup-row">
+                                <span class="gps-label">Resistance:</span>
+                                <span class="gps-value" id="gpsResistancePrice">--</span>
+                            </div>
+                        </div>
+                    </div>
                     <div class="distance-pill">Support distance: <span id="supportDistance">--</span></div>
                     <div class="distance-pill">Resistance distance: <span id="resistanceDistance">--</span></div>
             <div class="distance-pill">
@@ -1682,36 +1651,6 @@
                 </div>
             </div>
         </div>
-    </div>
-
-    <!-- Breakout Scanner -->
-    <div class="breakout-section" id="breakout-scanner">
-        <div class="breakout-header">
-            <div class="breakout-title">
-                <h2>🎯 Breakout Scanner</h2>
-                <p>Momentum movers sorted by 24h performance. Quick sniper radar.</p>
-                <div class="breakout-hint">Data refreshed every 60 seconds.</div>
-            </div>
-            <button class="breakout-refresh" id="breakoutRefreshBtn">Scan Market</button>
-        </div>
-
-        <div id="breakout-loading">Scanning the market for targets...</div>
-
-        <table id="breakout-table" class="breakout-table" style="display:none;">
-            <thead>
-                <tr>
-                    <th>Asset</th>
-                    <th>Price (USD)</th>
-                    <th>15m Vol Spike</th>
-                    <th>1H Support/Resistance</th>
-                    <th>Bias</th>
-                    <th>Links</th>
-                </tr>
-            </thead>
-            <tbody id="breakout-body">
-                <!-- Rows injected by JS -->
-            </tbody>
-        </table>
     </div>
 
     <!-- Active Trades Section -->
@@ -1966,7 +1905,6 @@
                 <a href="#indicators">Our Indicators</a>
                 <a href="#rules">Sniper Rules</a>
                 <a href="#live">Live Scanner</a>
-                <a href="#breakout-scanner">Breakout Scanner</a>
                 <a href="#trades">Active Trades</a>
             </div>
             
@@ -2027,6 +1965,8 @@
             dailyLow: null,
             dailyGpHigh: null,
             dailyGpLow: null,
+            weeklyGpHigh: null,
+            weeklyGpLow: null,
             divergenceState: 'NONE',
             divergenceLastUpdate: 0,
             theme: 'dark'
@@ -2333,21 +2273,81 @@
             if (state.dailyGpHigh && state.dailyGpLow) {
                 const inDailyGp = state.price >= state.dailyGpLow && state.price <= state.dailyGpHigh;
                 if (inDailyGp) {
-                    dailyGpDistanceEl.textContent = 'INSIDE GP';
+                    if (dailyGpDistanceEl) dailyGpDistanceEl.textContent = 'INSIDE GP';
                 } else {
                     const distToGp = state.price < state.dailyGpLow
                         ? ((state.dailyGpLow - state.price) / state.price) * 100
                         : ((state.price - state.dailyGpHigh) / state.price) * 100;
-                    dailyGpDistanceEl.textContent = `${distToGp.toFixed(2)}%`;
+                    if (dailyGpDistanceEl) dailyGpDistanceEl.textContent = `${distToGp.toFixed(2)}%`;
                 }
             } else {
-                dailyGpDistanceEl.textContent = '--';
+                if (dailyGpDistanceEl) dailyGpDistanceEl.textContent = '--';
             }
 
             const nearestLevel = Math.abs(supportDistPct) <= Math.abs(resistanceDistPct)
                 ? state.support
                 : state.resistance;
-            liquidityDistanceEl.textContent = priceFormatter.format(nearestLevel);
+            if (liquidityDistanceEl) liquidityDistanceEl.textContent = priceFormatter.format(nearestLevel);
+            
+            // Update GPS popup values
+            updateGpsPopup();
+        }
+        
+        function updateGpsPopup() {
+            const currentPriceEl = document.getElementById('gpsCurrentPrice');
+            const dailyHighEl = document.getElementById('gpsDailyHigh');
+            const dailyLowEl = document.getElementById('gpsDailyLow');
+            const weeklyHighEl = document.getElementById('gpsWeeklyHigh');
+            const weeklyLowEl = document.getElementById('gpsWeeklyLow');
+            const supportPriceEl = document.getElementById('gpsSupportPrice');
+            const resistancePriceEl = document.getElementById('gpsResistancePrice');
+            
+            if (currentPriceEl && state.price) {
+                currentPriceEl.textContent = priceFormatter.format(state.price);
+            }
+            
+            if (dailyHighEl && state.dailyGpHigh) {
+                dailyHighEl.textContent = priceFormatter.format(state.dailyGpHigh);
+            }
+            
+            if (dailyLowEl && state.dailyGpLow) {
+                dailyLowEl.textContent = priceFormatter.format(state.dailyGpLow);
+            }
+            
+            if (weeklyHighEl && state.weeklyGpHigh) {
+                weeklyHighEl.textContent = priceFormatter.format(state.weeklyGpHigh);
+            }
+            
+            if (weeklyLowEl && state.weeklyGpLow) {
+                weeklyLowEl.textContent = priceFormatter.format(state.weeklyGpLow);
+            }
+            
+            if (supportPriceEl && state.support) {
+                supportPriceEl.textContent = priceFormatter.format(state.support);
+            }
+            
+            if (resistancePriceEl && state.resistance) {
+                resistancePriceEl.textContent = priceFormatter.format(state.resistance);
+            }
+        }
+        
+        function initGpsPopup() {
+            const gpsPill = document.getElementById('gpsPill');
+            const gpsPopup = document.getElementById('gpsPopup');
+            
+            if (gpsPill && gpsPopup) {
+                gpsPill.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    gpsPopup.classList.toggle('active');
+                });
+                
+                // Close popup when clicking outside
+                document.addEventListener('click', (e) => {
+                    if (!gpsPill.contains(e.target)) {
+                        gpsPopup.classList.remove('active');
+                    }
+                });
+            }
         }
 
         function getNextScanTime(now = new Date()) {
@@ -2537,52 +2537,103 @@
             // Helper to build UTC date
             const utc = (d, h) => new Date(Date.UTC(year, month, d, h, 0, 0));
 
-            if (hour >= 7 && hour < 10) {
-                // London active -> last closed Asia (00-07)
-                return { name: 'Asia', start: utc(day, 0), end: utc(day, 7) };
+            // Sessions: Asia (00:00-08:00), London (08:00-13:00), NY (13:00-21:00)
+            if (hour >= 8 && hour < 13) {
+                // London active -> last closed Asia
+                return { name: 'Asia', start: utc(day, 0), end: utc(day, 8) };
             }
-            if (hour >= 13 && hour < 16) {
-                // New York active -> last closed London (07-10)
-                return { name: 'London', start: utc(day, 7), end: utc(day, 10) };
+            if (hour >= 13 && hour < 21) {
+                // New York active -> last closed London
+                return { name: 'London', start: utc(day, 8), end: utc(day, 13) };
             }
-            if (hour >= 0 && hour < 7) {
-                // Asia active -> last closed New York (13-16) previous day
-                const prevDay = day - 1;
-                return { name: 'New York', start: utc(prevDay, 13), end: utc(prevDay, 16) };
+            if (hour >= 21) {
+                // After NY close -> last closed New York
+                return { name: 'New York', start: utc(day, 13), end: utc(day, 21) };
             }
-            if (hour >= 10 && hour < 13) {
-                // Between London and NY -> last closed London
-                return { name: 'London', start: utc(day, 7), end: utc(day, 10) };
-            }
-            // After NY close -> last closed New York
-            return { name: 'New York', start: utc(day, 13), end: utc(day, 16) };
+            // Asia active (00-08) -> last closed New York (previous day)
+            const prevDay = new Date(Date.UTC(year, month, day - 1));
+            return { name: 'New York', start: new Date(Date.UTC(prevDay.getUTCFullYear(), prevDay.getUTCMonth(), prevDay.getUTCDate(), 13)), end: new Date(Date.UTC(prevDay.getUTCFullYear(), prevDay.getUTCMonth(), prevDay.getUTCDate(), 21)) };
         }
 
-        function updateLastSessionHighLow() {
+        async function updateLastSessionHighLow() {
             const highEl = document.getElementById('sessionHigh');
             const lowEl = document.getElementById('sessionLow');
+            const sessionLabelEl = document.getElementById('sessionLabel');
             if (!highEl || !lowEl) return;
 
-            const windowInfo = getLastClosedSessionWindow();
-            const start = windowInfo.start.getTime();
-            const end = windowInfo.end.getTime();
-            const slice = state.priceHistory.filter(p => p.ts >= start && p.ts < end);
+            try {
+                const windowInfo = getLastClosedSessionWindow();
+                const startTs = windowInfo.start.getTime();
+                const endTs = windowInfo.end.getTime();
+                
+                // Fetch 1H candles from OKX for the session window
+                const instId = state.instId || 'BTC-USDT-SWAP';
+                const url = `https://www.okx.com/api/v5/market/candles?instId=${instId}&bar=1H&after=${endTs}&before=${startTs - 1}`;
+                
+                const res = await fetch(url);
+                if (!res.ok) throw new Error('Failed to fetch session candles');
+                const json = await res.json();
+                const candles = json.data || [];
+                
+                // Filter candles within session window
+                const sessionCandles = candles.filter(c => {
+                    const ts = Number(c[0]);
+                    return ts >= startTs && ts < endTs;
+                });
+                
+                if (!sessionCandles.length) {
+                    // Fallback: fetch recent candles
+                    const fallbackUrl = `https://www.okx.com/api/v5/market/candles?instId=${instId}&bar=1H&limit=24`;
+                    const fallbackRes = await fetch(fallbackUrl);
+                    const fallbackJson = await fallbackRes.json();
+                    const allCandles = fallbackJson.data || [];
+                    
+                    const filtered = allCandles.filter(c => {
+                        const ts = Number(c[0]);
+                        return ts >= startTs && ts < endTs;
+                    });
+                    
+                    if (filtered.length) {
+                        let high = -Infinity;
+                        let low = Infinity;
+                        filtered.forEach(c => {
+                            const h = Number(c[2]);
+                            const l = Number(c[3]);
+                            if (h > high) high = h;
+                            if (l < low) low = l;
+                        });
+                        highEl.textContent = priceFormatter.format(high);
+                        lowEl.textContent = priceFormatter.format(low);
+                        if (sessionLabelEl) sessionLabelEl.textContent = windowInfo.name;
+                const sessionLabel2El = document.getElementById('sessionLabel2');
+                if (sessionLabel2El) sessionLabel2El.textContent = windowInfo.name;
+                        return;
+                    }
+                    
+                    highEl.textContent = '--';
+                    lowEl.textContent = '--';
+                    return;
+                }
 
-            if (!slice.length) {
+                let high = -Infinity;
+                let low = Infinity;
+                sessionCandles.forEach(c => {
+                    const h = Number(c[2]);
+                    const l = Number(c[3]);
+                    if (h > high) high = h;
+                    if (l < low) low = l;
+                });
+
+                highEl.textContent = priceFormatter.format(high);
+                lowEl.textContent = priceFormatter.format(low);
+                if (sessionLabelEl) sessionLabelEl.textContent = windowInfo.name;
+                const sessionLabel2El = document.getElementById('sessionLabel2');
+                if (sessionLabel2El) sessionLabel2El.textContent = windowInfo.name;
+            } catch (e) {
+                console.error('Failed to fetch session high/low:', e);
                 highEl.textContent = '--';
                 lowEl.textContent = '--';
-                return;
             }
-
-            let high = -Infinity;
-            let low = Infinity;
-            slice.forEach(p => {
-                if (p.price > high) high = p.price;
-                if (p.price < low) low = p.price;
-            });
-
-            highEl.textContent = priceFormatter.format(high);
-            lowEl.textContent = priceFormatter.format(low);
         }
 
         function formatLocalTimestamp(isoString) {
@@ -2701,28 +2752,152 @@
             const listEl = document.getElementById('watchlistList');
             if (!listEl) return;
 
+            // If no candidates from bot, scan for our own
             if (!candidates.length) {
-                listEl.innerHTML = '<div class="signal-item">No watchlist candidates yet.</div>';
+                scanWatchlistCandidates();
                 return;
             }
+
+            renderWatchlistItems(candidates);
+        }
+        
+        function renderWatchlistItems(candidates) {
+            const listEl = document.getElementById('watchlistList');
+            const countEl = document.getElementById('watchlistCount');
+            if (!listEl) return;
+            
+            if (!candidates.length) {
+                listEl.innerHTML = '<div class="signal-item">No coins near key levels right now.</div>';
+                if (countEl) countEl.textContent = '0';
+                return;
+            }
+            
+            if (countEl) countEl.textContent = candidates.length;
 
             listEl.innerHTML = candidates.map(item => {
                 const symbol = item.symbol;
                 const label = normalizeBaseSymbol(symbol);
                 const link = getTradingViewLink(symbol);
                 const reasons = (item.reasons || []).join(' • ');
+                const bias = item.bias || '';
+                const biasClass = bias === 'LONG' ? 'value-up' : bias === 'SHORT' ? 'value-down' : '';
                 return `
                     <div class="signal-item">
                         <div class="signal-meta">
-                            <div>${label}</div>
+                            <div><strong>${label}</strong> ${bias ? `<span class="${biasClass}" style="font-size:0.8em;">${bias}</span>` : ''}</div>
                             <div><a href="${link}" target="_blank" rel="noopener">Chart</a></div>
-      </div>
+                        </div>
                         <div class="signal-details">
-                            Price: ${priceFormatter.format(item.price)}<br>${reasons}
-      </div>
-      </div>
+                            Price: ${priceFormatter.format(item.price)}<br>
+                            <span style="color:var(--text-secondary);font-size:0.85em;">${reasons}</span>
+                        </div>
+                    </div>
                 `;
             }).join('');
+        }
+        
+        async function scanWatchlistCandidates() {
+            const listEl = document.getElementById('watchlistList');
+            if (!listEl) return;
+            
+            listEl.innerHTML = '<div class="signal-item">Scanning for setups...</div>';
+            
+            try {
+                // Fetch top coins by volume
+                const tickersRes = await fetch('https://www.okx.com/api/v5/market/tickers?instType=SWAP');
+                if (!tickersRes.ok) throw new Error('Failed to fetch tickers');
+                const tickersJson = await tickersRes.json();
+                const tickers = tickersJson.data || [];
+                
+                const stableBases = new Set(['USDT', 'USDC', 'BUSD', 'DAI', 'TUSD']);
+                const topCoins = tickers
+                    .filter(t => t.instId && t.instId.endsWith('-USDT-SWAP'))
+                    .filter(t => !stableBases.has(t.instId.split('-')[0]))
+                    .sort((a, b) => Number(b.volCcy24h || 0) - Number(a.volCcy24h || 0))
+                    .slice(0, 15);
+                
+                const candidates = [];
+                
+                for (const ticker of topCoins) {
+                    const instId = ticker.instId;
+                    const symbol = instId.split('-')[0];
+                    const price = Number(ticker.last);
+                    if (!price) continue;
+                    
+                    // Fetch daily candle for GP calculation
+                    try {
+                        const candleRes = await fetch(`https://www.okx.com/api/v5/market/candles?instId=${instId}&bar=1D&limit=1`);
+                        if (!candleRes.ok) continue;
+                        const candleJson = await candleRes.json();
+                        const candle = candleJson.data && candleJson.data[0];
+                        if (!candle) continue;
+                        
+                        const high = Number(candle[2]);
+                        const low = Number(candle[3]);
+                        const gpHigh = high - (high - low) * 0.618;
+                        const gpLow = high - (high - low) * 0.65;
+                        
+                        // Check proximity to GP zones
+                        const distToGpLow = ((price - gpLow) / price) * 100;
+                        const distToGpHigh = ((gpHigh - price) / price) * 100;
+                        const distToSupport = ((price - low) / price) * 100;
+                        const distToResistance = ((high - price) / price) * 100;
+                        
+                        const reasons = [];
+                        let bias = '';
+                        let score = 0;
+                        
+                        // Near daily GP zone (within 1.5%)
+                        if (price >= gpLow && price <= gpHigh) {
+                            reasons.push('Inside Daily GP Zone');
+                            score += 30;
+                        } else if (Math.abs(distToGpLow) <= 1.5) {
+                            reasons.push(`${Math.abs(distToGpLow).toFixed(1)}% from GP Low`);
+                            bias = 'LONG';
+                            score += 25;
+                        } else if (Math.abs(distToGpHigh) <= 1.5) {
+                            reasons.push(`${Math.abs(distToGpHigh).toFixed(1)}% from GP High`);
+                            bias = 'SHORT';
+                            score += 25;
+                        }
+                        
+                        // Near daily support/resistance (within 2%)
+                        if (distToSupport <= 2.0 && distToSupport > 0) {
+                            reasons.push(`${distToSupport.toFixed(1)}% from Daily Support`);
+                            bias = bias || 'LONG';
+                            score += 20;
+                        }
+                        
+                        if (distToResistance <= 2.0 && distToResistance > 0) {
+                            reasons.push(`${distToResistance.toFixed(1)}% from Daily Resistance`);
+                            bias = bias || 'SHORT';
+                            score += 20;
+                        }
+                        
+                        if (reasons.length > 0) {
+                            candidates.push({
+                                symbol,
+                                price,
+                                reasons,
+                                bias,
+                                score,
+                                gpHigh,
+                                gpLow
+                            });
+                        }
+                    } catch (e) {
+                        continue;
+                    }
+                }
+                
+                // Sort by score and take top 5
+                candidates.sort((a, b) => b.score - a.score);
+                renderWatchlistItems(candidates.slice(0, 5));
+                
+            } catch (error) {
+                console.error('Failed to scan watchlist candidates:', error);
+                listEl.innerHTML = '<div class="signal-item">Scan failed. Retrying...</div>';
+            }
         }
 
         function updateConnectionStatus(connected) {
@@ -2786,6 +2961,27 @@
                 console.error('Failed to fetch OKX daily candle:', error);
             }
         }
+        
+        async function fetchOkxWeeklyCandle() {
+            try {
+                const instId = state.instId;
+                const url = `${OKX_BASE_URL}/candles?instId=${instId}&bar=1W&limit=1`;
+                const res = await fetch(url);
+                if (!res.ok) return;
+                const json = await res.json();
+                if (!json.data || !json.data.length) return;
+                
+                const candle = json.data[0];
+                const high = parseFloat(candle[2]);
+                const low = parseFloat(candle[3]);
+                if (Number.isNaN(high) || Number.isNaN(low)) return;
+                
+                state.weeklyGpHigh = high - (high - low) * 0.618;
+                state.weeklyGpLow = high - (high - low) * 0.65;
+            } catch (error) {
+                console.error('Failed to fetch OKX weekly candle:', error);
+            }
+        }
 
         function startStaleCheck() {
             if (staleCheckTimer) return;
@@ -2829,10 +3025,13 @@
             state.dailyLow = null;
             state.dailyGpHigh = null;
             state.dailyGpLow = null;
+            state.weeklyGpHigh = null;
+            state.weeklyGpLow = null;
             state.lastUpdate = null;
 
             fetchOkxTicker();
             fetchOkxDailyCandle();
+            fetchOkxWeeklyCandle();
             connectOKX();
             loadTradingViewWidget();
             updatePairUI(symbol);
@@ -2916,8 +3115,13 @@
             // Load initial price from REST
             fetchOkxTicker();
             fetchOkxDailyCandle();
+            fetchOkxWeeklyCandle();
+            
+            // Initialize GPS popup
+            initGpsPopup();
 
             setInterval(fetchOkxDailyCandle, 30 * 60 * 1000);
+            setInterval(fetchOkxWeeklyCandle, 60 * 60 * 1000);
 
             // Connect to OKX
             connectOKX();
@@ -2956,6 +3160,11 @@
                     localStorage.setItem('trial_shown', 'true');
                 }, 15000);
             }
+            
+            // Initial watchlist scan (after 5s to let prices load)
+            setTimeout(scanWatchlistCandidates, 5000);
+            // Rescan every 5 minutes
+            setInterval(scanWatchlistCandidates, 5 * 60 * 1000);
         }
 
         function closeTrialModal() {
@@ -3013,159 +3222,6 @@
             }).format(number);
         }
 
-        async function fetchBreakoutData() {
-            const tableBody = document.getElementById('breakout-body');
-            const loading = document.getElementById('breakout-loading');
-            const table = document.getElementById('breakout-table');
-
-            if (!tableBody || !loading || !table) return;
-
-            table.style.display = 'none';
-            loading.style.display = 'block';
-            tableBody.innerHTML = '';
-
-            try {
-                const tickersRes = await fetch('https://www.okx.com/api/v5/market/tickers?instType=SWAP');
-                if (!tickersRes.ok) throw new Error("OKX ticker fetch failed");
-                const tickersJson = await tickersRes.json();
-                const tickers = tickersJson.data || [];
-
-                const stableBases = new Set(['USDT', 'USDC', 'BUSD', 'DAI', 'TUSD']);
-                const candidates = tickers
-                    .filter(t => t.instId && t.instId.endsWith('-USDT-SWAP'))
-                    .filter(t => !stableBases.has(t.instId.split('-')[0]))
-                    .sort((a, b) => Number(b.volCcy24h || 0) - Number(a.volCcy24h || 0))
-                    .slice(0, 12);
-
-                const results = [];
-
-                const candlePromises = candidates.map(async (t) => {
-                    const instId = t.instId;
-                    const last = Number(t.last);
-                    if (!instId || !last) return null;
-
-                    const candles15Res = await fetch(`https://www.okx.com/api/v5/market/candles?instId=${instId}&bar=15m&limit=40`);
-                    const candles1hRes = await fetch(`https://www.okx.com/api/v5/market/candles?instId=${instId}&bar=1H&limit=48`);
-                    if (!candles15Res.ok || !candles1hRes.ok) return null;
-
-                    const candles15Json = await candles15Res.json();
-                    const candles1hJson = await candles1hRes.json();
-                    const candles15 = candles15Json.data || [];
-                    const candles1h = candles1hJson.data || [];
-                    if (candles15.length < 10 || candles1h.length < 10) return null;
-
-                    const latest15 = candles15[0];
-                    const latestVol = Number(latest15[5]);
-                    const avgVol = candles15.slice(1, 21).reduce((sum, c) => sum + Number(c[5]), 0) / Math.max(1, candles15.slice(1, 21).length);
-                    const volRatio = avgVol > 0 ? latestVol / avgVol : 0;
-
-                    const lows1h = candles1h.map(c => Number(c[3]));
-                    const highs1h = candles1h.map(c => Number(c[2]));
-                    const support = Math.min(...lows1h);
-                    const resistance = Math.max(...highs1h);
-
-                    const distToSupport = ((last - support) / last) * 100;
-                    const distToResistance = ((resistance - last) / last) * 100;
-
-                    const longCandidate = distToSupport <= 1.2 && volRatio >= 1.5;
-                    const shortCandidate = distToResistance <= 1.2 && volRatio >= 1.5;
-                    if (!longCandidate && !shortCandidate) return null;
-
-                    const bias = longCandidate ? 'LONG' : 'SHORT';
-                    const proximity = bias === 'LONG' ? distToSupport : distToResistance;
-                    const score = (volRatio * 10) + Math.max(0, (1.5 - proximity) * 10);
-
-                    return {
-                        instId,
-                        symbol: instId.split('-')[0],
-                        price: last,
-                        volRatio,
-                        support,
-                        resistance,
-                        bias,
-                        score
-                    };
-                });
-
-                const resolved = await Promise.all(candlePromises);
-                resolved.forEach(item => {
-                    if (item) results.push(item);
-                });
-
-                results.sort((a, b) => b.score - a.score);
-                renderBreakoutTable(results.slice(0, 5));
-            } catch (error) {
-                loading.textContent = "Signal lost. (OKX API limit reached. Try again in 60s.)";
-                console.error(error);
-            }
-        }
-
-        function renderBreakoutTable(coins) {
-            const tableBody = document.getElementById('breakout-body');
-            const loading = document.getElementById('breakout-loading');
-            const table = document.getElementById('breakout-table');
-
-            if (!coins.length) {
-                loading.style.display = 'block';
-                loading.textContent = 'No breakout candidates right now.';
-                table.style.display = 'none';
-                return;
-            }
-
-            loading.style.display = 'none';
-            table.style.display = 'table';
-
-            coins.forEach(coin => {
-                const row = document.createElement('tr');
-                const isPositive = coin.bias === 'LONG';
-                const changeClass = isPositive ? 'breakout-positive' : 'breakout-negative';
-                const arrow = isPositive ? '▲' : '▼';
-                const tvLink = getTradingViewLink(coin.symbol);
-                const supportDist = ((coin.price - coin.support) / coin.price) * 100;
-                const resistanceDist = ((coin.resistance - coin.price) / coin.price) * 100;
-                const supportText = coin.bias === 'LONG'
-                    ? `${supportDist.toFixed(2)}% to 1H support`
-                    : `${resistanceDist.toFixed(2)}% to 1H resistance`;
-
-                row.innerHTML = `
-                    <td>
-                        <div class="breakout-coin">
-                            <img src="https://static.okx.com/cdn/okxweb/asset/coin_logo/${coin.symbol.toLowerCase()}.png" alt="${coin.symbol}" onerror="this.style.display='none'">
-                            <div>
-                                <div style="font-weight:700">${coin.symbol}</div>
-                                <div style="color:var(--text-secondary); font-size:0.8em">
-                                    <a href="${tvLink}" target="_blank" rel="noopener" style="color:inherit; text-decoration:none;">${coin.symbol} / USDT</a>
-    </div>
-  </div>
-                        </div>
-                    </td>
-                    <td class="breakout-mono">$${coin.price.toLocaleString()}</td>
-                    <td class="breakout-mono ${changeClass}">
-                        ${arrow} ${coin.volRatio.toFixed(2)}x
-                    </td>
-                    <td>
-                        <span class="breakout-mono" style="color:var(--text-secondary)">${supportText}</span>
-                    </td>
-                    <td>
-                        <span class="breakout-bias ${coin.bias.toLowerCase()}">${coin.bias}</span>
-                    </td>
-                    <td>
-                        <a href="${tvLink}" target="_blank" rel="noopener" class="breakout-link">Chart</a>
-                    </td>
-                `;
-                tableBody.appendChild(row);
-            });
-        }
-
-        function initBreakoutScanner() {
-            const refreshBtn = document.getElementById('breakoutRefreshBtn');
-            if (refreshBtn) {
-                refreshBtn.addEventListener('click', fetchBreakoutData);
-            }
-            fetchBreakoutData();
-            setInterval(fetchBreakoutData, 60000);
-        }
-
         function initSignalPanel() {
             const toggle = document.getElementById('signalToggle');
             const closeBtn = document.getElementById('signalClose');
@@ -3211,7 +3267,6 @@
 
         // Start
         init();
-        initBreakoutScanner();
         loadSignalHistory();
         initSignalPanel();
 

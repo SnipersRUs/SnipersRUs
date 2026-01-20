@@ -9,7 +9,7 @@ import logging
 import requests
 import json
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from collections import deque
 from typing import Dict, List, Set, Optional
 from dataclasses import dataclass, field
@@ -45,8 +45,8 @@ DEFAULT_ASSETS = [
 # Trade limits
 MAX_TRADES_PER_HOUR = 3
 MAX_ACTIVE_TRADES = 3
-SCAN_MINUTE = 45  # Scan at :45 of each hour (15 minutes before top of hour)
-CARD_COLOR = 0xffa500  # Orange
+SCAN_MINUTE = 45  # Scan at :45 of each hour (15 min before top of hour)
+CARD_COLOR = 0x9b59b6  # Purple
 
 # Setup logging
 logging.basicConfig(
@@ -321,7 +321,8 @@ def load_okx_perps(limit: Optional[int] = None) -> List[Dict[str, str]]:
 
 
 def tradingview_symbol(symbol: str) -> str:
-    return f"{symbol}"
+    """Format symbol for TradingView OKX perp charts: OKX:BTCUSDT.P"""
+    return f"OKX:{symbol}.P"
 
 
 def _symbol_to_okx_inst(symbol: str) -> Optional[str]:
@@ -466,9 +467,15 @@ class MarketEngine:
 # ==========================================
 # STRATEGY LOGIC (SHORT HUNTER)
 # ==========================================
-def analyze_market(market_data: Dict[str, Dict], trade_tracker: TradeTracker, trades_this_hour: int) -> List[Signal]:
-    """Analyze market data for short opportunities"""
-    signals = []
+def analyze_market(market_data: Dict[str, Dict], trade_tracker: TradeTracker, trades_this_hour: int):
+    """Analyze market data for short opportunities and build watchlist
+
+    Returns:
+        signals: List[Signal] that qualify as full short setups
+        watchlist: List[Tuple[symbol, distance_pct, gp_resist, price]]
+    """
+    signals: List[Signal] = []
+    watch_candidates = []
 
     # Trade limit check
     if trades_this_hour >= MAX_TRADES_PER_HOUR:
@@ -487,9 +494,17 @@ def analyze_market(market_data: Dict[str, Dict], trade_tracker: TradeTracker, tr
         range_val = coin["high"] - coin["low"]
         gp_resist = coin["low"] + (range_val * 0.65)
 
-        if coin["price"] >= gp_resist:
+        price = coin["price"]
+        # Distance from resistance in %
+        dist_pct = ((gp_resist - price) / gp_resist) * 100 if gp_resist > 0 else 0.0
+
+        if price >= gp_resist:
             score += 30
             reasons.append(f"Price at GPS Resistance Zone ({gp_resist:.2f})")
+        else:
+            # Collect for watchlist if within 5% below resistance
+            if 0 <= dist_pct <= 5:
+                watch_candidates.append((symbol, dist_pct, gp_resist, price))
 
         # 2. Deviation Zones (Overextension)
         if coin["dev"] > 2.5:
@@ -529,21 +544,23 @@ def analyze_market(market_data: Dict[str, Dict], trade_tracker: TradeTracker, tr
         if score >= 70:
             signals.append(Signal(
                 symbol=symbol,
-                price=coin["price"],
+                price=price,
                 score=score,
                 reasons=reasons,
-                stop_loss=coin["price"] * 1.01,  # 1% SL above
-                take_profit=coin["price"] * 0.97  # 3% TP below
+                stop_loss=price * 1.01,  # 1% SL above
+                take_profit=price * 0.97  # 3% TP below
             ))
 
-    return signals
+    # Build top-3 watchlist by closest distance to resistance
+    watchlist = sorted(watch_candidates, key=lambda x: x[1])[:3]
+    return signals, watchlist
 
 
 # ==========================================
 # DISCORD WEBHOOK INTEGRATION
 # ==========================================
-def send_discord_alert(signals: List[Signal], trade_tracker: TradeTracker) -> bool:
-    """Send Discord webhook alert for short signals - all on one card"""
+def send_discord_alert(signals: List[Signal], trade_tracker: TradeTracker, watchlist=None) -> bool:
+    """Send Discord webhook alert for short signals - all on one card, plus watchlist"""
     if not signals:
         return True
 
@@ -579,10 +596,25 @@ def send_discord_alert(signals: List[Signal], trade_tracker: TradeTracker) -> bo
 
         trade_lines_text = '\n'.join(trade_lines)
 
+        # Build watchlist block (top 3 coins approaching resistance)
+        watchlist_lines = []
+        if watchlist:
+            watchlist_lines.append("**Watchlist – Approaching GPS Resistance**")
+            for symbol, dist_pct, gp_resist, price in watchlist:
+                tv_url = f"https://www.tradingview.com/chart/?symbol={tradingview_symbol(symbol)}"
+                watchlist_lines.append(
+                    f"- [{symbol}]({tv_url}) • Price: `{price:.4g}` • GP: `{gp_resist:.4g}` • Distance: `{dist_pct:.2f}%` below"
+                )
+        watchlist_text = "\n".join(watchlist_lines) if watchlist_lines else ""
+
         # Create Discord embed - ORANGE COLOR
         embed = {
             "title": f"🔴 SHORT HUNTER: {len(signals)} NEW TRADE{'S' if len(signals) > 1 else ''}",
-            "description": f"**TOPS HUNTED - SHORT OPPORTUNIT{'Y' if len(signals) > 1 else 'IES'} DETECTED**\n\n{trade_lines_text}",
+            "description": (
+                f"**TOPS HUNTED - SHORT OPPORTUNIT{'Y' if len(signals) > 1 else 'IES'} DETECTED**\n\n"
+                f"{trade_lines_text}"
+                + ("\n\n" + watchlist_text if watchlist_text else "")
+            ),
             "color": CARD_COLOR,  # Orange
             "fields": [
                 {
@@ -599,7 +631,7 @@ def send_discord_alert(signals: List[Signal], trade_tracker: TradeTracker) -> bo
             "footer": {
                 "text": "Short Hunter | GPS + Deviation Top Reversal Strategy | OKX 15m Candles"
             },
-            "timestamp": datetime.utcnow().isoformat() + "Z"
+            "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
         }
 
         payload = {
@@ -666,7 +698,11 @@ class ShortHunterBot:
     def should_scan(self, last_scan_minute: int) -> bool:
         """Check if it's time to scan (at :45 of each hour)"""
         now = datetime.now()
-        return now.minute == SCAN_MINUTE and now.minute != last_scan_minute
+        should = now.minute == SCAN_MINUTE and now.minute != last_scan_minute
+        # Log at :45 to understand scan behavior
+        if now.minute == SCAN_MINUTE and now.second == 0:
+            logger.info(f"🔍 should_scan: minute={now.minute}, last_scan={last_scan_minute}, result={should}")
+        return should
 
     def run_scan(self):
         """Run market scan and send alerts"""
@@ -718,8 +754,8 @@ class ShortHunterBot:
         # Log current market state
         logger.info(f"📈 Market data updated for {len(market_data_cache)} pairs")
 
-        # Analyze for signals
-        signals = analyze_market(market_data_cache, self.trade_tracker, self.trades_this_hour)
+        # Analyze for signals + watchlist
+        signals, watchlist = analyze_market(market_data_cache, self.trade_tracker, self.trades_this_hour)
         # #region agent log
         _debug_log(
             "H2",
@@ -745,10 +781,10 @@ class ShortHunterBot:
                 self.trades_this_hour += 1
                 added_signals.append(signal)
 
-            # Send single Discord alert with all trades
+            # Send single Discord alert with all trades + watchlist
             if added_signals:
                 logger.info(f"📤 Sending Discord alert for {len(added_signals)} signal(s)")
-                if send_discord_alert(added_signals, self.trade_tracker):
+                if send_discord_alert(added_signals, self.trade_tracker, watchlist):
                     logger.info(f"✅ Alert sent! Trades this hour: {self.trades_this_hour}/{MAX_TRADES_PER_HOUR}")
                 else:
                     logger.error("❌ Failed to send Discord alert")
