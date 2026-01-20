@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Bounty Seeker v5 — Reversal Hunter Bot
+Bounty Seeker v5 — Ultimate Reversal Hunter Bot
 Focused on: Deviation VWAP setups (2σ/3σ), Liquidation zones, GPS proximity
-Strategy: Long trades at bottoms where sellers are exhausted
+Strategy: LONGS at extreme bottoms + SHORTS at extreme tops
 Paper Trading: $1,000 starting capital, max 3 open trades
 """
 
@@ -19,7 +19,7 @@ import ccxt
 import numpy as np
 
 # ====================== CONFIGURATION ======================
-SCAN_INTERVAL_SEC = 300  # 5 minutes for active scanning
+SCAN_INTERVAL_SEC = 1800  # 30 minutes for active scanning (XX:00 and XX:30)
 CONFIG_PATH = "config.json"
 DATA_DIR = "data"
 STATE_FILE = os.path.join(DATA_DIR, "bounty_seeker_v5_state.json")
@@ -33,9 +33,9 @@ MAX_OPEN_TRADES = 3
 RISK_PERCENT = 2.0  # Risk 2% per trade
 MIN_RR_RATIO = 2.0  # Minimum 2:1 reward:risk
 
-# Signal quality - ULTIMATE BOTTOM FINDER (aggressive to catch all bottoms)
-MIN_CONFIDENCE = 6  # A grade minimum (6/10) - Very lenient to catch bottoms
-A_PLUS_CONFIDENCE = 8  # A+ grade minimum (8/10) - High quality bottoms
+# Signal quality - ULTIMATE TOP & BOTTOM FINDER (aggressive to catch all reversals)
+MIN_CONFIDENCE = 5  # Lowered to 5/10 - Very aggressive to catch all reversals
+A_PLUS_CONFIDENCE = 8  # A+ grade minimum (8/10) - High quality reversals
 
 # Technical parameters
 ATR_PERIOD = 14
@@ -897,6 +897,203 @@ class BountySeekerV5:
                             "_lows": lows
                         })
 
+            # ===== SHORT FINDER (TOPS) =====
+            # Look for coins at upper deviations (overbought) ready to fall
+            upper_1sigma = vwap + (std_dev * 1.0)
+            upper_2sigma_level = vwap + (std_dev * 2.0)
+            upper_3sigma = vwap + (std_dev * 3.0)
+            
+            deviation_level_short = 0
+            if current_price >= upper_3sigma:
+                deviation_level_short = 3
+            elif current_price >= upper_2sigma_level:
+                deviation_level_short = 2
+            elif current_price >= upper_1sigma:
+                deviation_level_short = 1
+            
+            # SHORT FINDER: Accept 1σ, 2σ, or 3σ upward deviations
+            if deviation_level_short >= 1:
+                confidence = 4  # Base confidence
+                reasons = []
+                
+                # Deviation bonus (stronger for extreme overbought)
+                if deviation_level_short == 3:
+                    confidence += 4  # 3σ up is extreme - very strong top signal
+                    reasons.append("3σ UP deviation (EXTREME overbought - rare top)")
+                elif deviation_level_short == 2:
+                    confidence += 3
+                    reasons.append("2σ UP deviation (overbought - strong top signal)")
+                else:  # 1σ
+                    confidence += 2
+                    reasons.append("1σ UP deviation (approaching overbought - potential top)")
+                
+                # GPS proximity (resistance) OR Liquidation zone
+                if near_gps:
+                    confidence += 3
+                    reasons.append(f"Near GPS resistance ({gps_distance_pct:.2f}% away) - KEY RESISTANCE")
+                
+                if near_liquidation:
+                    confidence += 3
+                    reasons.append(f"Near liquidation zone (importance: {liq_importance:.1f}%) - BUYER EXHAUSTION")
+                
+                # Price at or near recent highs (resistance detection)
+                if len(highs) >= 20:
+                    recent_high_20 = max(highs[-20:])
+                    recent_high_10 = max(highs[-10:])
+                    current_high = highs[-1]
+                    
+                    distance_to_high_20 = abs(current_price - recent_high_20) / current_price * 100
+                    distance_to_high_10 = abs(current_price - recent_high_10) / current_price * 100
+                    
+                    if distance_to_high_20 < 1.0:
+                        confidence += 2
+                        reasons.append(f"At/near 20-period high (${recent_high_20:.6f}) - STRONG RESISTANCE")
+                    elif distance_to_high_10 < 0.5:
+                        confidence += 1
+                        reasons.append(f"At/near 10-period high (${recent_high_10:.6f}) - Resistance level")
+                    
+                    # Check if making new highs (potential exhaustion)
+                    if current_high >= recent_high_20 * 1.01:
+                        confidence += 1
+                        reasons.append("Making new highs - potential exhaustion point")
+                
+                # RSI overbought (the more overbought, the better for top finding)
+                if rsi > 75:
+                    confidence += 3
+                    reasons.append(f"RSI EXTREMELY overbought ({rsi:.1f}) - RARE TOP")
+                elif rsi > 70:
+                    confidence += 2
+                    reasons.append(f"RSI very overbought ({rsi:.1f}) - Strong top signal")
+                elif rsi > 65:
+                    confidence += 1.5
+                    reasons.append(f"RSI overbought ({rsi:.1f}) - Good top signal")
+                elif rsi > 60:
+                    confidence += 1
+                    reasons.append(f"RSI approaching overbought ({rsi:.1f})")
+                
+                # Volume patterns for top finding
+                if volume_ratio > 2.5:
+                    confidence += 2
+                    reasons.append(f"Very high volume ({volume_ratio:.2f}x) - BUYER EXHAUSTION")
+                elif volume_ratio > 2.0:
+                    confidence += 1.5
+                    reasons.append(f"Strong volume surge ({volume_ratio:.2f}x) - Exhaustion signal")
+                elif volume_ratio > 1.5:
+                    confidence += 1
+                    reasons.append(f"Volume surge ({volume_ratio:.2f}x)")
+                
+                # Distribution pattern: volume increasing while price stalls
+                if len(volumes) >= 5:
+                    recent_volumes = volumes[-5:]
+                    volume_trend = sum(1 for i in range(1, len(recent_volumes)) if recent_volumes[i] > recent_volumes[i-1])
+                    price_range = (max(highs[-5:]) - min(lows[-5:])) / current_price * 100
+                    
+                    if volume_trend >= 3 and price_range < 2.0:
+                        confidence += 2
+                        reasons.append("Distribution pattern - Volume up, price stalling")
+                
+                # BUYER EXHAUSTION DETECTION
+                recent_high = max(highs[-5:])
+                recent_close = closes[-1]
+                upper_wick = recent_high - recent_close
+                body_size = abs(closes[-1] - (highs[-1] + lows[-1]) / 2)
+                
+                # Large upper wick (strong rejection - sellers stepping in)
+                if body_size > 0 and upper_wick > body_size * 2.5:
+                    confidence += 3
+                    reasons.append("MASSIVE upper wick - STRONG seller rejection of higher prices")
+                elif body_size > 0 and upper_wick > body_size * 2.0:
+                    confidence += 2
+                    reasons.append("Very large upper wick - Strong buyer exhaustion")
+                elif body_size > 0 and upper_wick > body_size * 1.5:
+                    confidence += 1.5
+                    reasons.append("Large upper wick - Buyer exhaustion signal")
+                
+                # Shooting star pattern
+                recent_candle_range = highs[-1] - lows[-1]
+                if recent_candle_range > 0:
+                    upper_wick_pct = upper_wick / recent_candle_range
+                    
+                    if upper_wick_pct > 0.7:
+                        confidence += 2
+                        reasons.append("Shooting star pattern - Strong rejection at top")
+                    elif upper_wick_pct > 0.6:
+                        confidence += 1
+                        reasons.append("Price rejection pattern - Sellers defending level")
+                
+                # Price stabilization at resistance
+                if len(highs) >= 10:
+                    price_range_pct = (max(highs[-10:]) - min(lows[-10:])) / current_price * 100
+                    if price_range_pct < 1.5:
+                        confidence += 1.5
+                        reasons.append("Price stabilization - Stalling at resistance")
+                    
+                    # Check for uptrend exhaustion
+                    recent_highs = highs[-10:]
+                    higher_highs_count = sum(1 for i in range(1, len(recent_highs)) if recent_highs[i] > recent_highs[i-1])
+                    if higher_highs_count >= 5:
+                        if price_range_pct < 2.0:
+                            confidence += 2
+                            reasons.append("Uptrend exhaustion - Higher highs stopped, price stalling")
+                        else:
+                            confidence += 1
+                            reasons.append("Uptrend structure - Potential reversal point")
+                
+                # Volume exhaustion
+                if len(volumes) >= 5:
+                    recent_vols = volumes[-5:]
+                    volume_decreasing = sum(1 for i in range(1, len(recent_vols)) if recent_vols[i] < recent_vols[i-1])
+                    if volume_decreasing >= 3 and volume_ratio < 1.0:
+                        confidence += 1.5
+                        reasons.append("Volume exhaustion - Buyers running out of steam")
+                
+                confidence_int = int(round(confidence))
+                
+                if confidence_int >= MIN_CONFIDENCE:
+                    grade = "A+" if confidence_int >= A_PLUS_CONFIDENCE else "A"
+                    
+                    # Calculate SHORT entry, stop, targets
+                    entry = current_price
+                    stop = recent_high + (atr * 0.5)  # Stop above recent high
+                    risk = max(stop - entry, entry * 0.001)
+                    
+                    # Take profit levels for shorts
+                    tp1 = entry - (risk * 2.0)
+                    tp2 = entry - (risk * 3.0)
+                    tp3 = entry - (risk * 4.5)
+                    
+                    rr_ratio = (entry - tp2) / risk
+                    
+                    if rr_ratio >= MIN_RR_RATIO:
+                        signals.append({
+                            "exchange": self.exchange_name.lower(),
+                            "symbol": symbol,
+                            "direction": "SHORT",
+                            "confidence": min(confidence_int, 10),
+                            "grade": grade,
+                            "entry": entry,
+                            "stop": stop,
+                            "tp1": tp1,
+                            "tp2": tp2,
+                            "tp3": tp3,
+                            "risk_reward": f"{rr_ratio:.2f}",
+                            "reasons": reasons,
+                            "rsi": rsi,
+                            "volume_ratio": volume_ratio,
+                            "deviation_level": deviation_level_short,
+                            "deviation_pct": -deviation_pct,  # Negative for upper deviation
+                            "near_gps": near_gps,
+                            "gps_distance_pct": gps_distance_pct,
+                            "near_liquidation": near_liquidation,
+                            "liq_importance": liq_importance,
+                            "vwap": vwap,
+                            "upper_2sigma": upper_2sigma_level,
+                            "upper_3sigma": upper_3sigma,
+                            "_closes": closes,
+                            "_highs": highs,
+                            "_lows": lows
+                        })
+
             return signals[0] if signals else None
 
         except Exception as e:
@@ -977,7 +1174,7 @@ class BountySeekerV5:
             "entry_time": datetime.utcnow().isoformat()
         })
 
-        self.log(f"✅ Opened paper trade: {signal['symbol']} LONG @ ${signal['entry']:.6f}")
+        self.log(f"✅ Opened paper trade: {signal['symbol']} {signal['direction']} @ ${signal['entry']:.6f}")
         return True
 
     def check_trade_exits(self):
@@ -996,32 +1193,64 @@ class BountySeekerV5:
                 exit_price = None
                 pnl_usd = 0.0
                 pnl_percent = 0.0
+                
+                is_long = trade["direction"] == "LONG"
 
-                # Check stop loss
-                if current_price <= trade["stop_loss"]:
-                    exit_reason = "Stop Loss"
-                    exit_price = trade["stop_loss"]
-                    pnl_usd = (exit_price - trade["entry_price"]) * (trade["position_size_usd"] / trade["entry_price"]) * LEVERAGE
-                    pnl_percent = ((exit_price - trade["entry_price"]) / trade["entry_price"]) * 100 * LEVERAGE
+                # LONG TRADE EXITS
+                if is_long:
+                    # Check stop loss
+                    if current_price <= trade["stop_loss"]:
+                        exit_reason = "Stop Loss"
+                        exit_price = trade["stop_loss"]
+                        pnl_usd = (exit_price - trade["entry_price"]) * (trade["position_size_usd"] / trade["entry_price"]) * LEVERAGE
+                        pnl_percent = ((exit_price - trade["entry_price"]) / trade["entry_price"]) * 100 * LEVERAGE
 
-                # Check take profits
-                elif current_price >= trade["take_profit_3"]:
-                    exit_reason = "Take Profit 3"
-                    exit_price = trade["take_profit_3"]
-                    pnl_usd = (exit_price - trade["entry_price"]) * (trade["position_size_usd"] / trade["entry_price"]) * LEVERAGE
-                    pnl_percent = ((exit_price - trade["entry_price"]) / trade["entry_price"]) * 100 * LEVERAGE
+                    # Check take profits
+                    elif current_price >= trade["take_profit_3"]:
+                        exit_reason = "Take Profit 3"
+                        exit_price = trade["take_profit_3"]
+                        pnl_usd = (exit_price - trade["entry_price"]) * (trade["position_size_usd"] / trade["entry_price"]) * LEVERAGE
+                        pnl_percent = ((exit_price - trade["entry_price"]) / trade["entry_price"]) * 100 * LEVERAGE
 
-                elif current_price >= trade["take_profit_2"]:
-                    exit_reason = "Take Profit 2"
-                    exit_price = trade["take_profit_2"]
-                    pnl_usd = (exit_price - trade["entry_price"]) * (trade["position_size_usd"] / trade["entry_price"]) * LEVERAGE
-                    pnl_percent = ((exit_price - trade["entry_price"]) / trade["entry_price"]) * 100 * LEVERAGE
+                    elif current_price >= trade["take_profit_2"]:
+                        exit_reason = "Take Profit 2"
+                        exit_price = trade["take_profit_2"]
+                        pnl_usd = (exit_price - trade["entry_price"]) * (trade["position_size_usd"] / trade["entry_price"]) * LEVERAGE
+                        pnl_percent = ((exit_price - trade["entry_price"]) / trade["entry_price"]) * 100 * LEVERAGE
 
-                elif current_price >= trade["take_profit_1"]:
-                    exit_reason = "Take Profit 1"
-                    exit_price = trade["take_profit_1"]
-                    pnl_usd = (exit_price - trade["entry_price"]) * (trade["position_size_usd"] / trade["entry_price"]) * LEVERAGE
-                    pnl_percent = ((exit_price - trade["entry_price"]) / trade["entry_price"]) * 100 * LEVERAGE
+                    elif current_price >= trade["take_profit_1"]:
+                        exit_reason = "Take Profit 1"
+                        exit_price = trade["take_profit_1"]
+                        pnl_usd = (exit_price - trade["entry_price"]) * (trade["position_size_usd"] / trade["entry_price"]) * LEVERAGE
+                        pnl_percent = ((exit_price - trade["entry_price"]) / trade["entry_price"]) * 100 * LEVERAGE
+                
+                # SHORT TRADE EXITS
+                else:
+                    # Check stop loss (price going UP hits stop for shorts)
+                    if current_price >= trade["stop_loss"]:
+                        exit_reason = "Stop Loss"
+                        exit_price = trade["stop_loss"]
+                        pnl_usd = (trade["entry_price"] - exit_price) * (trade["position_size_usd"] / trade["entry_price"]) * LEVERAGE
+                        pnl_percent = ((trade["entry_price"] - exit_price) / trade["entry_price"]) * 100 * LEVERAGE
+
+                    # Check take profits (price going DOWN hits TP for shorts)
+                    elif current_price <= trade["take_profit_3"]:
+                        exit_reason = "Take Profit 3"
+                        exit_price = trade["take_profit_3"]
+                        pnl_usd = (trade["entry_price"] - exit_price) * (trade["position_size_usd"] / trade["entry_price"]) * LEVERAGE
+                        pnl_percent = ((trade["entry_price"] - exit_price) / trade["entry_price"]) * 100 * LEVERAGE
+
+                    elif current_price <= trade["take_profit_2"]:
+                        exit_reason = "Take Profit 2"
+                        exit_price = trade["take_profit_2"]
+                        pnl_usd = (trade["entry_price"] - exit_price) * (trade["position_size_usd"] / trade["entry_price"]) * LEVERAGE
+                        pnl_percent = ((trade["entry_price"] - exit_price) / trade["entry_price"]) * 100 * LEVERAGE
+
+                    elif current_price <= trade["take_profit_1"]:
+                        exit_reason = "Take Profit 1"
+                        exit_price = trade["take_profit_1"]
+                        pnl_usd = (trade["entry_price"] - exit_price) * (trade["position_size_usd"] / trade["entry_price"]) * LEVERAGE
+                        pnl_percent = ((trade["entry_price"] - exit_price) / trade["entry_price"]) * 100 * LEVERAGE
 
                 # Close trade if exit condition met
                 if exit_reason:
@@ -1096,22 +1325,44 @@ class BountySeekerV5:
         return True
 
     def _build_combined_signals_card(self, signals: List[Dict]) -> Dict:
-        """Build a single Discord embed card with all long signals combined"""
+        """Build a single Discord embed card with all signals combined (LONG and SHORT)"""
         if not signals:
             return None
 
-        # All signals are LONG - white card
-        color = 0xFFFFFF  # White for long signals
-
-        desc_lines = [
-            f"**🎯 Found {len(signals)} A/A+ Long Setup{'s' if len(signals) > 1 else ''}:**",
-            ""
-        ]
+        # Separate LONG and SHORT signals  
+        long_signals = [s for s in signals if s.get("direction") == "LONG"]
+        short_signals = [s for s in signals if s.get("direction") == "SHORT"]
+        
+        # Color based on signal types
+        if long_signals and short_signals:
+            color = 0xA020F0  # Purple for mixed
+        elif short_signals:
+            color = 0x9c27b0  # Purple for shorts
+        else:
+            color = 0x0ecb81  # Green for longs
+        
+        # Dynamic header
+        if long_signals and short_signals:
+            desc_lines = [
+                f"**🎯 Found {len(long_signals)} LONG + {len(short_signals)} SHORT Setup{'s' if len(signals) > 1 else ''}:**",
+                ""
+            ]
+        elif short_signals:
+            desc_lines = [
+                f"**🎯 Found {len(short_signals)} SHORT Setup{'s' if len(short_signals) > 1 else ''}:**",
+                ""
+            ]
+        else:
+            desc_lines = [
+                f"**🎯 Found {len(long_signals)} LONG Setup{'s' if len(long_signals) > 1 else ''}:**",
+                ""
+            ]
 
         for i, signal in enumerate(signals, 1):
             # Visual separator for each coin
             desc_lines.append(f"**━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━**")
-            desc_lines.append(f"**{i}. 🟢 {signal.get('symbol','-')}** | **{signal.get('grade','-')} Grade** | **Confidence: {int(signal.get('confidence',0))}/10**")
+            direction_emoji = "🟢" if signal.get("direction") == "LONG" else "🔴"
+            desc_lines.append(f"**{i}. {direction_emoji} {signal.get('symbol','-')}** | **{signal.get('direction', 'LONG')}** | **{signal.get('grade','-')} Grade** | **Confidence: {int(signal.get('confidence',0))}/10**")
             desc_lines.append("")
 
             # Entry details
@@ -1157,8 +1408,16 @@ class BountySeekerV5:
         desc_lines.append("")
         desc_lines.append("*Always DYOR - Not Financial Advice*")
 
+        # Dynamic title based on signal types
+        if long_signals and short_signals:
+            title = f"🎯 Trade Signals - {len(long_signals)} LONG + {len(short_signals)} SHORT Setup{'s' if len(signals) > 1 else ''}"
+        elif short_signals:
+            title = f"🎯 SHORT Trade Signals - {len(short_signals)} Setup{'s' if len(short_signals) > 1 else ''} Found"
+        else:
+            title = f"🎯 LONG Trade Signals - {len(long_signals)} Setup{'s' if len(long_signals) > 1 else ''} Found"
+        
         return {
-            "title": f"🎯 Long Trade Signals - {len(signals)} Setup{'s' if len(signals) > 1 else ''} Found",
+            "title": title,
             "description": "\n".join(desc_lines),
             "color": color,
             "timestamp": datetime.utcnow().isoformat()
@@ -1406,13 +1665,30 @@ class BountySeekerV5:
                     self.log(f"⚠️ Rate limit reached: {MAX_SIGNALS_PER_HOUR} signals already sent this hour")
 
 
+                # Send scan update to Discord
+                scan_time = time.time() - start_t
+                scan_embed = {
+                    "title": "🔍 Scan Update",
+                    "description": (
+                        f"**Scanned:** {len(markets)} coins\n"
+                        f"**Signals Found:** {len(trade_signals)} LONG + SHORT setups\n"
+                        f"**Watchlist:** {len(watchlist_candidates)} coins approaching zones\n"
+                        f"**Open Trades:** {len(self.open_trades)}/{MAX_OPEN_TRADES}\n"
+                        f"**Balance:** ${self.paper_balance:.2f}\n"
+                        f"**Scan Time:** {scan_time:.1f}s"
+                    ),
+                    "color": 0x3498db,  # Blue
+                    "timestamp": datetime.utcnow().isoformat(),
+                    "footer": {"text": f"Next scan in {SCAN_INTERVAL_SEC//60} minutes"}
+                }
+                
                 # Only send embeds if there are actual signals or watchlist items
                 if embeds:
+                    embeds.insert(0, scan_embed)  # Add scan update first
                     self.post_to_discord(embeds)
                 else:
-                    # Log scan results but don't send notification
-                    scan_time = time.time() - start_t
-                    self.log(f"📊 Scan complete: {len(trade_signals)} A/A+ signals found, {len(watchlist_candidates)} watchlist candidates (not sending notification)")
+                    # Send scan update alone
+                    self.post_to_discord([scan_embed])
 
                 # Generate daily PnL report (once per day)
                 self.generate_daily_pnl()

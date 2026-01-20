@@ -52,7 +52,7 @@
 
         /* Navigation */
         nav {
-            background: linear-gradient(135deg, 
+            background: linear-gradient(135deg,
                 rgba(15, 17, 25, 0.95) 0%,
                 rgba(20, 15, 30, 0.9) 25%,
                 rgba(15, 25, 20, 0.9) 50%,
@@ -70,7 +70,7 @@
             background-size: 200% 200%;
             animation: gradientShift 8s ease infinite;
         }
-        
+
         @keyframes gradientShift {
             0% { background-position: 0% 50%; }
             50% { background-position: 100% 50%; }
@@ -139,11 +139,11 @@
             transition: opacity 0.2s, box-shadow 0.3s;
             position: relative;
         }
-        
+
         .btn-join:not(.clicked) {
             animation: slowGreenGlowButton 3s ease-in-out infinite;
         }
-        
+
         @keyframes slowGreenGlowButton {
             0%, 100% {
                 box-shadow: 0 0 8px rgba(14, 203, 129, 0.4),
@@ -157,10 +157,10 @@
             }
         }
 
-        .btn-join:hover { 
+        .btn-join:hover {
             opacity: 0.9;
         }
-        
+
         .btn-join.clicked {
             animation: none;
             box-shadow: 0 0 10px rgba(156, 39, 176, 0.5);
@@ -331,12 +331,12 @@
             position: relative;
             transition: background 0.2s ease, box-shadow 0.2s ease;
         }
-        
+
         .gps-clickable:hover {
             background: linear-gradient(135deg, rgba(156, 39, 176, 0.3), rgba(14, 203, 129, 0.25));
             box-shadow: 0 0 10px rgba(14, 203, 129, 0.3);
         }
-        
+
         .gps-popup {
             display: none;
             position: fixed;
@@ -351,27 +351,27 @@
             backdrop-filter: blur(20px);
             pointer-events: auto;
         }
-        
+
         #gpsPopupFloating {
             z-index: 999999 !important;
         }
-        
+
         .gps-popup.active {
             display: block;
             animation: fadeInDown 0.2s ease;
         }
-        
+
         @keyframes fadeInDown {
-            from { 
-                opacity: 0; 
+            from {
+                opacity: 0;
                 transform: translateY(-10px) scale(0.95);
             }
-            to { 
-                opacity: 1; 
+            to {
+                opacity: 1;
                 transform: translateY(0) scale(1);
             }
         }
-        
+
         .gps-popup-header {
             font-weight: 700;
             font-size: 1rem;
@@ -380,7 +380,7 @@
             border-bottom: 1px solid var(--glass-border);
             color: var(--accent-green);
         }
-        
+
         .gps-popup-row {
             display: flex;
             justify-content: space-between;
@@ -388,15 +388,15 @@
             padding: 6px 0;
             font-size: 0.9rem;
         }
-        
+
         .gps-popup-row:not(:last-child) {
             border-bottom: 1px dashed rgba(255,255,255,0.05);
         }
-        
+
         .gps-label {
             color: var(--text-secondary);
         }
-        
+
         .gps-value {
             font-family: monospace;
             color: var(--text-primary);
@@ -884,7 +884,7 @@
             transition: transform 0.2s, box-shadow 0.3s;
             position: relative;
         }
-        
+
         .btn-large:not(.clicked) {
             animation: slowGreenGlowButton 3s ease-in-out infinite;
         }
@@ -892,7 +892,7 @@
         .btn-large:hover {
             transform: scale(1.05);
         }
-        
+
         .btn-large.clicked {
             animation: none;
             box-shadow: 0 0 10px rgba(156, 39, 176, 0.5);
@@ -952,7 +952,7 @@
 
         .tier-price {
             font-size: 2rem;
-            font-weight: 800;
+      font-weight: 800;
             color: var(--accent-green);
             margin-bottom: 16px;
         }
@@ -1065,7 +1065,7 @@
             color: var(--text-secondary);
             margin-bottom: 10px;
         }
-        
+
         footer .logo-mark {
             width: 80px;
             height: 80px;
@@ -1076,7 +1076,7 @@
             box-shadow: 0 4px 12px rgba(0,0,0,0.3);
             margin-bottom: 10px;
         }
-        
+
         .footer-links {
             display: flex;
             gap: 40px;
@@ -1084,39 +1084,39 @@
             justify-content: center;
             margin: 20px 0;
         }
-        
+
         .footer-section {
             display: flex;
             flex-direction: column;
             gap: 10px;
             min-width: 150px;
         }
-        
+
         .footer-section h4 {
             color: var(--text-primary);
             font-size: 1rem;
             margin-bottom: 8px;
             font-weight: 600;
         }
-        
+
         .footer-section a {
             color: var(--text-secondary);
             text-decoration: none;
             font-size: 0.9rem;
             transition: color 0.3s ease;
         }
-        
+
         .footer-section a:hover {
             color: var(--accent-green);
         }
-        
+
         @media (max-width: 768px) {
             .footer-links {
                 flex-direction: column;
                 gap: 30px;
             }
         }
-        
+
         /* View Counter */
         .view-counter {
             margin-top: 20px;
@@ -1130,17 +1130,17 @@
             justify-content: center;
             gap: 8px;
         }
-        
+
         .view-counter-icon {
             font-size: 0.9rem;
             animation: pulseView 2s ease-in-out infinite;
         }
-        
+
         @keyframes pulseView {
             0%, 100% { opacity: 0.6; transform: scale(1); }
             50% { opacity: 1; transform: scale(1.1); }
         }
-        
+
         .view-counter-number {
             font-family: monospace;
             font-weight: 700;
@@ -1148,18 +1148,18 @@
             font-size: 0.95rem;
             animation: countUp 1s ease-out;
         }
-        
+
         @keyframes countUp {
-            from { 
+            from {
                 opacity: 0;
                 transform: translateY(-10px) scale(0.8);
             }
-            to { 
+            to {
                 opacity: 1;
                 transform: translateY(0) scale(1);
             }
         }
-        
+
         .view-counter-label {
             color: var(--text-secondary);
         }
@@ -1170,7 +1170,7 @@
             margin: 0 auto;
             padding: 60px 20px;
         }
-        
+
         .paper-trading-header {
             display: flex;
             justify-content: space-between;
@@ -1179,18 +1179,18 @@
             padding-bottom: 16px;
             border-bottom: 2px solid var(--accent-purple);
         }
-        
+
         .paper-trading-header h2 {
             font-size: 2rem;
             margin: 0;
         }
-        
+
         .paper-trading-grid {
             display: grid;
             grid-template-columns: 2fr 1fr;
             gap: 24px;
         }
-        
+
         .paper-trading-chart {
             background: var(--glass);
             border: 1px solid var(--glass-border);
@@ -1198,54 +1198,54 @@
             padding: 20px;
             min-height: 500px;
         }
-        
+
         .paper-trading-panel {
             display: flex;
             flex-direction: column;
             gap: 20px;
         }
-        
+
         .paper-portfolio-card {
             background: linear-gradient(135deg, rgba(156, 39, 176, 0.2), rgba(14, 203, 129, 0.15));
             border: 1px solid var(--glass-border);
             border-radius: 12px;
             padding: 20px;
         }
-        
+
         .paper-portfolio-card h3 {
             font-size: 1.1rem;
             margin-bottom: 16px;
             color: var(--accent-purple);
         }
-        
+
         .paper-portfolio-row {
             display: flex;
             justify-content: space-between;
             padding: 8px 0;
             border-bottom: 1px dashed rgba(255,255,255,0.1);
         }
-        
+
         .paper-portfolio-row:last-child {
             border-bottom: none;
         }
-        
+
         .paper-portfolio-label {
             color: var(--text-secondary);
             font-size: 0.9rem;
         }
-        
+
         .paper-portfolio-value {
             font-weight: 700;
             font-family: monospace;
         }
-        
+
         .paper-order-card {
             background: var(--glass);
             border: 1px solid var(--glass-border);
             border-radius: 12px;
             padding: 20px;
         }
-        
+
         .paper-order-tabs {
             display: flex;
             gap: 8px;
@@ -1253,7 +1253,7 @@
             border-bottom: 1px solid var(--glass-border);
             padding-bottom: 12px;
         }
-        
+
         .paper-order-tab {
             padding: 8px 16px;
             background: transparent;
@@ -1263,24 +1263,24 @@
             cursor: pointer;
             transition: all 0.2s ease;
         }
-        
+
         .paper-order-tab.active {
             background: linear-gradient(135deg, rgba(156, 39, 176, 0.3), rgba(14, 203, 129, 0.2));
             border-color: var(--accent-purple);
             color: var(--accent-white);
         }
-        
+
         .paper-order-tab:hover {
             border-color: var(--accent-green);
         }
-        
+
         .paper-trade-buttons {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 12px;
             margin-bottom: 16px;
         }
-        
+
         .paper-trade-btn {
             padding: 12px;
             border-radius: 8px;
@@ -1289,39 +1289,39 @@
             transition: all 0.2s ease;
             border: 2px solid transparent;
         }
-        
+
         .paper-trade-btn.long {
             background: var(--accent-green);
             color: #000;
         }
-        
+
         .paper-trade-btn.long:hover {
             background: rgba(14, 203, 129, 0.8);
         }
-        
+
         .paper-trade-btn.long.active {
             border-color: var(--accent-white);
             box-shadow: 0 0 15px rgba(14, 203, 129, 0.5);
         }
-        
+
         .paper-trade-btn.short {
             background: var(--accent-purple);
             color: #fff;
         }
-        
+
         .paper-trade-btn.short:hover {
             background: rgba(156, 39, 176, 0.8);
         }
-        
+
         .paper-trade-btn.short.active {
             border-color: var(--accent-white);
             box-shadow: 0 0 15px rgba(156, 39, 176, 0.5);
         }
-        
+
         .paper-input-group {
             margin-bottom: 16px;
         }
-        
+
         .paper-input-label {
             display: flex;
             justify-content: space-between;
@@ -1329,7 +1329,7 @@
             font-size: 0.9rem;
             color: var(--text-secondary);
         }
-        
+
         .paper-input {
             width: 100%;
             padding: 12px;
@@ -1340,20 +1340,20 @@
             font-size: 1rem;
             font-family: monospace;
         }
-        
+
         .paper-input:focus {
             outline: none;
             border-color: var(--accent-purple);
             box-shadow: 0 0 10px rgba(156, 39, 176, 0.3);
         }
-        
+
         .paper-percent-buttons {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
             gap: 8px;
             margin-top: 8px;
         }
-        
+
         .paper-percent-btn {
             padding: 6px;
             background: var(--glass);
@@ -1364,12 +1364,12 @@
             font-size: 0.8rem;
             transition: all 0.2s ease;
         }
-        
+
         .paper-percent-btn:hover {
             border-color: var(--accent-green);
             color: var(--accent-green);
         }
-        
+
         .paper-submit-btn {
             width: 100%;
             padding: 14px;
@@ -1380,22 +1380,22 @@
             transition: all 0.2s ease;
             border: none;
         }
-        
+
         .paper-submit-btn.long {
             background: var(--accent-green);
             color: #000;
         }
-        
+
         .paper-submit-btn.short {
             background: var(--accent-purple);
             color: #fff;
         }
-        
+
         .paper-submit-btn:disabled {
             opacity: 0.5;
             cursor: not-allowed;
         }
-        
+
         .paper-positions-tabs {
             display: flex;
             gap: 8px;
@@ -1403,7 +1403,7 @@
             border-bottom: 1px solid var(--glass-border);
             padding-bottom: 12px;
         }
-        
+
         .paper-positions-tab {
             padding: 8px 16px;
             background: transparent;
@@ -1414,13 +1414,13 @@
             transition: all 0.2s ease;
             font-size: 0.9rem;
         }
-        
+
         .paper-positions-tab.active {
             background: linear-gradient(135deg, rgba(156, 39, 176, 0.3), rgba(14, 203, 129, 0.2));
             border-color: var(--accent-purple);
             color: var(--accent-white);
         }
-        
+
         .paper-position-item {
             background: var(--glass);
             border: 1px solid var(--glass-border);
@@ -1429,35 +1429,35 @@
             padding: 16px;
             margin-bottom: 12px;
         }
-        
+
         .paper-position-item.short {
             border-left-color: var(--accent-purple);
         }
-        
+
         .paper-position-row {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
             gap: 12px;
             margin-bottom: 12px;
         }
-        
+
         .paper-position-label {
             font-size: 0.8rem;
             color: var(--text-secondary);
             margin-bottom: 4px;
         }
-        
+
         .paper-position-value {
             font-weight: 700;
             font-family: monospace;
         }
-        
+
         .paper-position-actions {
             display: flex;
             gap: 8px;
             margin-top: 12px;
         }
-        
+
         .paper-action-btn {
             padding: 6px 12px;
             background: var(--glass);
@@ -1468,18 +1468,18 @@
             font-size: 0.85rem;
             transition: all 0.2s ease;
         }
-        
+
         .paper-action-btn:hover {
             border-color: var(--accent-purple);
             color: var(--accent-purple);
         }
-        
+
         .paper-empty-state {
             text-align: center;
             padding: 40px;
             color: var(--text-secondary);
         }
-        
+
         @media (max-width: 1024px) {
             .paper-trading-grid {
                 grid-template-columns: 1fr;
@@ -1730,7 +1730,7 @@
             margin: 0 auto;
             padding: 60px 20px;
         }
-        
+
         .news-market-tabs {
             display: flex;
             gap: 10px;
@@ -1739,7 +1739,7 @@
             padding-bottom: 16px;
             border-bottom: 2px solid var(--accent-purple);
         }
-        
+
         .news-market-tab {
             padding: 10px 20px;
             border-radius: 8px;
@@ -1751,20 +1751,20 @@
             cursor: pointer;
             transition: all 0.2s ease;
         }
-        
+
         .news-market-tab:hover {
             border-color: var(--accent-green);
             color: var(--accent-green);
             transform: translateY(-2px);
         }
-        
+
         .news-market-tab.active {
             background: linear-gradient(135deg, rgba(156, 39, 176, 0.4), rgba(14, 203, 129, 0.3));
             border-color: var(--accent-purple);
             color: var(--accent-white);
             box-shadow: 0 4px 12px rgba(156, 39, 176, 0.3);
         }
-        
+
         .news-filters {
             display: flex;
             gap: 10px;
@@ -1773,7 +1773,7 @@
             padding-bottom: 16px;
             border-bottom: 1px solid var(--glass-border);
         }
-        
+
         .news-filter-btn {
             padding: 8px 16px;
             border-radius: 8px;
@@ -1785,31 +1785,31 @@
             cursor: pointer;
             transition: all 0.2s ease;
         }
-        
+
         .news-filter-btn:hover {
             border-color: var(--accent-purple);
             color: var(--accent-purple);
         }
-        
+
         .news-filter-btn.active {
             background: linear-gradient(135deg, rgba(156, 39, 176, 0.3), rgba(14, 203, 129, 0.2));
             border-color: var(--accent-purple);
             color: var(--accent-white);
         }
-        
+
         .news-grid {
             display: grid;
             grid-template-columns: 2fr 1fr;
             gap: 24px;
         }
-        
+
         .news-stats {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
             gap: 16px;
             margin-bottom: 24px;
         }
-        
+
         .news-stat-card {
             background: var(--glass);
             border: 1px solid var(--glass-border);
@@ -1819,28 +1819,28 @@
             align-items: center;
             gap: 12px;
         }
-        
+
         .news-stat-icon {
             font-size: 1.5rem;
         }
-        
+
         .news-stat-value {
             font-size: 1.5rem;
             font-weight: 700;
             color: var(--text-primary);
         }
-        
+
         .news-stat-label {
             font-size: 0.8rem;
             color: var(--text-secondary);
         }
-        
+
         .news-list {
             max-height: 600px;
             overflow-y: auto;
             padding-right: 8px;
         }
-        
+
         .news-item {
             background: var(--glass);
             border: 1px solid var(--glass-border);
@@ -1849,23 +1849,23 @@
             margin-bottom: 16px;
             transition: all 0.2s ease;
         }
-        
+
         .news-item:hover {
             border-color: var(--accent-purple);
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(156, 39, 176, 0.2);
         }
-        
+
         .news-item.critical {
             border-color: rgba(255, 0, 0, 0.5);
             background: rgba(255, 0, 0, 0.05);
         }
-        
+
         .news-item.high {
             border-color: rgba(255, 100, 0, 0.5);
             background: rgba(255, 100, 0, 0.05);
         }
-        
+
         .news-item-header {
             display: flex;
             align-items: flex-start;
@@ -1873,47 +1873,47 @@
             gap: 12px;
             margin-bottom: 12px;
         }
-        
+
         .news-badges {
             display: flex;
             flex-wrap: wrap;
             gap: 6px;
         }
-        
+
         .news-badge {
             padding: 4px 10px;
             border-radius: 12px;
             font-size: 0.75rem;
             font-weight: 700;
         }
-        
+
         .news-badge.critical {
             background: rgba(255, 0, 0, 0.8);
             color: white;
         }
-        
+
         .news-badge.high {
             background: rgba(255, 100, 0, 0.8);
             color: white;
         }
-        
+
         .news-badge.medium {
             background: var(--accent-purple);
             color: white;
         }
-        
+
         .news-badge.category {
             background: rgba(255, 255, 255, 0.1);
             color: var(--text-secondary);
             border: 1px solid var(--glass-border);
         }
-        
+
         .news-badge.coin {
             border: 1px solid var(--accent-green);
             color: var(--accent-green);
             background: transparent;
         }
-        
+
         .news-title {
             font-size: 1rem;
             font-weight: 600;
@@ -1921,17 +1921,17 @@
             margin-bottom: 8px;
             line-height: 1.4;
         }
-        
+
         .news-title a {
             color: inherit;
             text-decoration: none;
             transition: color 0.2s ease;
         }
-        
+
         .news-title a:hover {
             color: var(--accent-green);
         }
-        
+
         .news-excerpt {
             font-size: 0.85rem;
             color: var(--text-secondary);
@@ -1942,7 +1942,7 @@
             -webkit-box-orient: vertical;
             overflow: hidden;
         }
-        
+
         .news-meta {
             display: flex;
             align-items: center;
@@ -1950,25 +1950,25 @@
             font-size: 0.75rem;
             color: var(--text-secondary);
         }
-        
+
         .news-hot-icon {
             color: var(--accent-green);
             animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
         }
-        
+
         .news-sidebar {
             display: flex;
             flex-direction: column;
             gap: 20px;
         }
-        
+
         .news-sidebar-card {
             background: var(--glass);
             border: 1px solid var(--glass-border);
             border-radius: 12px;
             padding: 20px;
         }
-        
+
         .news-sidebar-card h3 {
             font-size: 1.1rem;
             font-weight: 700;
@@ -1977,7 +1977,7 @@
             padding-bottom: 12px;
             border-bottom: 1px solid var(--glass-border);
         }
-        
+
         .news-alerts-list,
         .news-hot-takes {
             display: flex;
@@ -1986,7 +1986,7 @@
             max-height: 400px;
             overflow-y: auto;
         }
-        
+
         .news-alert-item,
         .news-hot-take-item {
             padding: 12px;
@@ -1994,17 +1994,17 @@
             border: 1px solid rgba(255, 0, 0, 0.3);
             border-radius: 8px;
         }
-        
+
         .news-alert-item.high {
             background: rgba(255, 100, 0, 0.05);
             border-color: rgba(255, 100, 0, 0.3);
         }
-        
+
         .news-hot-take-item {
             background: linear-gradient(135deg, rgba(255, 100, 0, 0.1), rgba(255, 0, 0, 0.1));
             border-color: rgba(255, 100, 0, 0.3);
         }
-        
+
         .news-alert-title,
         .news-hot-take-title {
             font-size: 0.9rem;
@@ -2012,20 +2012,20 @@
             color: var(--text-primary);
             margin-bottom: 6px;
         }
-        
+
         .news-alert-desc,
         .news-hot-take-desc {
             font-size: 0.8rem;
             color: var(--text-secondary);
             margin-bottom: 8px;
         }
-        
+
         .news-alert-tags {
             display: flex;
             gap: 6px;
             flex-wrap: wrap;
         }
-        
+
         .news-alert-tag {
             padding: 3px 8px;
             border: 1px solid rgba(255, 0, 0, 0.5);
@@ -2033,23 +2033,23 @@
             font-size: 0.7rem;
             color: rgba(255, 200, 200, 0.9);
         }
-        
+
         @media (max-width: 1024px) {
             .news-grid {
                 grid-template-columns: 1fr;
             }
-            
+
             .news-stats {
                 grid-template-columns: 1fr;
             }
         }
-        
+
         @media (max-width: 768px) {
             .news-filters {
                 overflow-x: auto;
                 flex-wrap: nowrap;
             }
-            
+
             .news-filter-btn {
                 white-space: nowrap;
             }
@@ -2102,9 +2102,8 @@
             SNIPERS-<span>R-US</span>
         </div>
         <div class="nav-links">
-            <a href="#indicators">Our Indicators</a>
+            <a href="#indicators">Sniper Suite</a>
             <a href="#rules">Rules</a>
-            <a href="#live">Live Scanner</a>
             <a href="#trades">Active Trades</a>
             <a href="#news">News</a>
             <a href="#paper-trading">Paper Trade</a>
@@ -2308,8 +2307,6 @@
                 </div>
                 </div>
 
-                <!-- TradingView Chart Embed -->
-                <div class="tv-embed" id="tvEmbed"></div>
             </div>
 
             <!-- Market Info -->
@@ -2409,7 +2406,7 @@
             <h2>📰 Market News Feed</h2>
             <p>Real-time news from Yahoo Finance covering all markets</p>
         </div>
-        
+
         <div class="news-market-tabs">
             <button class="news-market-tab active" data-market="all">All Markets</button>
             <button class="news-market-tab" data-market="crypto">Crypto</button>
@@ -2418,7 +2415,7 @@
             <button class="news-market-tab" data-market="commodities">Commodities</button>
             <button class="news-market-tab" data-market="economy">Economy</button>
         </div>
-        
+
         <div class="news-filters">
             <button class="news-filter-btn active" data-category="all">All</button>
             <button class="news-filter-btn" data-category="regulation">Regulation</button>
@@ -2427,7 +2424,7 @@
             <button class="news-filter-btn" data-category="tech">Tech</button>
             <button class="news-filter-btn" data-category="nft">NFT</button>
         </div>
-        
+
         <div class="news-grid">
             <div class="news-main">
                 <div class="news-stats">
@@ -2453,12 +2450,12 @@
                         </div>
                     </div>
                 </div>
-                
+
                 <div class="news-list" id="newsList">
                     <!-- News items will be injected here -->
                 </div>
             </div>
-            
+
             <div class="news-sidebar">
                 <div class="news-sidebar-card">
                     <h3>🚨 Critical Alerts</h3>
@@ -2466,7 +2463,7 @@
                         <!-- Alerts will be injected here -->
                     </div>
                 </div>
-                
+
                 <div class="news-sidebar-card">
                     <h3>⚡ Hot Takes</h3>
                     <div class="news-hot-takes" id="hotTakesList">
@@ -2629,21 +2626,31 @@
                 <button class="paper-action-btn" id="paperResetBtn">Reset Portfolio</button>
             </div>
         </div>
-        
+
         <div class="paper-trading-grid">
             <!-- Left: Chart and Positions -->
             <div>
                 <div class="paper-trading-chart">
-                    <div id="paperTradingViewChart" style="height: 500px;"></div>
+                    <div id="paperTradingViewChart" class="tv-embed" style="height: 500px;">
+                        <iframe
+                            id="paperTradingIframe"
+                            src="https://www.tradingview.com/widgetembed/?frameElementId=tradingview&symbol=OKX%3ABTCUSDT.P&interval=15&theme=dark&style=1&timezone=Etc%2FUTC&studies=%5B%5D&hideideas=1&overrides=%7B%22mainSeriesProperties.candleStyle.upColor%22%3A%22%230ecb81%22%2C%22mainSeriesProperties.candleStyle.downColor%22%3A%22%239c27b0%22%2C%22mainSeriesProperties.candleStyle.borderUpColor%22%3A%22%230ecb81%22%2C%22mainSeriesProperties.candleStyle.borderDownColor%22%3A%22%239c27b0%22%2C%22mainSeriesProperties.candleStyle.wickUpColor%22%3A%22%230ecb81%22%2C%22mainSeriesProperties.candleStyle.wickDownColor%22%3A%22%239c27b0%22%7D"
+                            style="width: 100%; height: 100%; margin: 0; padding: 0; border: none;"
+                            frameborder="0"
+                            allowtransparency="true"
+                            scrolling="no"
+                            allowfullscreen
+                        ></iframe>
+                    </div>
                 </div>
-                
+
                 <div class="paper-order-card" style="margin-top: 20px;">
                     <div class="paper-positions-tabs">
                         <button class="paper-positions-tab active" data-tab="open">Open Positions <span id="openPosCount">0</span></button>
                         <button class="paper-positions-tab" data-tab="pending">Pending Orders <span id="pendingCount">0</span></button>
                         <button class="paper-positions-tab" data-tab="closed">Trade History <span id="closedCount">0</span></button>
                     </div>
-                    
+
                     <div id="paperPositionsContent" style="max-height: 400px; overflow-y: auto;">
                         <div class="paper-empty-state">
                             <p>No open positions</p>
@@ -2652,7 +2659,7 @@
                     </div>
                 </div>
             </div>
-            
+
             <!-- Right: Portfolio and Order Panel -->
             <div class="paper-trading-panel">
                 <div class="paper-portfolio-card">
@@ -2674,18 +2681,18 @@
                         <span class="paper-portfolio-value" id="paperUnrealizedPnL" style="color: var(--text-secondary);">$0.00</span>
                     </div>
                 </div>
-                
+
                 <div class="paper-order-card">
                     <div class="paper-order-tabs">
                         <button class="paper-order-tab active" data-order-type="market">Market</button>
                         <button class="paper-order-tab" data-order-type="limit">Limit</button>
                     </div>
-                    
+
                     <div class="paper-trade-buttons">
                         <button class="paper-trade-btn long active" data-trade-type="buy">LONG</button>
                         <button class="paper-trade-btn short" data-trade-type="sell">SHORT</button>
                     </div>
-                    
+
                     <div class="paper-input-group">
                         <div class="paper-input-label">
                             <span>Amount (BTC)</span>
@@ -2699,7 +2706,7 @@
                             <button class="paper-percent-btn" data-percent="100">100%</button>
                         </div>
                     </div>
-                    
+
                     <div class="paper-input-group" id="paperLimitPriceGroup" style="display: none;">
                         <div class="paper-input-label">
                             <span>Limit Price (USDT)</span>
@@ -2712,7 +2719,7 @@
                             <button class="paper-percent-btn" data-price-offset="1">+1%</button>
                         </div>
                     </div>
-                    
+
                     <div id="paperOrderSummary" style="display: none; padding: 12px; background: var(--bg-input); border-radius: 8px; margin-bottom: 16px;">
                         <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
                             <span style="color: var(--text-secondary);">Price</span>
@@ -2727,7 +2734,7 @@
                             <span id="paperOrderTotal" style="font-family: monospace;">--</span>
                         </div>
                     </div>
-                    
+
                     <button class="paper-submit-btn long" id="paperSubmitBtn" disabled>Place Market Order</button>
                 </div>
             </div>
@@ -2802,12 +2809,11 @@
         <div class="footer-links">
             <div class="footer-section">
                 <h4>Quick Links</h4>
-                <a href="#indicators">Our Indicators</a>
+                <a href="#indicators">Sniper Suite</a>
                 <a href="#rules">Sniper Rules</a>
-                <a href="#live">Live Scanner</a>
                 <a href="#trades">Active Trades</a>
             </div>
-            
+
             <div class="footer-section">
                 <h4>Connect</h4>
                 <a href="https://discord.gg/qk35c4TH5z" target="_blank" rel="noopener">💬 Discord</a>
@@ -2816,13 +2822,11 @@
                 <a href="https://www.tradingview.com/u/RickyTSpanish/#published-scripts" target="_blank" rel="noopener">📊 TradingView</a>
             </div>
         </div>
-        
+
         <p>© 2025 Snipers-R-Us. All rights reserved.</p>
         <p style="font-size: 0.85rem;">Never blindly follow bots. Do your own research and analysis. Not financial advice.</p>
-        
+
         <div class="view-counter">
-            <span class="view-counter-icon">👁️</span>
-            <span class="view-counter-label">Page Views:</span>
             <span class="view-counter-number" id="viewCount">--</span>
         </div>
     </footer>
@@ -3194,11 +3198,11 @@
                 ? state.support
                 : state.resistance;
             if (liquidityDistanceEl) liquidityDistanceEl.textContent = priceFormatter.format(nearestLevel);
-            
+
             // Update GPS popup values
             updateGpsPopup();
         }
-        
+
         function updateGpsPopup() {
             const currentPriceEl = document.getElementById('gpsCurrentPrice');
             const dailyHighEl = document.getElementById('gpsDailyHigh');
@@ -3207,52 +3211,52 @@
             const weeklyLowEl = document.getElementById('gpsWeeklyLow');
             const supportPriceEl = document.getElementById('gpsSupportPrice');
             const resistancePriceEl = document.getElementById('gpsResistancePrice');
-            
+
             if (currentPriceEl && state.price) {
                 currentPriceEl.textContent = priceFormatter.format(state.price);
             }
-            
+
             if (dailyHighEl && state.dailyGpHigh) {
                 dailyHighEl.textContent = priceFormatter.format(state.dailyGpHigh);
             }
-            
+
             if (dailyLowEl && state.dailyGpLow) {
                 dailyLowEl.textContent = priceFormatter.format(state.dailyGpLow);
             }
-            
+
             if (weeklyHighEl && state.weeklyGpHigh) {
                 weeklyHighEl.textContent = priceFormatter.format(state.weeklyGpHigh);
             }
-            
+
             if (weeklyLowEl && state.weeklyGpLow) {
                 weeklyLowEl.textContent = priceFormatter.format(state.weeklyGpLow);
             }
-            
+
             if (supportPriceEl && state.support) {
                 supportPriceEl.textContent = priceFormatter.format(state.support);
             }
-            
+
             if (resistancePriceEl && state.resistance) {
                 resistancePriceEl.textContent = priceFormatter.format(state.resistance);
             }
         }
-        
+
         function initGpsPopup() {
             const gpsPill = document.getElementById('gpsPill');
             const gpsPopup = document.getElementById('gpsPopup');
-            
+
             if (gpsPill && gpsPopup) {
                 // Move popup to body to avoid stacking context issues
                 const popupClone = gpsPopup.cloneNode(true);
                 popupClone.id = 'gpsPopupFloating';
                 popupClone.style.display = 'none';
                 document.body.appendChild(popupClone);
-                
+
                 gpsPill.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    
+
                     const isActive = popupClone.classList.contains('active');
-                    
+
                     if (isActive) {
                         // Close popup
                         popupClone.classList.remove('active');
@@ -3262,22 +3266,22 @@
                         const rect = gpsPill.getBoundingClientRect();
                         const popupWidth = 280;
                         const popupHeight = 320;
-                        
+
                         // Position popup below the pill, centered horizontally
                         let left = rect.left + (rect.width / 2) - (popupWidth / 2);
                         let top = rect.bottom + 10;
-                        
+
                         // Adjust if popup would go off screen
                         if (left < 10) left = 10;
                         if (left + popupWidth > window.innerWidth - 10) {
                             left = window.innerWidth - popupWidth - 10;
                         }
-                        
+
                         // If popup would go off bottom, show above instead
                         if (top + popupHeight > window.innerHeight - 10) {
                             top = rect.top - popupHeight - 10;
                         }
-                        
+
                         // Update values from original popup
                         const originalValues = {
                             currentPrice: document.getElementById('gpsCurrentPrice')?.textContent || '--',
@@ -3288,7 +3292,7 @@
                             support: document.getElementById('gpsSupportPrice')?.textContent || '--',
                             resistance: document.getElementById('gpsResistancePrice')?.textContent || '--'
                         };
-                        
+
                         // Update cloned popup values
                         const cloneCurrentPrice = popupClone.querySelector('#gpsCurrentPrice');
                         const cloneDailyHigh = popupClone.querySelector('#gpsDailyHigh');
@@ -3297,7 +3301,7 @@
                         const cloneWeeklyLow = popupClone.querySelector('#gpsWeeklyLow');
                         const cloneSupport = popupClone.querySelector('#gpsSupportPrice');
                         const cloneResistance = popupClone.querySelector('#gpsResistancePrice');
-                        
+
                         if (cloneCurrentPrice) cloneCurrentPrice.textContent = originalValues.currentPrice;
                         if (cloneDailyHigh) cloneDailyHigh.textContent = originalValues.dailyHigh;
                         if (cloneDailyLow) cloneDailyLow.textContent = originalValues.dailyLow;
@@ -3305,7 +3309,7 @@
                         if (cloneWeeklyLow) cloneWeeklyLow.textContent = originalValues.weeklyLow;
                         if (cloneSupport) cloneSupport.textContent = originalValues.support;
                         if (cloneResistance) cloneResistance.textContent = originalValues.resistance;
-                        
+
                         // Apply position and show
                         popupClone.style.left = `${left}px`;
                         popupClone.style.top = `${top}px`;
@@ -3313,7 +3317,7 @@
                         popupClone.classList.add('active');
                     }
                 });
-                
+
                 // Close popup when clicking outside
                 document.addEventListener('click', (e) => {
                     if (!gpsPill.contains(e.target) && !popupClone.contains(e.target)) {
@@ -3321,7 +3325,7 @@
                         popupClone.style.display = 'none';
                     }
                 });
-                
+
                 // Close on scroll
                 let scrollTimeout;
                 window.addEventListener('scroll', () => {
@@ -3551,34 +3555,34 @@
                 const windowInfo = getLastClosedSessionWindow();
                 const startTs = windowInfo.start.getTime();
                 const endTs = windowInfo.end.getTime();
-                
+
                 // Fetch 1H candles from OKX for the session window
                 const instId = state.instId || 'BTC-USDT-SWAP';
                 const url = `https://www.okx.com/api/v5/market/candles?instId=${instId}&bar=1H&after=${endTs}&before=${startTs - 1}`;
-                
+
                 const res = await fetch(url);
                 if (!res.ok) throw new Error('Failed to fetch session candles');
                 const json = await res.json();
                 const candles = json.data || [];
-                
+
                 // Filter candles within session window
                 const sessionCandles = candles.filter(c => {
                     const ts = Number(c[0]);
                     return ts >= startTs && ts < endTs;
                 });
-                
+
                 if (!sessionCandles.length) {
                     // Fallback: fetch recent candles
                     const fallbackUrl = `https://www.okx.com/api/v5/market/candles?instId=${instId}&bar=1H&limit=24`;
                     const fallbackRes = await fetch(fallbackUrl);
                     const fallbackJson = await fallbackRes.json();
                     const allCandles = fallbackJson.data || [];
-                    
+
                     const filtered = allCandles.filter(c => {
                         const ts = Number(c[0]);
                         return ts >= startTs && ts < endTs;
                     });
-                    
+
                     if (filtered.length) {
                         let high = -Infinity;
                         let low = Infinity;
@@ -3595,7 +3599,7 @@
                 if (sessionLabel2El) sessionLabel2El.textContent = windowInfo.name;
                         return;
                     }
-                    
+
                     highEl.textContent = '--';
                     lowEl.textContent = '--';
                     return;
@@ -3746,18 +3750,18 @@
 
             renderWatchlistItems(candidates);
         }
-        
+
         function renderWatchlistItems(candidates) {
             const listEl = document.getElementById('watchlistList');
             const countEl = document.getElementById('watchlistCount');
             if (!listEl) return;
-            
+
             if (!candidates.length) {
                 listEl.innerHTML = '<div class="signal-item">No coins near key levels right now.</div>';
                 if (countEl) countEl.textContent = '0';
                 return;
             }
-            
+
             if (countEl) countEl.textContent = candidates.length;
 
             listEl.innerHTML = candidates.map(item => {
@@ -3781,35 +3785,35 @@
                 `;
             }).join('');
         }
-        
+
         async function scanWatchlistCandidates() {
             const listEl = document.getElementById('watchlistList');
             if (!listEl) return;
-            
+
             listEl.innerHTML = '<div class="signal-item">Scanning for setups...</div>';
-            
+
             try {
                 // Fetch top coins by volume
                 const tickersRes = await fetch('https://www.okx.com/api/v5/market/tickers?instType=SWAP');
                 if (!tickersRes.ok) throw new Error('Failed to fetch tickers');
                 const tickersJson = await tickersRes.json();
                 const tickers = tickersJson.data || [];
-                
+
                 const stableBases = new Set(['USDT', 'USDC', 'BUSD', 'DAI', 'TUSD']);
                 const topCoins = tickers
                     .filter(t => t.instId && t.instId.endsWith('-USDT-SWAP'))
                     .filter(t => !stableBases.has(t.instId.split('-')[0]))
                     .sort((a, b) => Number(b.volCcy24h || 0) - Number(a.volCcy24h || 0))
                     .slice(0, 15);
-                
+
                 const candidates = [];
-                
+
                 for (const ticker of topCoins) {
                     const instId = ticker.instId;
                     const symbol = instId.split('-')[0];
                     const price = Number(ticker.last);
                     if (!price) continue;
-                    
+
                     // Fetch daily candle for GP calculation
                     try {
                         const candleRes = await fetch(`https://www.okx.com/api/v5/market/candles?instId=${instId}&bar=1D&limit=1`);
@@ -3817,22 +3821,22 @@
                         const candleJson = await candleRes.json();
                         const candle = candleJson.data && candleJson.data[0];
                         if (!candle) continue;
-                        
+
                         const high = Number(candle[2]);
                         const low = Number(candle[3]);
                         const gpHigh = high - (high - low) * 0.618;
                         const gpLow = high - (high - low) * 0.65;
-                        
+
                         // Check proximity to GP zones
                         const distToGpLow = ((price - gpLow) / price) * 100;
                         const distToGpHigh = ((gpHigh - price) / price) * 100;
                         const distToSupport = ((price - low) / price) * 100;
                         const distToResistance = ((high - price) / price) * 100;
-                        
+
                         const reasons = [];
                         let bias = '';
                         let score = 0;
-                        
+
                         // Near daily GP zone (within 1.5%)
                         if (price >= gpLow && price <= gpHigh) {
                             reasons.push('Inside Daily GP Zone');
@@ -3846,20 +3850,20 @@
                             bias = 'SHORT';
                             score += 25;
                         }
-                        
+
                         // Near daily support/resistance (within 2%)
                         if (distToSupport <= 2.0 && distToSupport > 0) {
                             reasons.push(`${distToSupport.toFixed(1)}% from Daily Support`);
                             bias = bias || 'LONG';
                             score += 20;
                         }
-                        
+
                         if (distToResistance <= 2.0 && distToResistance > 0) {
                             reasons.push(`${distToResistance.toFixed(1)}% from Daily Resistance`);
                             bias = bias || 'SHORT';
                             score += 20;
                         }
-                        
+
                         if (reasons.length > 0) {
                             candidates.push({
                                 symbol,
@@ -3875,11 +3879,11 @@
                         continue;
                     }
                 }
-                
+
                 // Sort by score and take top 5
                 candidates.sort((a, b) => b.score - a.score);
                 renderWatchlistItems(candidates.slice(0, 5));
-                
+
             } catch (error) {
                 console.error('Failed to scan watchlist candidates:', error);
                 listEl.innerHTML = '<div class="signal-item">Scan failed. Retrying...</div>';
@@ -3947,7 +3951,7 @@
                 console.error('Failed to fetch OKX daily candle:', error);
             }
         }
-        
+
         async function fetchOkxWeeklyCandle() {
             try {
                 const instId = state.instId;
@@ -3956,12 +3960,12 @@
                 if (!res.ok) return;
                 const json = await res.json();
                 if (!json.data || !json.data.length) return;
-                
+
                 const candle = json.data[0];
                 const high = parseFloat(candle[2]);
                 const low = parseFloat(candle[3]);
                 if (Number.isNaN(high) || Number.isNaN(low)) return;
-                
+
                 state.weeklyGpHigh = high - (high - low) * 0.618;
                 state.weeklyGpLow = high - (high - low) * 0.65;
             } catch (error) {
@@ -4039,7 +4043,7 @@
             const btnJoin = document.querySelector('.btn-join');
             const btnLarge = document.querySelector('.btn-large');
             const themeToggle = document.querySelector('.theme-toggle');
-            
+
             if (btnJoin) {
                 btnJoin.addEventListener('click', function() {
                     if (!this.classList.contains('clicked')) {
@@ -4047,7 +4051,7 @@
                     }
                 });
             }
-            
+
             if (btnLarge) {
                 btnLarge.addEventListener('click', function() {
                     if (!this.classList.contains('clicked')) {
@@ -4055,7 +4059,7 @@
                     }
                 });
             }
-            
+
             if (themeToggle) {
                 themeToggle.addEventListener('click', function() {
                     if (!this.classList.contains('clicked')) {
@@ -4064,7 +4068,7 @@
                 });
             }
         });
-        
+
         function toggleTheme() {
             const body = document.body;
             const icon = document.getElementById('themeIcon');
@@ -4102,7 +4106,7 @@
             fetchOkxTicker();
             fetchOkxDailyCandle();
             fetchOkxWeeklyCandle();
-            
+
             // Initialize GPS popup
             initGpsPopup();
 
@@ -4146,7 +4150,7 @@
                     localStorage.setItem('trial_shown', 'true');
                 }, 15000);
             }
-            
+
             // Initial watchlist scan (after 5s to let prices load)
             setTimeout(scanWatchlistCandidates, 5000);
             // Rescan every 5 minutes
@@ -4344,11 +4348,11 @@
                 trend: '📈'
             }
         ];
-        
+
         let currentNewsCategory = 'all';
         let currentMarket = 'all';
         let yahooNewsData = [];
-        
+
         // Yahoo Finance RSS Feed URLs
         const yahooFeeds = {
             stocks: 'https://feeds.finance.yahoo.com/rss/2.0/headline?s=AAPL,MSFT,GOOGL,AMZN,TSLA&region=US&lang=en-US',
@@ -4357,26 +4361,26 @@
             crypto: 'https://feeds.finance.yahoo.com/rss/2.0/headline?s=BTC-USD,ETH-USD&region=US&lang=en-US',
             economy: 'https://feeds.finance.yahoo.com/rss/2.0/headline?category=economy&region=US&lang=en-US'
         };
-        
+
         // Parse RSS XML
         function parseRSS(xmlText) {
             const parser = new DOMParser();
             const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
             const items = xmlDoc.querySelectorAll('item');
             const news = [];
-            
+
             items.forEach((item, index) => {
                 const title = item.querySelector('title')?.textContent || '';
                 const link = item.querySelector('link')?.textContent || '';
                 const description = item.querySelector('description')?.textContent || '';
                 const pubDate = item.querySelector('pubDate')?.textContent || '';
-                
+
                 // Clean description (remove HTML tags)
                 const cleanDesc = description.replace(/<[^>]*>/g, '').substring(0, 150);
-                
+
                 // Calculate time ago
                 const timeAgo = formatTimeAgo(pubDate);
-                
+
                 news.push({
                     title,
                     link,
@@ -4388,10 +4392,10 @@
                     category: 'trading'
                 });
             });
-            
+
             return news;
         }
-        
+
         // Format time ago
         function formatTimeAgo(dateString) {
             if (!dateString) return 'Unknown';
@@ -4402,7 +4406,7 @@
                 const diffMins = Math.floor(diffMs / 60000);
                 const diffHours = Math.floor(diffMs / 3600000);
                 const diffDays = Math.floor(diffMs / 86400000);
-                
+
                 if (diffMins < 60) return `${diffMins}m ago`;
                 if (diffHours < 24) return `${diffHours}h ago`;
                 return `${diffDays}d ago`;
@@ -4410,18 +4414,18 @@
                 return 'Recently';
             }
         }
-        
+
         // Fetch Yahoo Finance RSS feed with CORS proxy
         async function fetchYahooNews(market) {
             const feedUrl = yahooFeeds[market];
             if (!feedUrl) return [];
-            
+
             try {
                 // Use CORS proxy (you can replace with your own proxy or use a service)
                 const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(feedUrl)}`;
                 const response = await fetch(proxyUrl);
                 const data = await response.json();
-                
+
                 if (data.contents) {
                     const parsed = parseRSS(data.contents);
                     return parsed;
@@ -4432,75 +4436,75 @@
                 return [];
             }
         }
-        
+
         // Fetch all market news
         async function fetchAllMarketNews() {
             const newsListEl = document.getElementById('newsList');
             if (newsListEl) {
                 newsListEl.innerHTML = '<div class="news-item"><p style="text-align:center;padding:20px;">Loading market news...</p></div>';
             }
-            
+
             yahooNewsData = [];
-            
+
             if (currentMarket === 'all' || currentMarket === 'crypto') {
                 const cryptoNews = await fetchYahooNews('crypto');
                 yahooNewsData.push(...cryptoNews.map(item => ({...item, market: 'crypto'})));
             }
-            
+
             if (currentMarket === 'all' || currentMarket === 'stocks') {
                 const stocksNews = await fetchYahooNews('stocks');
                 yahooNewsData.push(...stocksNews.map(item => ({...item, market: 'stocks'})));
             }
-            
+
             if (currentMarket === 'all' || currentMarket === 'forex') {
                 const forexNews = await fetchYahooNews('forex');
                 yahooNewsData.push(...forexNews.map(item => ({...item, market: 'forex'})));
             }
-            
+
             if (currentMarket === 'all' || currentMarket === 'commodities') {
                 const commoditiesNews = await fetchYahooNews('commodities');
                 yahooNewsData.push(...commoditiesNews.map(item => ({...item, market: 'commodities'})));
             }
-            
+
             if (currentMarket === 'all' || currentMarket === 'economy') {
                 const economyNews = await fetchYahooNews('economy');
                 yahooNewsData.push(...economyNews.map(item => ({...item, market: 'economy'})));
             }
-            
+
             // Combine with crypto news data
-            const allNews = currentMarket === 'crypto' || currentMarket === 'all' 
+            const allNews = currentMarket === 'crypto' || currentMarket === 'all'
                 ? [...newsData, ...yahooNewsData]
                 : yahooNewsData;
-            
+
             renderNews(allNews);
         }
-        
+
         function renderNews(newsArray = null) {
             const newsListEl = document.getElementById('newsList');
             const alertsListEl = document.getElementById('alertsList');
             const hotTakesListEl = document.getElementById('hotTakesList');
-            
+
             if (!newsListEl) return;
-            
+
             // Use provided array or combine newsData with yahooNewsData
-            const allNews = newsArray || (currentMarket === 'crypto' || currentMarket === 'all' 
+            const allNews = newsArray || (currentMarket === 'crypto' || currentMarket === 'all'
                 ? [...newsData, ...yahooNewsData]
                 : yahooNewsData);
-            
+
             // Filter by market
-            let marketFiltered = currentMarket === 'all' 
-                ? allNews 
+            let marketFiltered = currentMarket === 'all'
+                ? allNews
                 : allNews.filter(item => item.market === currentMarket || (currentMarket === 'crypto' && newsData.includes(item)));
-            
+
             // Filter news by category
-            const filteredNews = currentNewsCategory === 'all' 
-                ? marketFiltered 
+            const filteredNews = currentNewsCategory === 'all'
+                ? marketFiltered
                 : marketFiltered.filter(item => item.category === currentNewsCategory);
-            
+
             // Render main news list
             if (filteredNews.length === 0) {
                 newsListEl.innerHTML = '<div class="news-item"><p style="text-align:center;padding:20px;color:var(--text-secondary);">No news available. Try refreshing or selecting a different market.</p></div>';
-            } else {
+                    } else {
                 newsListEl.innerHTML = filteredNews.slice(0, 20).map(item => {
                     const impactClass = item.impact === 'critical' ? 'critical' : item.impact === 'high' ? 'high' : '';
                     const impactBadge = item.impact === 'critical' ? 'CRITICAL' : item.impact === 'high' ? 'HIGH' : 'MEDIUM';
@@ -4508,7 +4512,7 @@
                     const marketBadge = item.market ? `<span class="news-badge category">${item.market.charAt(0).toUpperCase() + item.market.slice(1)}</span>` : '';
                     const coinsBadges = item.coins ? item.coins.map(coin => `<span class="news-badge coin">${coin}</span>`).join('') : '';
                     const trendIcon = item.trend ? `<span style="font-size:0.8rem; color:var(--text-secondary);">${item.trend}</span>` : '';
-                    
+
                     return `
                         <div class="news-item ${impactClass}">
                             <div class="news-item-header">
@@ -4534,7 +4538,7 @@
                     `;
                 }).join('');
             }
-            
+
             // Render critical alerts
             if (alertsListEl) {
                 const criticalNews = allNews.filter(item => item.impact === 'critical' || item.impact === 'high').slice(0, 3);
@@ -4552,7 +4556,7 @@
                     `;
                 }).join('');
             }
-            
+
             // Render hot takes
             if (hotTakesListEl) {
                 const hotTakes = allNews.filter(item => item.impact === 'critical' || item.impact === 'high').slice(0, 3);
@@ -4570,19 +4574,19 @@
                     `;
                 }).join('');
             }
-            
+
             // Update stats
             const hotNewsCount = allNews.filter(item => item.impact === 'critical' || item.impact === 'high').length;
             const alertCount = allNews.filter(item => item.impact === 'critical').length;
             const hotNewsCountEl = document.getElementById('hotNewsCount');
             const alertCountEl = document.getElementById('alertCount');
             const totalNewsCountEl = document.getElementById('totalNewsCount');
-            
+
             if (hotNewsCountEl) hotNewsCountEl.textContent = hotNewsCount;
             if (alertCountEl) alertCountEl.textContent = alertCount;
             if (totalNewsCountEl) totalNewsCountEl.textContent = allNews.length;
         }
-        
+
         function initNewsFilters() {
             const filterBtns = document.querySelectorAll('.news-filter-btn');
             filterBtns.forEach(btn => {
@@ -4594,58 +4598,58 @@
                 });
             });
         }
-        
+
         // ============================================
         // VIEW COUNTER
         // ============================================
         function initViewCounter() {
             const viewCountEl = document.getElementById('viewCount');
             if (!viewCountEl) return;
-            
+
             // Get current count from localStorage
             let totalViews = parseInt(localStorage.getItem('srus_total_views') || '0', 10);
-            
+
             // Check if this is a new session (not just a refresh)
             const lastVisit = localStorage.getItem('srus_last_visit');
             const now = Date.now();
             const sessionTimeout = 30 * 60 * 1000; // 30 minutes
-            
+
             // Increment if it's a new visit or session expired
             if (!lastVisit || (now - parseInt(lastVisit, 10)) > sessionTimeout) {
                 totalViews += 1;
                 localStorage.setItem('srus_total_views', totalViews.toString());
                 localStorage.setItem('srus_last_visit', now.toString());
             }
-            
+
             // Animate the number
             animateViewCount(viewCountEl, totalViews);
         }
-        
+
         function animateViewCount(element, targetValue) {
             const duration = 1000; // 1 second
             const startValue = 0;
             const startTime = performance.now();
-            
+
             function update(currentTime) {
                 const elapsed = currentTime - startTime;
                 const progress = Math.min(elapsed / duration, 1);
-                
+
                 // Easing function (ease-out)
                 const easeOut = 1 - Math.pow(1 - progress, 3);
                 const currentValue = Math.floor(startValue + (targetValue - startValue) * easeOut);
-                
+
                 element.textContent = currentValue.toLocaleString();
-                
+
                 if (progress < 1) {
                     requestAnimationFrame(update);
                 } else {
                     element.textContent = targetValue.toLocaleString();
                 }
             }
-            
+
             requestAnimationFrame(update);
         }
-        
+
         // Start
         init();
         loadSignalHistory();
@@ -4654,7 +4658,7 @@
         renderNews();
         fetchAllMarketNews(); // Load Yahoo Finance news on page load
         initViewCounter();
-        
+
         // Refresh Yahoo Finance news every 5 minutes
         setInterval(fetchAllMarketNews, 5 * 60 * 1000);
 
@@ -4668,11 +4672,11 @@
                 totalPnl: 0,
                 trades: []
             };
-            
+
             let paperCurrentTradeType = 'buy';
             let paperCurrentOrderType = 'market';
             let paperCurrentTab = 'open';
-            
+
             // Load portfolio from localStorage
             function loadPaperPortfolio() {
                 try {
@@ -4684,7 +4688,7 @@
                     console.error('Failed to load paper portfolio:', e);
                 }
             }
-            
+
             // Save portfolio to localStorage
             function savePaperPortfolio() {
                 try {
@@ -4693,11 +4697,11 @@
                     console.error('Failed to save paper portfolio:', e);
                 }
             }
-            
+
             // Initialize
             loadPaperPortfolio();
             updatePaperUI();
-            
+
             // Trade type buttons
             document.querySelectorAll('.paper-trade-btn').forEach(btn => {
                 btn.addEventListener('click', () => {
@@ -4707,7 +4711,7 @@
                     updatePaperSubmitButton();
                 });
             });
-            
+
             // Order type tabs
             document.querySelectorAll('.paper-order-tab').forEach(tab => {
                 tab.addEventListener('click', () => {
@@ -4721,7 +4725,7 @@
                     updatePaperSubmitButton();
                 });
             });
-            
+
             // Position tabs
             document.querySelectorAll('.paper-positions-tab').forEach(tab => {
                 tab.addEventListener('click', () => {
@@ -4731,7 +4735,7 @@
                     renderPaperPositions();
                 });
             });
-            
+
             // Amount input
             const amountInput = document.getElementById('paperAmount');
             if (amountInput) {
@@ -4740,7 +4744,7 @@
                     updatePaperSubmitButton();
                 });
             }
-            
+
             // Limit price input
             const limitPriceInput = document.getElementById('paperLimitPrice');
             if (limitPriceInput) {
@@ -4749,7 +4753,7 @@
                     updatePaperSubmitButton();
                 });
             }
-            
+
             // Percent buttons
             document.querySelectorAll('.paper-percent-btn[data-percent]').forEach(btn => {
                 btn.addEventListener('click', () => {
@@ -4763,7 +4767,7 @@
                     }
                 });
             });
-            
+
             // Price offset buttons
             document.querySelectorAll('.paper-percent-btn[data-price-offset]').forEach(btn => {
                 btn.addEventListener('click', () => {
@@ -4776,13 +4780,13 @@
                     }
                 });
             });
-            
+
             // Submit button
             const submitBtn = document.getElementById('paperSubmitBtn');
             if (submitBtn) {
                 submitBtn.addEventListener('click', executePaperTrade);
             }
-            
+
             // Reset button
             const resetBtn = document.getElementById('paperResetBtn');
             if (resetBtn) {
@@ -4799,27 +4803,27 @@
                     }
                 });
             }
-            
+
             // Execute trade
             function executePaperTrade() {
                 const amount = parseFloat(amountInput?.value || '0');
                 if (!amount || amount <= 0) return;
-                
-                const price = paperCurrentOrderType === 'market' 
-                    ? state.price 
+
+                const price = paperCurrentOrderType === 'market'
+                    ? state.price
                     : parseFloat(limitPriceInput?.value || '0');
-                
+
                 if (paperCurrentOrderType === 'limit' && (!price || price <= 0)) {
                     alert('Please enter a valid limit price');
                     return;
                 }
-                
+
                 const totalCost = amount * price;
                 if (paperCurrentTradeType === 'buy' && totalCost > paperPortfolio.balance) {
                     alert('Insufficient balance');
                     return;
                 }
-                
+
                 const trade = {
                     id: Date.now(),
                     symbol: state.symbol,
@@ -4831,7 +4835,7 @@
                     timestamp: new Date().toISOString(),
                     status: paperCurrentOrderType === 'market' ? 'open' : 'pending'
                 };
-                
+
                 if (paperCurrentOrderType === 'market') {
                     if (paperCurrentTradeType === 'buy') {
                         paperPortfolio.balance -= totalCost;
@@ -4840,19 +4844,19 @@
                         paperPortfolio.balance += totalCost;
                     }
                 }
-                
+
                 paperPortfolio.trades.push(trade);
                 savePaperPortfolio();
-                
+
                 // Clear inputs
                 if (amountInput) amountInput.value = '';
                 if (limitPriceInput) limitPriceInput.value = '';
-                
+
                 updatePaperUI();
                 renderPaperPositions();
                 updatePaperOrderSummary();
             }
-            
+
             // Update order summary
             function updatePaperOrderSummary() {
                 const amount = parseFloat(amountInput?.value || '0');
@@ -4860,34 +4864,34 @@
                 const priceEl = document.getElementById('paperOrderPrice');
                 const amountEl = document.getElementById('paperOrderAmount');
                 const totalEl = document.getElementById('paperOrderTotal');
-                
+
                 if (!amount || amount <= 0) {
                     if (summaryEl) summaryEl.style.display = 'none';
                     return;
                 }
-                
-                const price = paperCurrentOrderType === 'market' 
-                    ? state.price 
+
+                const price = paperCurrentOrderType === 'market'
+                    ? state.price
                     : parseFloat(limitPriceInput?.value || state.price || 0);
-                
+
                 if (summaryEl) summaryEl.style.display = 'block';
                 if (priceEl) priceEl.textContent = `$${price.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
                 if (amountEl) amountEl.textContent = `${amount.toFixed(8)} ${state.symbol}`;
                 if (totalEl) totalEl.textContent = `$${(amount * price).toLocaleString(undefined, {minimumFractionDigits: 2})}`;
             }
-            
+
             // Update submit button
             function updatePaperSubmitButton() {
                 const amount = parseFloat(amountInput?.value || '0');
-                const price = paperCurrentOrderType === 'market' 
-                    ? state.price 
+                const price = paperCurrentOrderType === 'market'
+                    ? state.price
                     : parseFloat(limitPriceInput?.value || '0');
                 const totalCost = amount * price;
-                
-                const isValid = amount > 0 && 
+
+                const isValid = amount > 0 &&
                     (paperCurrentOrderType === 'market' || (price > 0 && price !== state.price)) &&
                     (paperCurrentTradeType === 'sell' || totalCost <= paperPortfolio.balance);
-                
+
                 if (submitBtn) {
                     submitBtn.disabled = !isValid;
                     submitBtn.textContent = paperCurrentOrderType === 'market'
@@ -4896,13 +4900,13 @@
                     submitBtn.className = `paper-submit-btn ${paperCurrentTradeType}`;
                 }
             }
-            
+
             // Update UI
             function updatePaperUI() {
                 const openPositions = paperPortfolio.trades.filter(t => t.status === 'open' && t.symbol === state.symbol);
                 const pendingOrders = paperPortfolio.trades.filter(t => t.status === 'pending' && t.symbol === state.symbol);
                 const closedTrades = paperPortfolio.trades.filter(t => t.status === 'closed' && t.symbol === state.symbol);
-                
+
                 // Calculate unrealized P&L
                 let unrealizedPnL = 0;
                 openPositions.forEach(trade => {
@@ -4912,19 +4916,19 @@
                         unrealizedPnL += (trade.price - state.price) * trade.amount;
                     }
                 });
-                
+
                 // Calculate realized P&L
                 const realizedPnL = closedTrades.reduce((sum, t) => sum + (t.pnl || 0), 0);
-                
+
                 // Calculate equity
                 const equity = paperPortfolio.balance + unrealizedPnL;
-                
+
                 // Update portfolio display
                 const balanceEl = document.getElementById('paperBalance');
                 const equityEl = document.getElementById('paperEquity');
                 const realizedEl = document.getElementById('paperRealizedPnL');
                 const unrealizedEl = document.getElementById('paperUnrealizedPnL');
-                
+
                 if (balanceEl) balanceEl.textContent = `$${paperPortfolio.balance.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
                 if (equityEl) equityEl.textContent = `$${equity.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
                 if (realizedEl) {
@@ -4935,37 +4939,44 @@
                     unrealizedEl.textContent = `${unrealizedPnL >= 0 ? '+' : ''}$${unrealizedPnL.toFixed(2)}`;
                     unrealizedEl.style.color = unrealizedPnL >= 0 ? 'var(--accent-green)' : 'var(--accent-purple)';
                 }
-                
+
                 // Update counts
                 const openCountEl = document.getElementById('openPosCount');
                 const pendingCountEl = document.getElementById('pendingCount');
                 const closedCountEl = document.getElementById('closedCount');
-                
+
                 if (openCountEl) openCountEl.textContent = openPositions.length;
                 if (pendingCountEl) pendingCountEl.textContent = pendingOrders.length;
                 if (closedCountEl) closedCountEl.textContent = closedTrades.length;
-                
+
                 // Update available amount
                 const availableEl = document.getElementById('paperAvailableAmount');
-                if (availableEl && state.price) {
-                    const availableBTC = paperPortfolio.balance / state.price;
-                    availableEl.textContent = `Available: ${availableBTC.toFixed(8)} ${state.symbol}`;
+                if (availableEl) {
+                    if (state.price && state.price > 0) {
+                        const availableBTC = paperPortfolio.balance / state.price;
+                        availableEl.textContent = `Available: ${availableBTC.toFixed(8)} ${state.symbol}`;
+                    } else {
+                        availableEl.textContent = `Available: Loading...`;
+                    }
                 }
-                
+
+                // Update submit button state
+                updatePaperSubmitButton();
+
                 // Check pending orders
                 checkPendingOrders();
             }
-            
+
             // Check pending orders
             function checkPendingOrders() {
                 const pendingOrders = paperPortfolio.trades.filter(t => t.status === 'pending' && t.symbol === state.symbol);
                 pendingOrders.forEach(trade => {
                     if (!trade.limitPrice || !state.price) return;
-                    
-                    const shouldExecute = trade.type === 'buy' 
+
+                    const shouldExecute = trade.type === 'buy'
                         ? state.price <= trade.limitPrice
                         : state.price >= trade.limitPrice;
-                    
+
                     if (shouldExecute) {
                         trade.status = 'open';
                         trade.price = state.price;
@@ -4978,12 +4989,12 @@
                     }
                 });
             }
-            
+
             // Render positions
             function renderPaperPositions() {
                 const contentEl = document.getElementById('paperPositionsContent');
                 if (!contentEl) return;
-                
+
                 let positions = [];
                 if (paperCurrentTab === 'open') {
                     positions = paperPortfolio.trades.filter(t => t.status === 'open' && t.symbol === state.symbol);
@@ -4992,22 +5003,22 @@
                 } else {
                     positions = paperPortfolio.trades.filter(t => t.status === 'closed' && t.symbol === state.symbol);
                 }
-                
+
                 if (positions.length === 0) {
                     contentEl.innerHTML = `
                         <div class="paper-empty-state">
                             <p>No ${paperCurrentTab === 'open' ? 'open positions' : paperCurrentTab === 'pending' ? 'pending orders' : 'closed trades'}</p>
                             <p style="font-size: 0.85rem; margin-top: 8px;">Place a trade to get started</p>
-                        </div>
+                </div>
                     `;
                     return;
                 }
-                
+
                 contentEl.innerHTML = positions.map(trade => {
-                    const pnl = trade.status === 'open' 
+                    const pnl = trade.status === 'open'
                         ? (trade.type === 'buy' ? (state.price - trade.price) * trade.amount : (trade.price - state.price) * trade.amount)
                         : (trade.pnl || 0);
-                    
+
                     if (trade.status === 'open') {
                         return `
                             <div class="paper-position-item ${trade.type === 'sell' ? 'short' : ''}">
@@ -5016,16 +5027,16 @@
                                         <div class="paper-position-label">Type</div>
                                         <div class="paper-position-value" style="color: ${trade.type === 'buy' ? 'var(--accent-green)' : 'var(--accent-purple)'}">
                                             ${trade.type === 'buy' ? 'LONG' : 'SHORT'}
-                                        </div>
-                                    </div>
+      </div>
+      </div>
                                     <div>
                                         <div class="paper-position-label">Size</div>
                                         <div class="paper-position-value">${trade.amount.toFixed(8)} ${trade.symbol}</div>
-                                    </div>
+      </div>
                                     <div>
                                         <div class="paper-position-label">Entry</div>
                                         <div class="paper-position-value">$${trade.price.toLocaleString(undefined, {minimumFractionDigits: 2})}</div>
-                                    </div>
+    </div>
                                     <div>
                                         <div class="paper-position-label">P&L</div>
                                         <div class="paper-position-value" style="color: ${pnl >= 0 ? 'var(--accent-green)' : 'var(--accent-purple)'}">
@@ -5035,9 +5046,9 @@
                                 </div>
                                 <div class="paper-position-actions">
                                     <button class="paper-action-btn" onclick="closePaperTrade(${trade.id})">Close</button>
-                                </div>
-                            </div>
-                        `;
+    </div>
+  </div>
+            `;
                     } else if (trade.status === 'pending') {
                         const distance = ((state.price - trade.limitPrice) / trade.limitPrice) * 100;
                         return `
@@ -5093,43 +5104,43 @@
                     }
                 }).join('');
             }
-            
+
             // Close trade function (global)
             window.closePaperTrade = function(tradeId) {
                 const trade = paperPortfolio.trades.find(t => t.id === tradeId);
                 if (!trade || trade.status !== 'open') return;
-                
-                const pnl = trade.type === 'buy' 
+
+                const pnl = trade.type === 'buy'
                     ? (state.price - trade.price) * trade.amount
                     : (trade.price - state.price) * trade.amount;
-                
+
                 if (trade.type === 'buy') {
                     paperPortfolio.balance += trade.amount * state.price;
                 } else {
                     paperPortfolio.balance -= trade.amount * state.price;
                 }
-                
+
                 trade.status = 'closed';
                 trade.closePrice = state.price;
                 trade.pnl = pnl;
                 paperPortfolio.totalPnl += pnl;
-                
+
                 savePaperPortfolio();
                 updatePaperUI();
                 renderPaperPositions();
             };
-            
+
             // Cancel order function (global)
             window.cancelPaperOrder = function(tradeId) {
                 const trade = paperPortfolio.trades.find(t => t.id === tradeId);
                 if (!trade || trade.status !== 'pending') return;
-                
+
                 paperPortfolio.trades = paperPortfolio.trades.filter(t => t.id !== tradeId);
                 savePaperPortfolio();
                 updatePaperUI();
                 renderPaperPositions();
             };
-            
+
             // Hook into price updates
             const originalUpdatePriceDisplay = window.updatePriceDisplay;
             if (originalUpdatePriceDisplay) {
@@ -5141,7 +5152,7 @@
                     }
                 };
             }
-            
+
             // Also update when state.price changes
             let lastPrice = state.price;
             setInterval(() => {
@@ -5153,10 +5164,10 @@
                     }
                 }
             }, 1000);
-            
+
             // Initial render
             renderPaperPositions();
-            
+
             // Update every second
             setInterval(() => {
                 updatePaperUI();
@@ -5164,30 +5175,27 @@
                     renderPaperPositions();
                 }
             }, 1000);
-            
-            // Load TradingView chart
-            if (window.TradingView) {
-                const container = document.getElementById('paperTradingViewChart');
-                if (container) {
-                    container.innerHTML = '';
-                    new window.TradingView.widget({
-                        width: '100%',
-                        height: 500,
-                        symbol: state.tvSymbol || 'OKX:BTCUSDT.P',
-                        interval: '15',
-                        timezone: 'Etc/UTC',
-                        theme: 'dark',
-                        style: '1',
-                        locale: 'en',
-                        enable_publishing: false,
-                        container_id: 'paperTradingViewChart',
-                        overrides: {
-                            'paneProperties.background': '#0b0e11',
-                            'mainSeriesProperties.candleStyle.upColor': '#0ecb81',
-                            'mainSeriesProperties.candleStyle.downColor': '#9c27b0',
-                        }
-                    });
-                }
+
+            // Update paper trading chart when pair changes
+            function updatePaperTradingChart() {
+                const iframe = document.getElementById('paperTradingIframe');
+                if (!iframe) return;
+
+                const tvSymbol = state.tvSymbol || 'OKX:BTCUSDT.P';
+                const encodedSymbol = encodeURIComponent(tvSymbol);
+
+                iframe.src = `https://www.tradingview.com/widgetembed/?frameElementId=tradingview&symbol=${encodedSymbol}&interval=15&theme=dark&style=1&timezone=Etc%2FUTC&studies=%5B%5D&hideideas=1&overrides=%7B%22mainSeriesProperties.candleStyle.upColor%22%3A%22%230ecb81%22%2C%22mainSeriesProperties.candleStyle.downColor%22%3A%22%239c27b0%22%2C%22mainSeriesProperties.candleStyle.borderUpColor%22%3A%22%230ecb81%22%2C%22mainSeriesProperties.candleStyle.borderDownColor%22%3A%22%239c27b0%22%2C%22mainSeriesProperties.candleStyle.wickUpColor%22%3A%22%230ecb81%22%2C%22mainSeriesProperties.candleStyle.wickDownColor%22%3A%22%239c27b0%22%7D`;
+            }
+
+            // Hook into pair changes
+            const originalSetPair = window.setPair;
+            if (originalSetPair) {
+                window.setPair = function(symbol) {
+                    originalSetPair(symbol);
+            setTimeout(() => {
+                        updatePaperTradingChart();
+                    }, 300);
+                };
             }
         })();
 

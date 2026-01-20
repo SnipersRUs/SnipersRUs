@@ -2,28 +2,10 @@
   "status": "ACTIVE",
   "exchange": "okx",
   "watchlist_size": 10,
-  "signal_count": 21,
-  "last_scan_time": "2026-01-20T17:30:00.887962+00:00",
-  "next_scan_time": "2026-01-20T18:00:00+00:00",
+  "signal_count": 24,
+  "last_scan_time": "2026-01-20T18:30:00.704895+00:00",
+  "next_scan_time": "2026-01-20T19:00:00+00:00",
   "open_trades": [
-    {
-      "id": 216,
-      "trade_number": 28,
-      "symbol": "ICP/USDT:USDT",
-      "entry_price": 3.705,
-      "stop_loss": 3.66795,
-      "take_profit": 3.7976249999999996,
-      "entry_time": "2026-01-20T14:30:02.631421+00:00"
-    },
-    {
-      "id": 217,
-      "trade_number": 29,
-      "symbol": "BREV/USDT:USDT",
-      "entry_price": 0.2516,
-      "stop_loss": 0.249084,
-      "take_profit": 0.25788999999999995,
-      "entry_time": "2026-01-20T17:00:06.506797+00:00"
-    },
     {
       "id": 218,
       "trade_number": 30,
@@ -32,94 +14,121 @@
       "stop_loss": 0.00633501,
       "take_profit": 0.006558975,
       "entry_time": "2026-01-20T17:00:08.003854+00:00"
+    },
+    {
+      "id": 219,
+      "trade_number": 31,
+      "symbol": "MEME/USDT:USDT",
+      "entry_price": 0.0010994,
+      "stop_loss": 0.0010884059999999999,
+      "take_profit": 0.0011268849999999998,
+      "entry_time": "2026-01-20T18:00:03.803894+00:00"
+    },
+    {
+      "id": 220,
+      "trade_number": 32,
+      "symbol": "BREV/USDT:USDT",
+      "entry_price": 0.2484,
+      "stop_loss": 0.245916,
+      "take_profit": 0.25461,
+      "entry_time": "2026-01-20T18:00:06.052225+00:00"
+    },
+    {
+      "id": 221,
+      "trade_number": 33,
+      "symbol": "GALA/USDT:USDT",
+      "entry_price": 0.006355,
+      "stop_loss": 0.0062914500000000005,
+      "take_profit": 0.006513875,
+      "entry_time": "2026-01-20T18:00:07.544090+00:00"
     }
   ],
   "signals": [],
   "trending_coins": [
     {
-      "symbol": "AXS/USDT:USDT",
-      "change_pct": 18.284732100521573,
-      "volume": 2160028488.0
+      "symbol": "RESOLV/USDT:USDT",
+      "change_pct": 14.635503617139678,
+      "volume": 203316106.0
     },
     {
       "symbol": "CC/USDT:USDT",
-      "change_pct": 15.39090909090909,
-      "volume": 11674195.0
+      "change_pct": 14.305402425578832,
+      "volume": 12751841.0
+    },
+    {
+      "symbol": "AXS/USDT:USDT",
+      "change_pct": 14.27279850521367,
+      "volume": 2242697799.0
     },
     {
       "symbol": "RIVER/USDT:USDT",
-      "change_pct": 9.983938323160938,
-      "volume": 200405746.0
+      "change_pct": 12.127806904738351,
+      "volume": 211267661.0
     },
     {
       "symbol": "MEME/USDT:USDT",
-      "change_pct": 9.28135001454757,
-      "volume": 1008194060.0
-    },
-    {
-      "symbol": "RESOLV/USDT:USDT",
-      "change_pct": 6.579096365077568,
-      "volume": 190892797.0
+      "change_pct": 7.33489187609585,
+      "volume": 1034922029.0
     }
   ],
   "spotlight": {
     "symbol": "FUN/USDT:USDT",
-    "change_pct": -20.911805236564078,
-    "volume": 16985316.0,
+    "change_pct": -18.097256564229365,
+    "volume": 18651047.0,
     "reason": "Top 24h mover"
   },
   "top_gainers": [
     {
-      "symbol": "AXS/USDT:USDT",
-      "change_pct": 18.284732100521573,
-      "volume": 2160028488.0
+      "symbol": "RESOLV/USDT:USDT",
+      "change_pct": 14.635503617139678,
+      "volume": 203316106.0
     },
     {
       "symbol": "CC/USDT:USDT",
-      "change_pct": 15.39090909090909,
-      "volume": 11674195.0
+      "change_pct": 14.305402425578832,
+      "volume": 12751841.0
+    },
+    {
+      "symbol": "AXS/USDT:USDT",
+      "change_pct": 14.27279850521367,
+      "volume": 2242697799.0
     },
     {
       "symbol": "RIVER/USDT:USDT",
-      "change_pct": 9.983938323160938,
-      "volume": 200405746.0
+      "change_pct": 12.127806904738351,
+      "volume": 211267661.0
     },
     {
       "symbol": "MEME/USDT:USDT",
-      "change_pct": 9.28135001454757,
-      "volume": 1008194060.0
-    },
-    {
-      "symbol": "RESOLV/USDT:USDT",
-      "change_pct": 6.579096365077568,
-      "volume": 190892797.0
+      "change_pct": 7.33489187609585,
+      "volume": 1034922029.0
     }
   ],
   "top_losers": [
     {
       "symbol": "FUN/USDT:USDT",
-      "change_pct": -20.911805236564078,
-      "volume": 16985316.0
+      "change_pct": -18.097256564229365,
+      "volume": 18651047.0
     },
     {
       "symbol": "PIPPIN/USDT:USDT",
-      "change_pct": -15.96432833008855,
-      "volume": 12364501.0
-    },
-    {
-      "symbol": "SHELL/USDT:USDT",
-      "change_pct": -14.362657091561939,
-      "volume": 12891326.0
-    },
-    {
-      "symbol": "MERL/USDT:USDT",
-      "change_pct": -14.149333333333333,
-      "volume": 379440912.0
+      "change_pct": -15.418649049971211,
+      "volume": 10740549.0
     },
     {
       "symbol": "MON/USDT:USDT",
-      "change_pct": -12.19277108433735,
-      "volume": 23915767.0
+      "change_pct": -11.790393013100436,
+      "volume": 25224415.0
+    },
+    {
+      "symbol": "MET/USDT:USDT",
+      "change_pct": -11.313617606602476,
+      "volume": 24834966.0
+    },
+    {
+      "symbol": "ANIME/USDT:USDT",
+      "change_pct": -10.746525290156184,
+      "volume": 29463655.0
     }
   ]
 }
