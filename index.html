@@ -119,36 +119,14 @@
             color: var(--text-secondary);
             text-decoration: none;
             font-weight: 500;
-            transition: color 0.2s, text-shadow 0.3s;
+            transition: color 0.2s;
             position: relative;
             padding: 5px 10px;
             border-radius: 4px;
         }
-        
-        .nav-links a:not(.clicked) {
-            animation: slowGreenGlow 3s ease-in-out infinite;
-        }
-        
-        @keyframes slowGreenGlow {
-            0%, 100% {
-                text-shadow: 0 0 5px rgba(14, 203, 129, 0.3),
-                             0 0 10px rgba(14, 203, 129, 0.2),
-                             0 0 15px rgba(14, 203, 129, 0.1);
-            }
-            50% {
-                text-shadow: 0 0 10px rgba(14, 203, 129, 0.6),
-                             0 0 20px rgba(14, 203, 129, 0.4),
-                             0 0 30px rgba(14, 203, 129, 0.2);
-            }
-        }
 
         .nav-links a:hover {
             color: var(--accent-purple);
-        }
-        
-        .nav-links a.clicked {
-            animation: none;
-            text-shadow: none;
         }
 
         .btn-join {
@@ -201,22 +179,12 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            transition: background 0.2s, transform 0.2s, box-shadow 0.3s;
-            position: relative;
-        }
-        
-        .theme-toggle:not(.clicked) {
-            animation: slowGreenGlowButton 3s ease-in-out infinite;
+            transition: background 0.2s, transform 0.2s;
         }
 
         .theme-toggle:hover {
             background: var(--accent-purple);
             color: #fff;
-        }
-        
-        .theme-toggle.clicked {
-            animation: none;
-            box-shadow: 0 0 8px rgba(156, 39, 176, 0.4);
         }
 
         /* Hero Section */
@@ -835,11 +803,21 @@
             font-weight: 700;
             text-decoration: none;
             display: inline-block;
-            transition: transform 0.2s;
+            transition: transform 0.2s, box-shadow 0.3s;
+            position: relative;
+        }
+        
+        .btn-large:not(.clicked) {
+            animation: slowGreenGlowButton 3s ease-in-out infinite;
         }
 
         .btn-large:hover {
             transform: scale(1.05);
+        }
+        
+        .btn-large.clicked {
+            animation: none;
+            box-shadow: 0 0 10px rgba(156, 39, 176, 0.5);
         }
 
         /* Social Links */
@@ -1484,11 +1462,10 @@
             <a href="#membership">Membership</a>
             <a href="#arcade">Arcade</a>
             <a href="https://www.tradingview.com/u/RickyTSpanish/#published-scripts" target="_blank">Indicators</a>
-            <button class="theme-toggle" onclick="toggleTheme()">
-                <span id="themeIcon">🌙</span>
-            </button>
         </div>
-        <a href="https://discord.gg/qk35c4TH5z" target="_blank" class="btn-join">Join Discord</a>
+        <button class="theme-toggle" onclick="toggleTheme()">
+            <span id="themeIcon">🌙</span>
+        </button>
     </nav>
 
     <div class="hero">
@@ -2872,22 +2849,22 @@
         // ============================================
         // THEME TOGGLE
         // ============================================
-        // Track clicked nav links and buttons to stop glow animation
+        // Track clicked buttons to stop glow animation
         document.addEventListener('DOMContentLoaded', function() {
-            const navLinks = document.querySelectorAll('.nav-links a');
             const btnJoin = document.querySelector('.btn-join');
+            const btnLarge = document.querySelector('.btn-large');
             const themeToggle = document.querySelector('.theme-toggle');
             
-            navLinks.forEach(link => {
-                link.addEventListener('click', function() {
+            if (btnJoin) {
+                btnJoin.addEventListener('click', function() {
                     if (!this.classList.contains('clicked')) {
                         this.classList.add('clicked');
                     }
                 });
-            });
+            }
             
-            if (btnJoin) {
-                btnJoin.addEventListener('click', function() {
+            if (btnLarge) {
+                btnLarge.addEventListener('click', function() {
                     if (!this.classList.contains('clicked')) {
                         this.classList.add('clicked');
                     }
