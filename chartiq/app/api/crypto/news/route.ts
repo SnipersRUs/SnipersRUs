@@ -1,55 +1,39 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getNews, addNews } from '@/lib/cryptoNews';
-import { scrapeCryptoNews } from '@/lib/newsScraper';
+import { NextRequest, NextResponse } from 'next/server'
+import { db } from '@/lib/db-fresh'
 
 export async function GET(request: NextRequest) {
   try {
-    const searchParams = request.nextUrl.searchParams;
-    const category = searchParams.get('category');
-    const limit = parseInt(searchParams.get('limit') || '50');
-    
-    let news = getNews();
-    
-    // Filter by category if provided
-    if (category && category !== 'all') {
-      news = news.filter(n => n.category.toLowerCase() === category.toLowerCase());
-    }
-    
-    // Sort by timestamp (newest first)
-    news.sort((a, b) => b.timestamp - a.timestamp);
-    
-    // Limit results
-    const limited = news.slice(0, limit);
-    
-    return NextResponse.json({
-      success: true,
-      data: limited,
-      count: limited.length,
-      total: news.length,
-    });
-  } catch (error: any) {
-    return NextResponse.json(
-      { success: false, error: error.message },
-      { status: 500 }
-    );
-  }
-}
+    const searchParams = request.nextUrl.searchParams
+    const category = searchParams.get('category')
+    const tokens = searchParams.get('tokens')
+    const limit = parseInt(searchParams.get('limit') || '50')
 
-export async function POST(request: NextRequest) {
-  try {
-    // Trigger scraping
-    const scrapedNews = await scrapeCryptoNews();
-    
-    return NextResponse.json({
-      success: true,
-      message: `Scraped ${scrapedNews.length} news items`,
-      count: scrapedNews.length,
-      data: scrapedNews,
-    });
-  } catch (error: any) {
+    const where: any = {}
+
+    if (category && category !== 'all') {
+      where.category = category
+    }
+
+    if (tokens) {
+      where.tokens = {
+        contains: tokens
+      }
+    }
+
+    const cryptoNews = await db.cryptoNews.findMany({
+      where,
+      orderBy: {
+        publishedAt: 'desc'
+      },
+      take: limit
+    })
+
+    return NextResponse.json(cryptoNews)
+  } catch (error) {
+    console.error('Error fetching crypto news:', error)
     return NextResponse.json(
-      { success: false, error: error.message },
+      { error: 'Failed to fetch crypto news' },
       { status: 500 }
-    );
+    )
   }
 }

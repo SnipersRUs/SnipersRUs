@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { Toaster } from "sonner";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -13,13 +14,13 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "SnipersRUs Pattern Recognition",
-  description: "Master chart patterns through interactive quizzes. Learn candlesticks, support & resistance, and trend patterns.",
+  title: "CryptoPulse - Real-time Crypto Intelligence",
+  description: "Real-time crypto news, whale tracking, and market intelligence",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "SnipersRUs",
+    title: "CryptoPulse",
   },
   formatDetection: {
     telephone: false,
@@ -51,6 +52,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         {children}
+        <Toaster position="top-right" />
       </body>
     </html>
   );

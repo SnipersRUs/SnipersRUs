@@ -25,7 +25,19 @@
       ],
       "score": 70,
       "status": "ACTIVE"
+    },
+    "ACHUSDT": {
+      "entry_price": 0.012938,
+      "stop_loss": 0.01306738,
+      "take_profit": 0.01254986,
+      "signal_time": "2026-01-20T09:46:11.060199",
+      "reasons": [
+        "Price at GPS Resistance Zone (0.01)",
+        "Deviation +3 Sigma Zone (Overextended)"
+      ],
+      "score": 70,
+      "status": "ACTIVE"
     }
   },
-  "trade_counter": 2
+  "trade_counter": 3
 }

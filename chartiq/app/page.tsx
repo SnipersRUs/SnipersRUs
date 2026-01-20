@@ -1,398 +1,482 @@
-'use client';
+'use client'
 
-import { useState, useEffect } from 'react';
-import ChartCard from '@/components/ChartCard';
-import ProgressBar from '@/components/ProgressBar';
-import StatsDisplay from '@/components/StatsDisplay';
-import { useProgress } from '@/hooks/useProgress';
-import { level1Data } from '@/data/levels';
+import { useState, useEffect } from 'react'
+import { Card, CardContent, CardHeader } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { Activity, TrendingUp, AlertTriangle, RefreshCw, Flame, Users, Zap, Bitcoin, Timer } from 'lucide-react'
+import { toast } from 'sonner'
 
-type GameState = 'menu' | 'playing' | 'completed' | 'failed';
+interface CryptoNews {
+  id: string
+  title: string
+  snippet: string
+  url: string
+  source: string
+  category: string
+  tokens: string
+  impactLevel: string
+  sentiment: string
+  publishedAt: string
+  createdAt: string
+}
+
+interface CryptoInfluencer {
+  id: string
+  name: string
+  handle: string
+  platform: string
+  influenceLevel: string
+  focus: string
+  active: boolean
+  posts?: any[]
+}
+
+interface CryptoAlert {
+  id: string
+  title: string
+  description: string
+  severity: string
+  sourceType: string
+  tokens: string
+  resolved: boolean
+  createdAt: string
+}
 
 export default function Home() {
-  const [gameState, setGameState] = useState<GameState>('menu');
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [shuffledQuestions, setShuffledQuestions] = useState(level1Data);
-  const [correctCount, setCorrectCount] = useState(0);
-  const [wrongCount, setWrongCount] = useState(0);
-  const MAX_WRONG_ANSWERS = 3; // Penalty threshold
+  const [news, setNews] = useState<CryptoNews[]>([])
+  const [influencers, setInfluencers] = useState<CryptoInfluencer[]>([])
+  const [alerts, setAlerts] = useState<CryptoAlert[]>([])
+  const [loading, setLoading] = useState(true)
+  const [selectedCategory, setSelectedCategory] = useState('all')
 
-  const { stats, updateStreak, recordAnswer, getAccuracy, resetProgress } = useProgress();
+  const fetchData = async () => {
+    try {
+      setLoading(true)
+
+      const [newsRes, influencersRes, alertsRes] = await Promise.all([
+        fetch('/api/crypto/news'),
+        fetch('/api/crypto/influencers'),
+        fetch('/api/crypto/alerts?unresolved=true')
+      ])
+
+      if (newsRes.ok) {
+        const data = await newsRes.json()
+        setNews(data)
+      }
+
+      if (influencersRes.ok) {
+        const data = await influencersRes.json()
+        setInfluencers(data)
+      }
+
+      if (alertsRes.ok) {
+        const data = await alertsRes.json()
+        setAlerts(data)
+      }
+    } catch (error) {
+      console.error('Error fetching data:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const triggerScrape = async () => {
+    try {
+      toast.loading('Scraping crypto news...')
+      const res = await fetch('/api/crypto/scrape', { method: 'POST' })
+      const data = await res.json()
+
+      if (data.success) {
+        toast.success(`Found ${data.count} new items`)
+        await fetchData()
+      } else {
+        toast.error('Scraping failed')
+      }
+    } catch (error) {
+      toast.error('Error scraping news')
+    }
+  }
 
   useEffect(() => {
-    if (gameState === 'playing') {
-      updateStreak();
-      shuffleQuestions();
+    fetchData()
+
+    // Auto-refresh every 2 minutes
+    const interval = setInterval(fetchData, 2 * 60 * 1000)
+    return () => clearInterval(interval)
+  }, [])
+
+  const filteredNews = news.filter(item => {
+    if (selectedCategory === 'all') return true
+    return item.category === selectedCategory
+  })
+
+  const activeAlerts = alerts.filter(a => !a.resolved).slice(0, 3)
+  const highImpactNews = news.filter(n => n.impactLevel === 'high' || n.impactLevel === 'critical').slice(0, 3)
+
+  const getImpactColor = (level: string) => {
+    switch (level) {
+      case 'critical': return 'bg-red-600 text-white'
+      case 'high': return 'bg-red-500 text-white'
+      case 'medium': return 'bg-orange-500 text-white'
+      default: return 'bg-gray-500 text-white'
     }
-  }, [gameState]);
+  }
 
-  const shuffleQuestions = () => {
-    const shuffled = [...level1Data].sort(() => Math.random() - 0.5);
-    setShuffledQuestions(shuffled);
-  };
-
-  const handleStart = () => {
-    setGameState('playing');
-    setCurrentQuestionIndex(0);
-    setCorrectCount(0);
-    setWrongCount(0);
-    shuffleQuestions();
-  };
-
-  const handleAnswer = (correct: boolean) => {
-    recordAnswer(correct);
-    if (correct) {
-      setCorrectCount(prev => prev + 1);
-    } else {
-      setWrongCount(prev => {
-        const newWrong = prev + 1;
-        // Check if penalty threshold reached
-        if (newWrong >= MAX_WRONG_ANSWERS) {
-          setTimeout(() => {
-            setGameState('failed');
-          }, 1500);
-        }
-        return newWrong;
-      });
+  const getSentimentIcon = (sentiment: string) => {
+    switch (sentiment) {
+      case 'bullish': return '📈'
+      case 'bearish': return '📉'
+      default: return '➡️'
     }
-  };
+  }
 
-  const handleNext = () => {
-    if (currentQuestionIndex < shuffledQuestions.length - 1) {
-      setCurrentQuestionIndex(prev => prev + 1);
-    } else {
-      setGameState('completed');
+  const getCategoryColor = (category: string) => {
+    const colors: Record<string, string> = {
+      defi: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
+      nft: 'bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200',
+      regulation: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
+      tech: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
+      trading: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
+      general: 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
     }
-  };
+    return colors[category] || colors.general
+  }
 
-  const handleQuit = () => {
-    setGameState('menu');
-  };
+  const getInfluenceBadge = (level: string) => {
+    switch (level) {
+      case 'legendary': return 'bg-gradient-to-r from-yellow-500 to-orange-500 text-white'
+      case 'high': return 'bg-purple-500 text-white'
+      case 'medium': return 'bg-blue-500 text-white'
+      default: return 'bg-gray-500 text-white'
+    }
+  }
 
-  const handleRetry = () => {
-    setGameState('playing');
-    setCurrentQuestionIndex(0);
-    setCorrectCount(0);
-    setWrongCount(0);
-    shuffleQuestions();
-  };
+  const formatTimeAgo = (dateString: string) => {
+    const date = new Date(dateString)
+    const now = new Date()
+    const diff = Math.floor((now.getTime() - date.getTime()) / 1000)
 
-  const currentQuestion = shuffledQuestions[currentQuestionIndex];
-  const remainingStrikes = MAX_WRONG_ANSWERS - wrongCount;
+    if (diff < 60) return `${diff}s ago`
+    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`
+    if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`
+    return `${Math.floor(diff / 86400)}d ago`
+  }
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: '#0b0e11' }}>
-      {/* Background grid pattern */}
-      <div className="fixed inset-0 opacity-5 pointer-events-none">
-        <div className="absolute inset-0" style={{
-          backgroundImage: 'linear-gradient(rgba(232, 236, 239, .05) 1px, transparent 1px), linear-gradient(90deg, rgba(232, 236, 239, .05) 1px, transparent 1px)',
-          backgroundSize: '50px 50px'
-        }} />
-      </div>
-
-      {/* Main content */}
-      <div className="relative z-10 min-h-screen flex flex-col">
-        {/* Header */}
-        <header className="border-b" style={{ backgroundColor: '#1e2329', borderColor: '#2b3139' }}>
-          <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="text-2xl font-bold" style={{ color: '#0ecb81' }}>
-                SnipersRUs
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-4 md:p-8">
+      <div className="max-w-7xl mx-auto">
+        {/* Header Widget */}
+        <Card className="bg-black/40 backdrop-blur-xl border-purple-500/20 mb-6">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="relative">
+                  <Bitcoin className="h-10 w-10 text-orange-400" />
+                  <Zap className="h-4 w-4 text-yellow-400 absolute -top-1 -right-1" />
+                </div>
+                <div>
+                  <h1 className="text-xl font-bold text-white">CryptoPulse</h1>
+                  <p className="text-xs text-purple-300">Real-time crypto intelligence</p>
+                </div>
               </div>
-              <span className="hidden sm:inline text-sm" style={{ color: '#848e9c' }}>
-                Pattern Recognition Training
-              </span>
-            </div>
 
-            {/* Lives indicator */}
-            {gameState === 'playing' && (
-              <div className="flex items-center gap-2">
-                <span className="text-sm" style={{ color: '#848e9c' }}>Strikes:</span>
-                <div className="flex gap-1">
-                  {[...Array(MAX_WRONG_ANSWERS)].map((_, i) => (
-                    <div
-                      key={i}
-                      className="w-8 h-3 rounded-full transition-all duration-300"
-                      style={{
-                        backgroundColor: i < wrongCount ? '#f6465d' : '#0ecb81',
-                        opacity: i >= wrongCount ? '0.3' : '1'
-                      }}
-                    />
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2 text-sm text-gray-300">
+                  <Timer className="h-4 w-4" />
+                  <span>{news[0] ? formatTimeAgo(news[0].createdAt) : 'Just now'}</span>
+                </div>
+                <Button
+                  onClick={triggerScrape}
+                  disabled={loading}
+                  size="sm"
+                  className="bg-orange-500 hover:bg-orange-600"
+                >
+                  <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+                  Refresh
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Quick Stats */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <Card className="bg-black/30 backdrop-blur-lg border-purple-500/20">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-orange-500/20 rounded-lg">
+                  <Flame className="h-5 w-5 text-orange-400" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-white">{highImpactNews.length}</p>
+                  <p className="text-xs text-gray-400">Hot News</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-black/30 backdrop-blur-lg border-purple-500/20">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-red-500/20 rounded-lg">
+                  <AlertTriangle className="h-5 w-5 text-red-400" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-white">{activeAlerts.length}</p>
+                  <p className="text-xs text-gray-400">Active Alerts</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-black/30 backdrop-blur-lg border-purple-500/20">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-purple-500/20 rounded-lg">
+                  <Users className="h-5 w-5 text-purple-400" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-white">{influencers.length}</p>
+                  <p className="text-xs text-gray-400">Influencers</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-black/30 backdrop-blur-lg border-purple-500/20">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-green-500/20 rounded-lg">
+                  <TrendingUp className="h-5 w-5 text-green-400" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-white">{filteredNews.length}</p>
+                  <p className="text-xs text-gray-400">Total News</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Main Content */}
+        <div className="grid md:grid-cols-3 gap-6">
+          {/* News Feed */}
+          <Card className="md:col-span-2 bg-black/30 backdrop-blur-lg border-purple-500/20">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+                  <Activity className="h-5 w-5 text-orange-400" />
+                  Latest Crypto News
+                </h2>
+                <div className="flex gap-2">
+                  {['all', 'defi', 'nft', 'regulation', 'tech', 'trading'].map((cat) => (
+                    <Button
+                      key={cat}
+                      variant={selectedCategory === cat ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setSelectedCategory(cat)}
+                      className={selectedCategory === cat ? 'bg-orange-500 hover:bg-orange-600' : 'border-purple-500/30'}
+                    >
+                      {cat.charAt(0).toUpperCase() + cat.slice(1)}
+                    </Button>
                   ))}
                 </div>
               </div>
-            )}
-
-            {gameState !== 'menu' && (
-              <button
-                onClick={handleQuit}
-                className="px-4 py-2 rounded-lg font-semibold text-sm transition-all duration-200 hover:opacity-80"
-                style={{
-                  backgroundColor: '#2b3139',
-                  color: '#eaecef',
-                  border: '1px solid #2b3139'
-                }}
-              >
-                ← Quit
-              </button>
-            )}
-          </div>
-        </header>
-
-        {/* Main content area */}
-        <main className="flex-1 container mx-auto px-4 py-6">
-          {/* Stats Display */}
-          <div className="mb-6">
-            <StatsDisplay
-              xp={stats.xp}
-              streak={stats.streak}
-              level={stats.level}
-            />
-          </div>
-
-          <div className="flex justify-center items-start min-h-[60vh]">
-            {gameState === 'menu' && (
-              <div className="rounded-2xl shadow-2xl p-8 max-w-2xl w-full text-center" style={{ backgroundColor: '#1e2329', border: '1px solid #2b3139' }}>
-                <div className="mb-8">
-                  <div className="text-8xl mb-4">🎯</div>
-                  <h1 className="text-4xl font-bold mb-4" style={{ color: '#eaecef' }}>
-                    Master Chart Patterns
-                  </h1>
-                  <p className="text-lg mb-6" style={{ color: '#848e9c' }}>
-                    Learn to identify trading patterns through interactive quizzes
-                  </p>
-
-                  <div className="grid grid-cols-2 gap-4 mb-8">
-                    <div className="rounded-xl p-4" style={{ backgroundColor: '#2b3139' }}>
-                      <div className="text-3xl mb-2">📊</div>
-                      <h3 className="font-semibold mb-1" style={{ color: '#eaecef' }}>Candlesticks</h3>
-                      <p className="text-sm" style={{ color: '#848e9c' }}>Hammer, Doji, Engulfing</p>
-                    </div>
-                    <div className="rounded-xl p-4" style={{ backgroundColor: '#2b3139' }}>
-                      <div className="text-3xl mb-2">📈</div>
-                      <h3 className="font-semibold mb-1" style={{ color: '#eaecef' }}>Patterns</h3>
-                      <p className="text-sm" style={{ color: '#848e9c' }}>Flags, Pennants, Wedges</p>
-                    </div>
-                    <div className="rounded-xl p-4" style={{ backgroundColor: '#2b3139' }}>
-                      <div className="text-3xl mb-2">🎯</div>
-                      <h3 className="font-semibold mb-1" style={{ color: '#eaecef' }}>Support & Resistance</h3>
-                      <p className="text-sm" style={{ color: '#848e9c' }}>Double Bottom, Top</p>
-                    </div>
-                    <div className="rounded-xl p-4" style={{ backgroundColor: '#2b3139' }}>
-                      <div className="text-3xl mb-2">🔄</div>
-                      <h3 className="font-semibold mb-1" style={{ color: '#eaecef' }}>Reversals</h3>
-                      <p className="text-sm" style={{ color: '#848e9c' }}>Head & Shoulders</p>
-                    </div>
+            </CardHeader>
+            <CardContent>
+              <ScrollArea className="h-[500px] pr-4">
+                {loading && filteredNews.length === 0 ? (
+                  <div className="text-center py-12 text-gray-400">
+                    <RefreshCw className="h-8 w-8 mx-auto mb-4 animate-spin" />
+                    Loading crypto news...
                   </div>
-
-                  <div className="rounded-xl p-4 mb-8" style={{ backgroundColor: 'rgba(246, 70, 93, 0.15)', border: '1px solid rgba(246, 70, 93, 0.3)' }}>
-                    <div className="flex items-center justify-center gap-2 mb-2">
-                      <span className="text-2xl">⚠️</span>
-                      <h3 className="font-semibold" style={{ color: '#f6465d' }}>Penalty System</h3>
-                    </div>
-                    <p className="text-sm" style={{ color: '#848e9c' }}>
-                      Complete the quiz with fewer than {MAX_WRONG_ANSWERS} wrong answers or try again!
-                    </p>
+                ) : filteredNews.length === 0 ? (
+                  <div className="text-center py-12 text-gray-400">
+                    <Activity className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>No news found yet</p>
+                    <p className="text-sm mt-2">Click refresh to fetch latest updates</p>
                   </div>
-                </div>
+                ) : (
+                  <div className="space-y-3">
+                    {filteredNews.map((item) => (
+                      <Card key={item.id} className="bg-black/40 border-purple-500/10 hover:border-orange-500/30 transition-all hover:scale-[1.02]">
+                        <CardContent className="p-4">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-2 flex-wrap">
+                                <Badge className={getImpactColor(item.impactLevel)}>
+                                  {item.impactLevel.toUpperCase()}
+                                </Badge>
+                                <Badge className={getCategoryColor(item.category)}>
+                                  {item.category}
+                                </Badge>
+                                {item.tokens && item.tokens.split(',').slice(0, 3).map(token => (
+                                  <Badge key={token} variant="outline" className="border-orange-500/50 text-orange-300">
+                                    {token.toUpperCase()}
+                                  </Badge>
+                                ))}
+                                <span className="text-xs text-gray-500">{getSentimentIcon(item.sentiment)}</span>
+                              </div>
 
-                <button
-                  onClick={handleStart}
-                  className="w-full py-4 font-bold text-xl rounded-xl transition-all duration-200 hover:scale-[1.02]"
-                  style={{
-                    background: 'linear-gradient(135deg, #0ecb81 0%, #6c5ce7 100%)',
-                    color: '#eaecef'
-                  }}
-                >
-                  Start Training 🚀
-                </button>
+                              <h3 className="font-semibold text-white mb-2 line-clamp-2">
+                                <a
+                                  href={item.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="hover:text-orange-400 transition-colors"
+                                >
+                                  {item.title}
+                                </a>
+                              </h3>
 
-                {stats.totalAnswered > 0 && (
-                  <button
-                    onClick={resetProgress}
-                    className="mt-4 text-sm underline transition-opacity hover:opacity-80"
-                    style={{ color: '#848e9c' }}
-                  >
-                    Reset All Progress
-                  </button>
-                )}
-              </div>
-            )}
+                              <p className="text-sm text-gray-400 mb-2 line-clamp-2">
+                                {item.snippet}
+                              </p>
 
-            {gameState === 'playing' && currentQuestion && (
-              <div className="w-full">
-                {/* Progress bar */}
-                <div className="mb-6">
-                  <ProgressBar
-                    current={currentQuestionIndex + 1}
-                    total={shuffledQuestions.length}
-                    label="Progress"
-                  />
-                </div>
+                              <div className="flex items-center gap-3 text-xs text-gray-500">
+                                <span>{item.source}</span>
+                                <span>•</span>
+                                <span>{formatTimeAgo(item.publishedAt)}</span>
+                              </div>
+                            </div>
 
-                {/* Warning when low on lives */}
-                {remainingStrikes === 1 && (
-                  <div className="mb-4 rounded-xl p-4 text-center animate-fadeIn" style={{ backgroundColor: 'rgba(246, 70, 93, 0.15)', border: '1px solid rgba(246, 70, 93, 0.3)' }}>
-                    <span className="font-semibold" style={{ color: '#f6465d' }}>
-                      ⚠️ Last Strike! One more wrong answer and you'll need to restart.
-                    </span>
+                            {item.impactLevel === 'high' || item.impactLevel === 'critical' ? (
+                              <Zap className="h-5 w-5 text-yellow-400 animate-pulse flex-shrink-0" />
+                            ) : null}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
                   </div>
                 )}
+              </ScrollArea>
+            </CardContent>
+          </Card>
 
-                {/* Chart card */}
-                <ChartCard
-                  question={currentQuestion}
-                  onAnswer={handleAnswer}
-                  onNext={handleNext}
-                />
-              </div>
-            )}
-
-            {gameState === 'completed' && (
-              <div className="rounded-2xl shadow-2xl p-8 max-w-2xl w-full text-center animate-fadeIn" style={{ backgroundColor: '#1e2329', border: '1px solid #2b3139' }}>
-                <div className="mb-8">
-                  <div className="text-8xl mb-4">
-                    {correctCount === shuffledQuestions.length ? '🏆' : correctCount > shuffledQuestions.length / 2 ? '🎯' : '💪'}
+          {/* Sidebar */}
+          <div className="space-y-6">
+            {/* Critical Alerts */}
+            <Card className="bg-black/30 backdrop-blur-lg border-red-500/20">
+              <CardHeader className="pb-3">
+                <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+                  <AlertTriangle className="h-5 w-5 text-red-400" />
+                  Critical Alerts
+                </h2>
+              </CardHeader>
+              <CardContent>
+                <ScrollArea className="h-[200px] pr-4">
+                  <div className="space-y-3">
+                    {activeAlerts.length === 0 ? (
+                      <p className="text-sm text-gray-500 text-center py-4">No active alerts</p>
+                    ) : (
+                      activeAlerts.map(alert => (
+                        <Alert key={alert.id} className="bg-red-950/30 border-red-500/50">
+                          <AlertTriangle className="h-4 w-4 text-red-400" />
+                          <AlertDescription>
+                            <p className="font-medium text-white">{alert.title}</p>
+                            <p className="text-sm text-gray-400 mt-1">{alert.description}</p>
+                            <div className="flex items-center gap-2 mt-2">
+                              <Badge variant="outline" className="border-red-500/50 text-red-300">
+                                {alert.sourceType}
+                              </Badge>
+                              <span className="text-xs text-gray-500">{formatTimeAgo(alert.createdAt)}</span>
+                            </div>
+                          </AlertDescription>
+                        </Alert>
+                      ))
+                    )}
                   </div>
-                  <h2 className="text-3xl font-bold mb-4" style={{ color: '#eaecef' }}>
-                    {correctCount === shuffledQuestions.length
-                      ? 'Perfect Score!'
-                      : correctCount > shuffledQuestions.length / 2
-                      ? 'Great Job!'
-                      : 'Keep Practicing!'}
-                  </h2>
+                </ScrollArea>
+              </CardContent>
+            </Card>
 
-                  <div className="grid grid-cols-2 gap-4 mb-8">
-                    <div className="rounded-xl p-4" style={{ backgroundColor: 'rgba(14, 203, 129, 0.15)', border: '1px solid rgba(14, 203, 129, 0.3)' }}>
-                      <p className="text-4xl font-bold" style={{ color: '#0ecb81' }}>{correctCount}</p>
-                      <p className="text-sm" style={{ color: '#848e9c' }}>Correct</p>
-                    </div>
-                    <div className="rounded-xl p-4" style={{ backgroundColor: 'rgba(14, 203, 129, 0.15)', border: '1px solid rgba(14, 203, 129, 0.3)' }}>
-                      <p className="text-4xl font-bold" style={{ color: '#0ecb81' }}>+{correctCount * 10}</p>
-                      <p className="text-sm" style={{ color: '#848e9c' }}>XP Earned</p>
-                    </div>
+            {/* Top Influencers */}
+            <Card className="bg-black/30 backdrop-blur-lg border-purple-500/20">
+              <CardHeader className="pb-3">
+                <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+                  <Users className="h-5 w-5 text-purple-400" />
+                  Crypto Influencers
+                </h2>
+              </CardHeader>
+              <CardContent>
+                <ScrollArea className="h-[280px] pr-4">
+                  <div className="space-y-3">
+                    {influencers.slice(0, 10).map(influencer => (
+                      <div
+                        key={influencer.id}
+                        className="p-3 bg-black/40 rounded-lg border border-purple-500/10 hover:border-purple-500/30 transition-all"
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-orange-500 flex items-center justify-center text-white text-xs font-bold">
+                              {influencer.name.charAt(0)}
+                            </div>
+                            <div>
+                              <p className="font-medium text-white text-sm">{influencer.name}</p>
+                              <p className="text-xs text-gray-400">{influencer.handle}</p>
+                            </div>
+                          </div>
+                          <Badge className={getInfluenceBadge(influencer.influenceLevel)}>
+                            {influencer.influenceLevel}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="border-purple-500/30 text-purple-300 text-xs">
+                            {influencer.focus}
+                          </Badge>
+                          <Badge variant="outline" className="border-gray-500/30 text-gray-400 text-xs">
+                            {influencer.platform}
+                          </Badge>
+                        </div>
+                      </div>
+                    ))}
                   </div>
+                </ScrollArea>
+              </CardContent>
+            </Card>
 
-                  <div className="rounded-xl p-6 mb-8" style={{ backgroundColor: '#2b3139' }}>
-                    <div className="text-sm font-semibold mb-4" style={{ color: '#848e9c' }}>Session Stats</div>
-                    <div className="flex justify-center gap-8">
-                      <div>
-                        <p className="text-2xl font-bold" style={{ color: '#eaecef' }}>{getAccuracy()}%</p>
-                        <p className="text-xs" style={{ color: '#848e9c' }}>Accuracy</p>
-                      </div>
-                      <div>
-                        <p className="text-2xl font-bold" style={{ color: '#eaecef' }}>{stats.xp.toLocaleString()}</p>
-                        <p className="text-xs" style={{ color: '#848e9c' }}>Total XP</p>
-                      </div>
-                      <div>
-                        <p className="text-2xl font-bold" style={{ color: '#eaecef' }}>{stats.streak} 🔥</p>
-                        <p className="text-xs" style={{ color: '#848e9c' }}>Day Streak</p>
+            {/* Hot Takes */}
+            <Card className="bg-black/30 backdrop-blur-lg border-orange-500/20">
+              <CardHeader className="pb-3">
+                <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+                  <Flame className="h-5 w-5 text-orange-400" />
+                  Hot Takes
+                </h2>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {highImpactNews.map(item => (
+                    <div
+                      key={item.id}
+                      className="p-3 bg-gradient-to-r from-orange-950/50 to-red-950/50 rounded-lg border border-orange-500/20"
+                    >
+                      <div className="flex items-start gap-2">
+                        <Zap className="h-4 w-4 text-yellow-400 flex-shrink-0 mt-0.5" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-white line-clamp-2">
+                            {item.title}
+                          </p>
+                          <div className="flex items-center gap-2 mt-1">
+                            {item.tokens && item.tokens.split(',').slice(0, 2).map(token => (
+                              <Badge key={token} variant="outline" className="border-orange-500/50 text-orange-300 text-xs">
+                                {token.toUpperCase()}
+                              </Badge>
+                            ))}
+                            <span className="text-xs text-gray-500">{formatTimeAgo(item.publishedAt)}</span>
+                          </div>
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  ))}
                 </div>
-
-                <div className="flex gap-4">
-                  <button
-                    onClick={handleQuit}
-                    className="flex-1 py-4 rounded-xl font-semibold transition-all duration-200 hover:scale-[1.02]"
-                    style={{
-                      backgroundColor: '#2b3139',
-                      color: '#eaecef',
-                      border: '1px solid #2b3139'
-                    }}
-                  >
-                    ← Back to Home
-                  </button>
-                  <button
-                    onClick={handleRetry}
-                    className="flex-1 py-4 rounded-xl font-bold transition-all duration-200 hover:scale-[1.02]"
-                    style={{
-                      background: 'linear-gradient(135deg, #0ecb81 0%, #6c5ce7 100%)',
-                      color: '#eaecef'
-                    }}
-                  >
-                    Practice Again 🔄
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {gameState === 'failed' && (
-              <div className="rounded-2xl shadow-2xl p-8 max-w-2xl w-full text-center animate-fadeIn" style={{ backgroundColor: '#1e2329', border: '1px solid #2b3139' }}>
-                <div className="mb-8">
-                  <div className="text-8xl mb-4">💔</div>
-                  <h2 className="text-3xl font-bold mb-4" style={{ color: '#f6465d' }}>
-                    Lesson Failed
-                  </h2>
-                  <p className="text-lg mb-6" style={{ color: '#848e9c' }}>
-                    You got {MAX_WRONG_ANSWERS} wrong answers. Don't worry, pattern recognition takes practice!
-                  </p>
-
-                  <div className="rounded-xl p-6 mb-8" style={{ backgroundColor: '#2b3139' }}>
-                    <div className="text-sm font-semibold mb-4" style={{ color: '#848e9c' }}>Session Summary</div>
-                    <div className="flex justify-center gap-8">
-                      <div>
-                        <p className="text-2xl font-bold" style={{ color: '#eaecef' }}>{correctCount}</p>
-                        <p className="text-xs" style={{ color: '#848e9c' }}>Correct</p>
-                      </div>
-                      <div>
-                        <p className="text-2xl font-bold" style={{ color: '#f6465d' }}>{wrongCount}</p>
-                        <p className="text-xs" style={{ color: '#848e9c' }}>Wrong</p>
-                      </div>
-                      <div>
-                        <p className="text-2xl font-bold" style={{ color: '#eaecef' }}>{currentQuestionIndex + 1} / {shuffledQuestions.length}</p>
-                        <p className="text-xs" style={{ color: '#848e9c' }}>Questions</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="rounded-xl p-4 mb-8" style={{ backgroundColor: 'rgba(108, 92, 231, 0.15)', border: '1px solid rgba(108, 92, 231, 0.3)' }}>
-                    <div className="flex items-center justify-center gap-2">
-                      <span className="text-2xl">💡</span>
-                      <h3 className="font-semibold" style={{ color: '#6c5ce7' }}>Pro Tip</h3>
-                    </div>
-                    <p className="text-sm mt-2" style={{ color: '#848e9c' }}>
-                      Take your time with each question. Read the explanations carefully after each answer to learn the patterns better.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex gap-4">
-                  <button
-                    onClick={handleQuit}
-                    className="flex-1 py-4 rounded-xl font-semibold transition-all duration-200 hover:scale-[1.02]"
-                    style={{
-                      backgroundColor: '#2b3139',
-                      color: '#eaecef',
-                      border: '1px solid #2b3139'
-                    }}
-                  >
-                    ← Back to Home
-                  </button>
-                  <button
-                    onClick={handleRetry}
-                    className="flex-1 py-4 rounded-xl font-bold transition-all duration-200 hover:scale-[1.02]"
-                    style={{
-                      background: 'linear-gradient(135deg, #0ecb81 0%, #6c5ce7 100%)',
-                      color: '#eaecef'
-                    }}
-                  >
-                    Try Again 🎯
-                  </button>
-                </div>
-              </div>
-            )}
+              </CardContent>
+            </Card>
           </div>
-        </main>
-
-        {/* Footer */}
-        <footer className="py-6 text-center border-t" style={{ backgroundColor: '#1e2329', borderColor: '#2b3139' }}>
-          <p className="text-sm" style={{ color: '#848e9c' }}>
-            Made by <span style={{ color: '#0ecb81', fontWeight: 'bold' }}>SnipersRUs</span> • Master the charts, master the market
-          </p>
-        </footer>
+        </div>
       </div>
     </div>
-  );
+  )
 }

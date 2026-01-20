@@ -1,0 +1,106 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model CryptoNews {
+  id          String   @id @default(cuid())
+  title       String
+  snippet     String?
+  url         String   @unique
+  source      String
+  category    String   @default("general")
+  tokens      String?
+  impactLevel String   @default("low") // low, medium, high, critical
+  sentiment   String   @default("neutral") // bullish, bearish, neutral
+  publishedAt DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  alerts CryptoAlert[]
+}
+
+model CryptoInfluencer {
+  id            String   @id @default(cuid())
+  name          String
+  handle        String   @unique
+  platform      String   @default("Twitter/X")
+  influenceLevel String  @default("medium") // legendary, high, medium, low
+  focus         String   @default("general") // tech, defi, trading, nft, general
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  posts CryptoInfluencerPost[]
+}
+
+model CryptoInfluencerPost {
+  id           String   @id @default(cuid())
+  influencerId String
+  influencer   CryptoInfluencer @relation(fields: [influencerId], references: [id], onDelete: Cascade)
+  content      String
+  url          String?
+  postedAt     DateTime
+  createdAt    DateTime @default(now())
+
+  @@index([influencerId])
+  @@index([postedAt])
+}
+
+model CryptoAlert {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  severity    String   @default("warning") // critical, warning, info
+  sourceType  String   @default("news") // news, whale, onchain
+  sourceId    String?
+  tokens      String?
+  resolved    Boolean  @default(false)
+  resolvedAt  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  news CryptoNews? @relation(fields: [sourceId], references: [id], onDelete: SetNull)
+
+  @@index([resolved])
+  @@index([severity])
+  @@index([createdAt])
+}
+
+model WhaleTransaction {
+  id          String   @id @default(cuid())
+  hash        String   @unique
+  from        String
+  to          String
+  amount      String
+  token       String
+  tokenSymbol String
+  valueUSD    Float
+  timestamp   DateTime
+  type        String   @default("transfer") // transfer, exchange, withdrawal, deposit
+  exchange    String?
+  impact      String   @default("low") // low, medium, high, critical
+  createdAt   DateTime @default(now())
+
+  @@index([timestamp])
+  @@index([token])
+  @@index([impact])
+}
+
+model OnChainMetric {
+  id        String   @id @default(cuid())
+  metric    String   @unique
+  value     Float
+  change24h Float?
+  timestamp DateTime @default(now())
+  createdAt DateTime @default(now())
+
+  @@index([metric])
+  @@index([timestamp])
+}

@@ -1,55 +1,60 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getAlerts, resolveAlert } from '@/lib/cryptoNews';
+import { NextRequest, NextResponse } from 'next/server'
+import { db } from '@/lib/db-fresh'
 
 export async function GET(request: NextRequest) {
   try {
-    const searchParams = request.nextUrl.searchParams;
-    const activeOnly = searchParams.get('active') === 'true';
-    
-    let alerts = getAlerts();
-    
-    if (activeOnly) {
-      alerts = alerts.filter(a => !a.resolved);
+    const searchParams = request.nextUrl.searchParams
+    const unresolved = searchParams.get('unresolved')
+    const severity = searchParams.get('severity')
+    const limit = parseInt(searchParams.get('limit') || '20')
+
+    const where: any = {}
+
+    if (unresolved === 'true') {
+      where.resolved = false
     }
-    
-    // Sort by timestamp (newest first)
-    alerts.sort((a, b) => b.timestamp - a.timestamp);
-    
-    return NextResponse.json({
-      success: true,
-      data: alerts,
-      count: alerts.length,
-    });
-  } catch (error: any) {
+
+    if (severity) {
+      where.severity = severity
+    }
+
+    const alerts = await db.cryptoAlert.findMany({
+      where,
+      orderBy: {
+        createdAt: 'desc'
+      },
+      take: limit
+    })
+
+    return NextResponse.json(alerts)
+  } catch (error) {
+    console.error('Error fetching alerts:', error)
     return NextResponse.json(
-      { success: false, error: error.message },
+      { error: 'Failed to fetch alerts' },
       { status: 500 }
-    );
+    )
   }
 }
 
 export async function PATCH(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { alertId } = body;
-    
-    if (!alertId) {
-      return NextResponse.json(
-        { success: false, error: 'alertId is required' },
-        { status: 400 }
-      );
-    }
-    
-    resolveAlert(alertId);
-    
-    return NextResponse.json({
-      success: true,
-      message: 'Alert resolved',
-    });
-  } catch (error: any) {
+    const body = await request.json()
+    const { id, resolved } = body
+
+    const alert = await db.cryptoAlert.update({
+      where: { id },
+      data: {
+        resolved,
+        resolvedAt: resolved ? new Date() : null
+      }
+    })
+
+    return NextResponse.json(alert)
+  } catch (error) {
+    console.error('Error updating alert:', error)
     return NextResponse.json(
-      { success: false, error: error.message },
+      { error: 'Failed to update alert' },
       { status: 500 }
-    );
+    )
   }
 }
