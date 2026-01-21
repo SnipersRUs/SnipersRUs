@@ -1262,6 +1262,9 @@
             color: var(--text-secondary);
             cursor: pointer;
             transition: all 0.2s ease;
+            pointer-events: auto;
+            position: relative;
+            z-index: 10;
         }
 
         .paper-order-tab.active {
@@ -1288,6 +1291,9 @@
             cursor: pointer;
             transition: all 0.2s ease;
             border: 2px solid transparent;
+            pointer-events: auto;
+            position: relative;
+            z-index: 10;
         }
 
         .paper-trade-btn.long {
@@ -1355,6 +1361,10 @@
         }
 
         .paper-percent-btn {
+            pointer-events: auto;
+            position: relative;
+            z-index: 10;
+            cursor: pointer;
             padding: 6px;
             background: var(--glass);
             border: 1px solid var(--glass-border);
@@ -2105,7 +2115,6 @@
             <a href="#indicators">Sniper Suite</a>
             <a href="#rules">Rules</a>
             <a href="#trades">Active Trades</a>
-            <a href="#news">News</a>
             <a href="#paper-trading">Paper Trade</a>
             <a href="#membership">Membership</a>
             <a href="#arcade">Arcade</a>
@@ -2363,6 +2372,129 @@
         </div>
     </div>
 
+    <!-- Paper Trading Section -->
+    <div class="paper-trading-section" id="paper-trading">
+        <div class="paper-trading-header">
+            <h2>📊 Paper Trading</h2>
+            <div>
+                <button class="paper-action-btn" id="paperResetBtn">Reset Portfolio</button>
+            </div>
+        </div>
+
+        <div class="paper-trading-grid">
+            <!-- Left: Chart and Positions -->
+            <div>
+                <div class="paper-trading-chart">
+                    <div id="paperTradingViewChart" class="tv-embed" style="height: 500px;">
+                        <iframe
+                            id="paperTradingIframe"
+                            src="https://www.tradingview.com/widgetembed/?frameElementId=tradingview&symbol=OKX%3ABTCUSDT.P&interval=15&theme=dark&style=1&timezone=Etc%2FUTC&studies=%5B%5D&hideideas=1&overrides=%7B%22mainSeriesProperties.candleStyle.upColor%22%3A%22%230ecb81%22%2C%22mainSeriesProperties.candleStyle.downColor%22%3A%22%239c27b0%22%2C%22mainSeriesProperties.candleStyle.borderUpColor%22%3A%22%230ecb81%22%2C%22mainSeriesProperties.candleStyle.borderDownColor%22%3A%22%239c27b0%22%2C%22mainSeriesProperties.candleStyle.wickUpColor%22%3A%22%230ecb81%22%2C%22mainSeriesProperties.candleStyle.wickDownColor%22%3A%22%239c27b0%22%7D"
+                            style="width: 100%; height: 100%; margin: 0; padding: 0; border: none;"
+                            frameborder="0"
+                            allowtransparency="true"
+                            scrolling="no"
+                            allowfullscreen
+                        ></iframe>
+                    </div>
+                </div>
+
+                <div class="paper-order-card" style="margin-top: 20px;">
+                    <div class="paper-positions-tabs">
+                        <button class="paper-positions-tab active" data-tab="open">Open Positions <span id="openPosCount">0</span></button>
+                        <button class="paper-positions-tab" data-tab="pending">Pending Orders <span id="pendingCount">0</span></button>
+                        <button class="paper-positions-tab" data-tab="closed">Trade History <span id="closedCount">0</span></button>
+                    </div>
+
+                    <div id="paperPositionsContent" style="max-height: 400px; overflow-y: auto;">
+                        <div class="paper-empty-state">
+                            <p>No open positions</p>
+                            <p style="font-size: 0.85rem; margin-top: 8px;">Place a trade to get started</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right: Portfolio and Order Panel -->
+            <div class="paper-trading-panel">
+                <div class="paper-portfolio-card">
+                    <h3>💰 Portfolio</h3>
+                    <div class="paper-portfolio-row">
+                        <span class="paper-portfolio-label">Available Balance</span>
+                        <span class="paper-portfolio-value" id="paperBalance">$10,000.00</span>
+                    </div>
+                    <div class="paper-portfolio-row">
+                        <span class="paper-portfolio-label">Equity</span>
+                        <span class="paper-portfolio-value" id="paperEquity">$10,000.00</span>
+                    </div>
+                    <div class="paper-portfolio-row">
+                        <span class="paper-portfolio-label">Realized P&L</span>
+                        <span class="paper-portfolio-value" id="paperRealizedPnL" style="color: var(--text-secondary);">$0.00</span>
+                    </div>
+                    <div class="paper-portfolio-row">
+                        <span class="paper-portfolio-label">Unrealized P&L</span>
+                        <span class="paper-portfolio-value" id="paperUnrealizedPnL" style="color: var(--text-secondary);">$0.00</span>
+                    </div>
+                </div>
+
+                <div class="paper-order-card">
+                    <div class="paper-order-tabs">
+                        <button class="paper-order-tab active" data-order-type="market" type="button">Market</button>
+                        <button class="paper-order-tab" data-order-type="limit" type="button">Limit</button>
+                    </div>
+
+                    <div class="paper-trade-buttons">
+                        <button class="paper-trade-btn long active" data-trade-type="buy" type="button">LONG</button>
+                        <button class="paper-trade-btn short" data-trade-type="sell" type="button">SHORT</button>
+                    </div>
+
+                    <div class="paper-input-group">
+                        <div class="paper-input-label">
+                            <span>Amount (BTC)</span>
+                            <span id="paperAvailableAmount">Available: -- BTC</span>
+                        </div>
+                        <input type="number" step="0.00001" class="paper-input" id="paperAmount" placeholder="0.00000">
+                        <div class="paper-percent-buttons">
+                            <button class="paper-percent-btn" data-percent="25" type="button">25%</button>
+                            <button class="paper-percent-btn" data-percent="50" type="button">50%</button>
+                            <button class="paper-percent-btn" data-percent="75" type="button">75%</button>
+                            <button class="paper-percent-btn" data-percent="100" type="button">100%</button>
+                        </div>
+                    </div>
+
+                    <div class="paper-input-group" id="paperLimitPriceGroup" style="display: none;">
+                        <div class="paper-input-label">
+                            <span>Limit Price (USDT)</span>
+                        </div>
+                        <input type="number" step="0.01" class="paper-input" id="paperLimitPrice" placeholder="Enter limit price">
+                        <div class="paper-percent-buttons">
+                            <button class="paper-percent-btn" data-price-offset="-5" type="button">-5%</button>
+                            <button class="paper-percent-btn" data-price-offset="5" type="button">+5%</button>
+                            <button class="paper-percent-btn" data-price-offset="-1" type="button">-1%</button>
+                            <button class="paper-percent-btn" data-price-offset="1" type="button">+1%</button>
+                        </div>
+                    </div>
+
+                    <div id="paperOrderSummary" style="display: none; padding: 12px; background: var(--bg-input); border-radius: 8px; margin-bottom: 16px;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                            <span style="color: var(--text-secondary);">Price</span>
+                            <span id="paperOrderPrice" style="font-weight: 700; font-family: monospace;">--</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                            <span style="color: var(--text-secondary);">Amount</span>
+                            <span id="paperOrderAmount" style="font-weight: 700; font-family: monospace;">--</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; padding-top: 8px; border-top: 1px solid var(--glass-border); font-weight: 700;">
+                            <span>Total</span>
+                            <span id="paperOrderTotal" style="font-family: monospace;">--</span>
+                        </div>
+                    </div>
+
+                    <button class="paper-submit-btn long" id="paperSubmitBtn" type="button" disabled>Place Market Order</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Active Trades Section -->
     <div class="active-trades" id="trades">
         <div class="section-header">
@@ -2400,79 +2532,6 @@
         </div>
     </div>
 
-    <!-- Crypto News Feed Section -->
-    <div class="news-section" id="news">
-        <div class="section-header">
-            <h2>📰 Market News Feed</h2>
-            <p>Real-time news from Yahoo Finance covering all markets</p>
-        </div>
-
-        <div class="news-market-tabs">
-            <button class="news-market-tab active" data-market="all">All Markets</button>
-            <button class="news-market-tab" data-market="crypto">Crypto</button>
-            <button class="news-market-tab" data-market="stocks">Stocks</button>
-            <button class="news-market-tab" data-market="forex">Forex</button>
-            <button class="news-market-tab" data-market="commodities">Commodities</button>
-            <button class="news-market-tab" data-market="economy">Economy</button>
-        </div>
-
-        <div class="news-filters">
-            <button class="news-filter-btn active" data-category="all">All</button>
-            <button class="news-filter-btn" data-category="regulation">Regulation</button>
-            <button class="news-filter-btn" data-category="defi">DeFi</button>
-            <button class="news-filter-btn" data-category="trading">Trading</button>
-            <button class="news-filter-btn" data-category="tech">Tech</button>
-            <button class="news-filter-btn" data-category="nft">NFT</button>
-        </div>
-
-        <div class="news-grid">
-            <div class="news-main">
-                <div class="news-stats">
-                    <div class="news-stat-card">
-                        <div class="news-stat-icon">🔥</div>
-                        <div>
-                            <div class="news-stat-value" id="hotNewsCount">12</div>
-                            <div class="news-stat-label">Hot News</div>
-                        </div>
-                    </div>
-                    <div class="news-stat-card">
-                        <div class="news-stat-icon">⚠️</div>
-                        <div>
-                            <div class="news-stat-value" id="alertCount">3</div>
-                            <div class="news-stat-label">Active Alerts</div>
-                        </div>
-                    </div>
-                    <div class="news-stat-card">
-                        <div class="news-stat-icon">📊</div>
-                        <div>
-                            <div class="news-stat-value" id="totalNewsCount">47</div>
-                            <div class="news-stat-label">Total News</div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="news-list" id="newsList">
-                    <!-- News items will be injected here -->
-                </div>
-            </div>
-
-            <div class="news-sidebar">
-                <div class="news-sidebar-card">
-                    <h3>🚨 Critical Alerts</h3>
-                    <div class="news-alerts-list" id="alertsList">
-                        <!-- Alerts will be injected here -->
-                    </div>
-                </div>
-
-                <div class="news-sidebar-card">
-                    <h3>⚡ Hot Takes</h3>
-                    <div class="news-hot-takes" id="hotTakesList">
-                        <!-- Hot takes will be injected here -->
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
 
     <!-- Indicators Section -->
     <div class="laws-section" id="indicators">
@@ -2618,129 +2677,6 @@
     </div>
 
     <!-- ARCADE GAME SECTION -->
-    <!-- Paper Trading Section -->
-    <div class="paper-trading-section" id="paper-trading">
-        <div class="paper-trading-header">
-            <h2>📊 Paper Trading</h2>
-            <div>
-                <button class="paper-action-btn" id="paperResetBtn">Reset Portfolio</button>
-            </div>
-        </div>
-
-        <div class="paper-trading-grid">
-            <!-- Left: Chart and Positions -->
-            <div>
-                <div class="paper-trading-chart">
-                    <div id="paperTradingViewChart" class="tv-embed" style="height: 500px;">
-                        <iframe
-                            id="paperTradingIframe"
-                            src="https://www.tradingview.com/widgetembed/?frameElementId=tradingview&symbol=OKX%3ABTCUSDT.P&interval=15&theme=dark&style=1&timezone=Etc%2FUTC&studies=%5B%5D&hideideas=1&overrides=%7B%22mainSeriesProperties.candleStyle.upColor%22%3A%22%230ecb81%22%2C%22mainSeriesProperties.candleStyle.downColor%22%3A%22%239c27b0%22%2C%22mainSeriesProperties.candleStyle.borderUpColor%22%3A%22%230ecb81%22%2C%22mainSeriesProperties.candleStyle.borderDownColor%22%3A%22%239c27b0%22%2C%22mainSeriesProperties.candleStyle.wickUpColor%22%3A%22%230ecb81%22%2C%22mainSeriesProperties.candleStyle.wickDownColor%22%3A%22%239c27b0%22%7D"
-                            style="width: 100%; height: 100%; margin: 0; padding: 0; border: none;"
-                            frameborder="0"
-                            allowtransparency="true"
-                            scrolling="no"
-                            allowfullscreen
-                        ></iframe>
-                    </div>
-                </div>
-
-                <div class="paper-order-card" style="margin-top: 20px;">
-                    <div class="paper-positions-tabs">
-                        <button class="paper-positions-tab active" data-tab="open">Open Positions <span id="openPosCount">0</span></button>
-                        <button class="paper-positions-tab" data-tab="pending">Pending Orders <span id="pendingCount">0</span></button>
-                        <button class="paper-positions-tab" data-tab="closed">Trade History <span id="closedCount">0</span></button>
-                    </div>
-
-                    <div id="paperPositionsContent" style="max-height: 400px; overflow-y: auto;">
-                        <div class="paper-empty-state">
-                            <p>No open positions</p>
-                            <p style="font-size: 0.85rem; margin-top: 8px;">Place a trade to get started</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Right: Portfolio and Order Panel -->
-            <div class="paper-trading-panel">
-                <div class="paper-portfolio-card">
-                    <h3>💰 Portfolio</h3>
-                    <div class="paper-portfolio-row">
-                        <span class="paper-portfolio-label">Available Balance</span>
-                        <span class="paper-portfolio-value" id="paperBalance">$10,000.00</span>
-                    </div>
-                    <div class="paper-portfolio-row">
-                        <span class="paper-portfolio-label">Equity</span>
-                        <span class="paper-portfolio-value" id="paperEquity">$10,000.00</span>
-                    </div>
-                    <div class="paper-portfolio-row">
-                        <span class="paper-portfolio-label">Realized P&L</span>
-                        <span class="paper-portfolio-value" id="paperRealizedPnL" style="color: var(--text-secondary);">$0.00</span>
-                    </div>
-                    <div class="paper-portfolio-row">
-                        <span class="paper-portfolio-label">Unrealized P&L</span>
-                        <span class="paper-portfolio-value" id="paperUnrealizedPnL" style="color: var(--text-secondary);">$0.00</span>
-                    </div>
-                </div>
-
-                <div class="paper-order-card">
-                    <div class="paper-order-tabs">
-                        <button class="paper-order-tab active" data-order-type="market">Market</button>
-                        <button class="paper-order-tab" data-order-type="limit">Limit</button>
-                    </div>
-
-                    <div class="paper-trade-buttons">
-                        <button class="paper-trade-btn long active" data-trade-type="buy">LONG</button>
-                        <button class="paper-trade-btn short" data-trade-type="sell">SHORT</button>
-                    </div>
-
-                    <div class="paper-input-group">
-                        <div class="paper-input-label">
-                            <span>Amount (BTC)</span>
-                            <span id="paperAvailableAmount">Available: -- BTC</span>
-                        </div>
-                        <input type="number" step="0.00001" class="paper-input" id="paperAmount" placeholder="0.00000">
-                        <div class="paper-percent-buttons">
-                            <button class="paper-percent-btn" data-percent="25">25%</button>
-                            <button class="paper-percent-btn" data-percent="50">50%</button>
-                            <button class="paper-percent-btn" data-percent="75">75%</button>
-                            <button class="paper-percent-btn" data-percent="100">100%</button>
-                        </div>
-                    </div>
-
-                    <div class="paper-input-group" id="paperLimitPriceGroup" style="display: none;">
-                        <div class="paper-input-label">
-                            <span>Limit Price (USDT)</span>
-                        </div>
-                        <input type="number" step="0.01" class="paper-input" id="paperLimitPrice" placeholder="Enter limit price">
-                        <div class="paper-percent-buttons">
-                            <button class="paper-percent-btn" data-price-offset="-5">-5%</button>
-                            <button class="paper-percent-btn" data-price-offset="5">+5%</button>
-                            <button class="paper-percent-btn" data-price-offset="-1">-1%</button>
-                            <button class="paper-percent-btn" data-price-offset="1">+1%</button>
-                        </div>
-                    </div>
-
-                    <div id="paperOrderSummary" style="display: none; padding: 12px; background: var(--bg-input); border-radius: 8px; margin-bottom: 16px;">
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                            <span style="color: var(--text-secondary);">Price</span>
-                            <span id="paperOrderPrice" style="font-weight: 700; font-family: monospace;">--</span>
-                        </div>
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                            <span style="color: var(--text-secondary);">Amount</span>
-                            <span id="paperOrderAmount" style="font-weight: 700; font-family: monospace;">--</span>
-                        </div>
-                        <div style="display: flex; justify-content: space-between; padding-top: 8px; border-top: 1px solid var(--glass-border); font-weight: 700;">
-                            <span>Total</span>
-                            <span id="paperOrderTotal" style="font-family: monospace;">--</span>
-                        </div>
-                    </div>
-
-                    <button class="paper-submit-btn long" id="paperSubmitBtn" disabled>Place Market Order</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <div class="arcade-section" id="arcade">
         <div class="section-header">
             <h2>Candle Sniper Arcade</h2>
@@ -4700,81 +4636,38 @@
 
             // Initialize
             loadPaperPortfolio();
-            
-            // Ensure balance is initialized
-            if (!paperPortfolio.balance || paperPortfolio.balance <= 0 || isNaN(paperPortfolio.balance)) {
-                paperPortfolio.balance = 10000;
-                savePaperPortfolio();
-            }
-            
-            // Ensure trades array exists
-            if (!Array.isArray(paperPortfolio.trades)) {
-                paperPortfolio.trades = [];
-                savePaperPortfolio();
-            }
-            
-            // Set default order type to market
-            paperCurrentOrderType = 'market';
-            const defaultMarketTab = document.querySelector('.paper-order-tab[data-order-type="market"]');
-            if (defaultMarketTab) {
-                document.querySelectorAll('.paper-order-tab').forEach(t => t.classList.remove('active'));
-                defaultMarketTab.classList.add('active');
-            }
-            
-            // Set default trade type to buy
-            paperCurrentTradeType = 'buy';
-            const defaultBuyBtn = document.querySelector('.paper-trade-btn[data-trade-type="buy"]');
-            if (defaultBuyBtn) {
-                document.querySelectorAll('.paper-trade-btn').forEach(b => b.classList.remove('active'));
-                defaultBuyBtn.classList.add('active');
-            }
-            
             updatePaperUI();
-            updatePaperSubmitButton();
 
-            // Trade type buttons
-            document.querySelectorAll('.paper-trade-btn').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    document.querySelectorAll('.paper-trade-btn').forEach(b => b.classList.remove('active'));
-                    btn.classList.add('active');
-                    paperCurrentTradeType = btn.dataset.tradeType;
+            // Order type tabs (Market/Limit) - Use event delegation
+            document.addEventListener('click', function(e) {
+                if (e.target.classList.contains('paper-order-tab')) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const tab = e.target;
+                    document.querySelectorAll('.paper-order-tab').forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+                    paperCurrentOrderType = tab.dataset.orderType || 'market';
+                    const limitGroup = document.getElementById('paperLimitPriceGroup');
+                    if (limitGroup) {
+                        limitGroup.style.display = paperCurrentOrderType === 'limit' ? 'block' : 'none';
+                    }
                     updatePaperSubmitButton();
-                });
+                    updatePaperOrderSummary();
+                }
             });
 
-            // Order type tabs - use event delegation to ensure it works
-            const orderTabsContainer = document.querySelector('.paper-order-tabs');
-            if (orderTabsContainer) {
-                orderTabsContainer.addEventListener('click', (e) => {
-                    const tab = e.target.closest('.paper-order-tab');
-                    if (!tab) return;
-                    
-                    document.querySelectorAll('.paper-order-tab').forEach(t => t.classList.remove('active'));
-                    tab.classList.add('active');
-                    paperCurrentOrderType = tab.dataset.orderType || tab.getAttribute('data-order-type');
-                    const limitGroup = document.getElementById('paperLimitPriceGroup');
-                    if (limitGroup) {
-                        limitGroup.style.display = paperCurrentOrderType === 'limit' ? 'block' : 'none';
-                    }
-                    updatePaperOrderSummary();
-                    updatePaperSubmitButton();
-                });
-            }
-            
-            // Also attach direct listeners as fallback
-            document.querySelectorAll('.paper-order-tab').forEach(tab => {
-                tab.addEventListener('click', (e) => {
+            // Trade type buttons (LONG/SHORT) - Use event delegation
+            document.addEventListener('click', function(e) {
+                if (e.target.classList.contains('paper-trade-btn')) {
+                    e.preventDefault();
                     e.stopPropagation();
-                    document.querySelectorAll('.paper-order-tab').forEach(t => t.classList.remove('active'));
-                    tab.classList.add('active');
-                    paperCurrentOrderType = tab.dataset.orderType || tab.getAttribute('data-order-type');
-                    const limitGroup = document.getElementById('paperLimitPriceGroup');
-                    if (limitGroup) {
-                        limitGroup.style.display = paperCurrentOrderType === 'limit' ? 'block' : 'none';
-                    }
-                    updatePaperOrderSummary();
+                    const btn = e.target;
+                    document.querySelectorAll('.paper-trade-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    paperCurrentTradeType = btn.dataset.tradeType || 'buy';
                     updatePaperSubmitButton();
-                });
+                    updatePaperOrderSummary();
+                }
             });
 
             // Position tabs
@@ -4805,10 +4698,12 @@
                 });
             }
 
-            // Percent buttons
-            document.querySelectorAll('.paper-percent-btn[data-percent]').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    const percent = parseFloat(btn.dataset.percent);
+            // Percent buttons - Use event delegation
+            document.addEventListener('click', function(e) {
+                if (e.target.classList.contains('paper-percent-btn') && e.target.dataset.percent) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const percent = parseFloat(e.target.dataset.percent);
                     if (state.price && amountInput) {
                         const availableBalance = paperPortfolio.balance;
                         const coinAmount = (availableBalance / state.price) * (percent / 100);
@@ -4816,20 +4711,22 @@
                         updatePaperOrderSummary();
                         updatePaperSubmitButton();
                     }
-                });
+                }
             });
 
-            // Price offset buttons
-            document.querySelectorAll('.paper-percent-btn[data-price-offset]').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    const offset = parseFloat(btn.dataset.priceOffset);
+            // Price offset buttons - Use event delegation
+            document.addEventListener('click', function(e) {
+                if (e.target.classList.contains('paper-percent-btn') && e.target.dataset.priceOffset) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const offset = parseFloat(e.target.dataset.priceOffset);
                     if (state.price && limitPriceInput) {
                         const newPrice = state.price * (1 + offset / 100);
                         limitPriceInput.value = newPrice.toFixed(2);
                         updatePaperOrderSummary();
                         updatePaperSubmitButton();
                     }
-                });
+                }
             });
 
             // Submit button
@@ -4933,65 +4830,40 @@
 
             // Update submit button
             function updatePaperSubmitButton() {
-                if (!submitBtn) return;
-                
                 const amount = parseFloat(amountInput?.value || '0');
                 const price = paperCurrentOrderType === 'market'
-                    ? (state.price || 0)
+                    ? state.price
                     : parseFloat(limitPriceInput?.value || '0');
                 const totalCost = amount * price;
 
-                // Validation
-                let isValid = amount > 0;
-                
-                if (paperCurrentOrderType === 'limit') {
-                    isValid = isValid && price > 0 && price !== (state.price || 0);
-                } else {
-                    isValid = isValid && (state.price && state.price > 0);
-                }
-                
-                if (paperCurrentTradeType === 'buy') {
-                    isValid = isValid && totalCost <= paperPortfolio.balance;
-                }
+                const isValid = amount > 0 &&
+                    (paperCurrentOrderType === 'market' || (price > 0 && price !== state.price)) &&
+                    (paperCurrentTradeType === 'sell' || totalCost <= paperPortfolio.balance);
 
-                submitBtn.disabled = !isValid;
-                
-                // Update button text based on order type and trade type
-                const orderTypeText = paperCurrentOrderType === 'market' ? 'Market' : 'Limit';
-                const tradeTypeText = paperCurrentTradeType === 'buy' ? 'Buy' : 'Sell';
-                submitBtn.textContent = `Place ${tradeTypeText} ${orderTypeText} Order`;
-                submitBtn.className = `paper-submit-btn ${paperCurrentTradeType}`;
+                if (submitBtn) {
+                    submitBtn.disabled = !isValid;
+                    submitBtn.textContent = paperCurrentOrderType === 'market'
+                        ? (paperCurrentTradeType === 'buy' ? 'Buy Market' : 'Sell Market')
+                        : (paperCurrentTradeType === 'buy' ? 'Place Buy Limit' : 'Place Sell Limit');
+                    submitBtn.className = `paper-submit-btn ${paperCurrentTradeType}`;
+                }
             }
 
             // Update UI
             function updatePaperUI() {
-                // Ensure balance exists
-                if (!paperPortfolio.balance || isNaN(paperPortfolio.balance)) {
-                    paperPortfolio.balance = 10000;
-                    savePaperPortfolio();
-                }
-                
-                // Ensure trades array exists
-                if (!Array.isArray(paperPortfolio.trades)) {
-                    paperPortfolio.trades = [];
-                    savePaperPortfolio();
-                }
-                
                 const openPositions = paperPortfolio.trades.filter(t => t.status === 'open' && t.symbol === state.symbol);
                 const pendingOrders = paperPortfolio.trades.filter(t => t.status === 'pending' && t.symbol === state.symbol);
                 const closedTrades = paperPortfolio.trades.filter(t => t.status === 'closed' && t.symbol === state.symbol);
 
                 // Calculate unrealized P&L
                 let unrealizedPnL = 0;
-                if (state.price && state.price > 0) {
-                    openPositions.forEach(trade => {
-                        if (trade.type === 'buy') {
-                            unrealizedPnL += (state.price - trade.price) * trade.amount;
-                        } else {
-                            unrealizedPnL += (trade.price - state.price) * trade.amount;
-                        }
-                    });
-                }
+                openPositions.forEach(trade => {
+                    if (trade.type === 'buy') {
+                        unrealizedPnL += (state.price - trade.price) * trade.amount;
+                    } else {
+                        unrealizedPnL += (trade.price - state.price) * trade.amount;
+                    }
+                });
 
                 // Calculate realized P&L
                 const realizedPnL = closedTrades.reduce((sum, t) => sum + (t.pnl || 0), 0);
@@ -5005,12 +4877,8 @@
                 const realizedEl = document.getElementById('paperRealizedPnL');
                 const unrealizedEl = document.getElementById('paperUnrealizedPnL');
 
-                if (balanceEl) {
-                    balanceEl.textContent = `$${paperPortfolio.balance.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-                }
-                if (equityEl) {
-                    equityEl.textContent = `$${equity.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-                }
+                if (balanceEl) balanceEl.textContent = `$${paperPortfolio.balance.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
+                if (equityEl) equityEl.textContent = `$${equity.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
                 if (realizedEl) {
                     realizedEl.textContent = `${realizedPnL >= 0 ? '+' : ''}$${realizedPnL.toFixed(2)}`;
                     realizedEl.style.color = realizedPnL >= 0 ? 'var(--accent-green)' : 'var(--accent-purple)';
@@ -5032,11 +4900,12 @@
                 // Update available amount
                 const availableEl = document.getElementById('paperAvailableAmount');
                 if (availableEl) {
-                    if (state.price && state.price > 0) {
+                    if (state.price && state.price > 0 && state.symbol) {
                         const availableBTC = paperPortfolio.balance / state.price;
-                        availableEl.textContent = `Available: ${availableBTC.toFixed(8)} ${state.symbol}`;
+                        const symbolDisplay = state.symbol.replace('USDT', '').replace('/', '');
+                        availableEl.textContent = `Available: ${availableBTC.toFixed(8)} ${symbolDisplay}`;
                     } else {
-                        availableEl.textContent = `Available: Loading...`;
+                        availableEl.textContent = `Available: -- ${state.symbol || 'BTC'}`;
                     }
                 }
 
@@ -5245,16 +5114,8 @@
                 }
             }, 1000);
 
-            // Initial render - wait for DOM to be ready
-            if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', () => {
-                    renderPaperPositions();
-                    updatePaperUI();
-                });
-            } else {
-                renderPaperPositions();
-                updatePaperUI();
-            }
+            // Initial render
+            renderPaperPositions();
 
             // Update every second
             setInterval(() => {
@@ -5262,39 +5123,7 @@
                 if (paperCurrentTab === 'open') {
                     renderPaperPositions();
                 }
-                // Check pending orders
-                checkPendingOrders();
             }, 1000);
-            
-            // Check pending limit orders
-            function checkPendingOrders() {
-                if (!state.price || state.price <= 0) return;
-                
-                const pending = paperPortfolio.trades.filter(t => t.status === 'pending' && t.symbol === state.symbol);
-                let updated = false;
-                
-                pending.forEach(trade => {
-                    if (trade.type === 'buy' && state.price <= trade.limitPrice) {
-                        // Buy limit filled
-                        trade.status = 'open';
-                        trade.price = trade.limitPrice;
-                        paperPortfolio.balance -= trade.amount * trade.limitPrice;
-                        updated = true;
-                    } else if (trade.type === 'sell' && state.price >= trade.limitPrice) {
-                        // Sell limit filled
-                        trade.status = 'open';
-                        trade.price = trade.limitPrice;
-                        paperPortfolio.balance += trade.amount * trade.limitPrice;
-                        updated = true;
-                    }
-                });
-                
-                if (updated) {
-                    savePaperPortfolio();
-                    updatePaperUI();
-                    renderPaperPositions();
-                }
-            }
 
             // Update paper trading chart when pair changes
             function updatePaperTradingChart() {
