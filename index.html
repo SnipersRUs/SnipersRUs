@@ -1,13 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Snipers-R-Us | The Sniper Suite</title>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
-  <style>
+    <style>
         /* ===== DARK THEME (DEFAULT) ===== */
-    :root {
+        :root {
             --bg-dark: #0b0e11;
             --bg-panel: #151a21;
             --bg-card: #2b3139;
@@ -15,8 +16,10 @@
             --text-primary: #eaecef;
             --text-secondary: #848e9c;
             --accent-white: #ffffff;
-            --accent-green: #0ecb81;     /* Bullish */
-            --accent-purple: #9c27b0;    /* Bearish */
+            --accent-green: #0ecb81;
+            /* Bullish */
+            --accent-purple: #9c27b0;
+            /* Bearish */
             --accent-gold: #f0b90b;
             --border-color: #2b3139;
             --glass: rgba(255, 255, 255, 0.04);
@@ -40,9 +43,13 @@
             --shadow-soft: 0 16px 50px rgba(0, 0, 0, 0.12);
         }
 
-        * { box-sizing: border-box; margin: 0; padding: 0; }
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
 
-    body {
+        body {
             background-color: var(--bg-dark);
             color: var(--text-primary);
             font-family: var(--font-family);
@@ -53,11 +60,11 @@
         /* Navigation */
         nav {
             background: linear-gradient(135deg,
-                rgba(15, 17, 25, 0.95) 0%,
-                rgba(20, 15, 30, 0.9) 25%,
-                rgba(15, 25, 20, 0.9) 50%,
-                rgba(20, 15, 30, 0.9) 75%,
-                rgba(15, 17, 25, 0.95) 100%);
+                    rgba(15, 17, 25, 0.95) 0%,
+                    rgba(20, 15, 30, 0.9) 25%,
+                    rgba(15, 25, 20, 0.9) 50%,
+                    rgba(20, 15, 30, 0.9) 75%,
+                    rgba(15, 17, 25, 0.95) 100%);
             padding: 15px 30px;
             display: flex;
             justify-content: space-between;
@@ -72,9 +79,17 @@
         }
 
         @keyframes gradientShift {
-            0% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
+            0% {
+                background-position: 0% 50%;
+            }
+
+            50% {
+                background-position: 100% 50%;
+            }
+
+            100% {
+                background-position: 0% 50%;
+            }
         }
 
         .logo {
@@ -86,7 +101,9 @@
             gap: 10px;
         }
 
-        .logo span { color: var(--accent-white); }
+        .logo span {
+            color: var(--accent-white);
+        }
 
         .logo-mark {
             width: 56px;
@@ -100,17 +117,31 @@
         }
 
         @keyframes logoFloat {
-            0%, 100% { transform: translateY(0px); }
-            50% { transform: translateY(-4px); }
+
+            0%,
+            100% {
+                transform: translateY(0px);
+            }
+
+            50% {
+                transform: translateY(-4px);
+            }
         }
 
         @keyframes logoGlow {
-            0%, 100% { box-shadow: 0 0 18px rgba(156, 39, 176, 0.45); }
-            50% { box-shadow: 0 0 28px rgba(14, 203, 129, 0.55); }
+
+            0%,
+            100% {
+                box-shadow: 0 0 18px rgba(156, 39, 176, 0.45);
+            }
+
+            50% {
+                box-shadow: 0 0 28px rgba(14, 203, 129, 0.55);
+            }
         }
 
         .nav-links {
-      display: flex;
+            display: flex;
             gap: 30px;
             align-items: center;
         }
@@ -145,15 +176,18 @@
         }
 
         @keyframes slowGreenGlowButton {
-            0%, 100% {
+
+            0%,
+            100% {
                 box-shadow: 0 0 8px rgba(14, 203, 129, 0.4),
-                            0 0 15px rgba(14, 203, 129, 0.3),
-                            inset 0 0 10px rgba(14, 203, 129, 0.2);
+                    0 0 15px rgba(14, 203, 129, 0.3),
+                    inset 0 0 10px rgba(14, 203, 129, 0.2);
             }
+
             50% {
                 box-shadow: 0 0 15px rgba(14, 203, 129, 0.7),
-                            0 0 25px rgba(14, 203, 129, 0.5),
-                            inset 0 0 15px rgba(14, 203, 129, 0.3);
+                    0 0 25px rgba(14, 203, 129, 0.5),
+                    inset 0 0 15px rgba(14, 203, 129, 0.3);
             }
         }
 
@@ -192,13 +226,13 @@
             text-align: center;
             padding: 80px 20px;
             background: radial-gradient(circle at top, rgba(156, 39, 176, 0.2), transparent 45%),
-                        radial-gradient(circle at 80% 20%, rgba(14, 203, 129, 0.15), transparent 40%),
-                        linear-gradient(135deg, var(--bg-dark) 0%, #121622 100%);
+                radial-gradient(circle at 80% 20%, rgba(14, 203, 129, 0.15), transparent 40%),
+                linear-gradient(135deg, var(--bg-dark) 0%, #121622 100%);
         }
 
         [data-theme="light"] .hero {
             background: radial-gradient(circle at top, rgba(156, 39, 176, 0.12), transparent 45%),
-                        linear-gradient(135deg, #ffffff 0%, #f5f5f5 100%);
+                linear-gradient(135deg, #ffffff 0%, #f5f5f5 100%);
         }
 
         .hero h1 {
@@ -275,8 +309,15 @@
         }
 
         @keyframes pulse {
-            0%, 100% { opacity:1; }
-            50% { opacity: 0.5; }
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
         }
 
         .scanner-grid {
@@ -366,6 +407,7 @@
                 opacity: 0;
                 transform: translateY(-10px) scale(0.95);
             }
+
             to {
                 opacity: 1;
                 transform: translateY(0) scale(1);
@@ -390,7 +432,7 @@
         }
 
         .gps-popup-row:not(:last-child) {
-            border-bottom: 1px dashed rgba(255,255,255,0.05);
+            border-bottom: 1px dashed rgba(255, 255, 255, 0.05);
         }
 
         .gps-label {
@@ -446,10 +488,25 @@
             background: #eaecef;
         }
 
-        .pair-icon.btc { background: #f7931a; color: #0b0e11; }
-        .pair-icon.eth { background: #627eea; color: #0b0e11; }
-        .pair-icon.xrp { background: #25a768; color: #0b0e11; }
-        .pair-icon.sol { background: #00ffa3; color: #0b0e11; }
+        .pair-icon.btc {
+            background: #f7931a;
+            color: #0b0e11;
+        }
+
+        .pair-icon.eth {
+            background: #627eea;
+            color: #0b0e11;
+        }
+
+        .pair-icon.xrp {
+            background: #25a768;
+            color: #0b0e11;
+        }
+
+        .pair-icon.sol {
+            background: #00ffa3;
+            color: #0b0e11;
+        }
 
         /* Price Panel */
         .price-panel {
@@ -484,8 +541,13 @@
             transition: color 0.3s ease;
         }
 
-        .change-positive { color: var(--accent-green); }
-        .change-negative { color: var(--accent-purple); }
+        .change-positive {
+            color: var(--accent-green);
+        }
+
+        .change-negative {
+            color: var(--accent-purple);
+        }
 
         .scan-summary {
             margin-top: 14px;
@@ -581,11 +643,25 @@
             border: 1px solid var(--glass-border);
         }
 
-        .signal-badge.long { color: var(--accent-green); }
-        .signal-badge.short { color: var(--accent-purple); }
-        .signal-badge.active { color: var(--accent-white); }
-        .signal-badge.tp { color: var(--accent-green); }
-        .signal-badge.sl { color: #ff0055; }
+        .signal-badge.long {
+            color: var(--accent-green);
+        }
+
+        .signal-badge.short {
+            color: var(--accent-purple);
+        }
+
+        .signal-badge.active {
+            color: var(--accent-white);
+        }
+
+        .signal-badge.tp {
+            color: var(--accent-green);
+        }
+
+        .signal-badge.sl {
+            color: #ff0055;
+        }
 
         .session-pill {
             padding: 6px 10px;
@@ -703,9 +779,17 @@
             color: var(--accent-purple);
         }
 
-        .value-up { color: var(--accent-green); }
-        .value-down { color: var(--accent-purple); }
-        .value-neutral { color: var(--accent-white); }
+        .value-up {
+            color: var(--accent-green);
+        }
+
+        .value-down {
+            color: var(--accent-purple);
+        }
+
+        .value-neutral {
+            color: var(--accent-white);
+        }
 
         /* Active Trades */
         .active-trades {
@@ -737,7 +821,7 @@
         }
 
         .trade-header {
-      display: flex;
+            display: flex;
             justify-content: space-between;
             align-items: center;
             margin-bottom: 15px;
@@ -749,8 +833,13 @@
             text-transform: uppercase;
         }
 
-        .direction-long { color: var(--accent-green); }
-        .direction-short { color: var(--accent-purple); }
+        .direction-long {
+            color: var(--accent-green);
+        }
+
+        .direction-short {
+            color: var(--accent-purple);
+        }
 
         .trade-time {
             font-size: 0.8rem;
@@ -792,8 +881,13 @@
             font-weight: 700;
         }
 
-        .pnl-positive { color: var(--accent-green); }
-        .pnl-negative { color: var(--accent-purple); }
+        .pnl-positive {
+            color: var(--accent-green);
+        }
+
+        .pnl-negative {
+            color: var(--accent-purple);
+        }
 
         /* 3 Laws Section */
         .laws-section {
@@ -907,7 +1001,7 @@
         }
 
         .social-btn {
-            background: rgba(255,255,255,0.1);
+            background: rgba(255, 255, 255, 0.1);
             color: #fff;
             padding: 12px 25px;
             border-radius: 4px;
@@ -917,7 +1011,7 @@
         }
 
         .social-btn:hover {
-            background: rgba(255,255,255,0.2);
+            background: rgba(255, 255, 255, 0.2);
         }
 
         /* Membership Tiers */
@@ -952,7 +1046,7 @@
 
         .tier-price {
             font-size: 2rem;
-      font-weight: 800;
+            font-weight: 800;
             color: var(--accent-green);
             margin-bottom: 16px;
         }
@@ -965,7 +1059,7 @@
 
         .tier-list li {
             padding: 6px 0;
-            border-bottom: 1px solid rgba(255,255,255,0.06);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
         }
 
         .tier-link {
@@ -1071,9 +1165,9 @@
             height: 80px;
             border-radius: 12px;
             object-fit: contain;
-            background: rgba(255,255,255,0.05);
+            background: rgba(255, 255, 255, 0.05);
             padding: 8px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
             margin-bottom: 10px;
         }
 
@@ -1137,8 +1231,17 @@
         }
 
         @keyframes pulseView {
-            0%, 100% { opacity: 0.6; transform: scale(1); }
-            50% { opacity: 1; transform: scale(1.1); }
+
+            0%,
+            100% {
+                opacity: 0.6;
+                transform: scale(1);
+            }
+
+            50% {
+                opacity: 1;
+                transform: scale(1.1);
+            }
         }
 
         .view-counter-number {
@@ -1154,6 +1257,7 @@
                 opacity: 0;
                 transform: translateY(-10px) scale(0.8);
             }
+
             to {
                 opacity: 1;
                 transform: translateY(0) scale(1);
@@ -1222,7 +1326,7 @@
             display: flex;
             justify-content: space-between;
             padding: 8px 0;
-            border-bottom: 1px dashed rgba(255,255,255,0.1);
+            border-bottom: 1px dashed rgba(255, 255, 255, 0.1);
         }
 
         .paper-portfolio-row:last-child {
@@ -1526,7 +1630,10 @@
 
         .game-scanlines {
             position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
             background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
             background-size: 100% 2px, 3px 100%;
             pointer-events: none;
@@ -1550,7 +1657,11 @@
             display: none;
             border-radius: 6px;
         }
-        #btn-quit:hover { background: #fff; color: #ff0055; }
+
+        #btn-quit:hover {
+            background: #fff;
+            color: #ff0055;
+        }
 
         .game-header {
             text-align: center;
@@ -1578,7 +1689,10 @@
             font-size: 0.75rem;
             border-radius: 8px;
         }
-        .lives-val { color: #ff0055; }
+
+        .lives-val {
+            color: #ff0055;
+        }
 
         #chart-area {
             width: 100%;
@@ -1602,7 +1716,10 @@
             font-family: monospace;
         }
 
-        .game-controls { display: flex; gap: 10px; }
+        .game-controls {
+            display: flex;
+            gap: 10px;
+        }
 
         .game-btn {
             flex: 1;
@@ -1616,16 +1733,34 @@
             transition: transform 0.1s, opacity 0.2s;
             border-radius: 10px;
         }
-        .game-btn:active { transform: scale(0.95); }
-        .game-btn:disabled { opacity: 0.3; cursor: not-allowed; filter: grayscale(1); }
 
-        .game-btn-long { background-color: var(--accent-green); box-shadow: 0 0 15px var(--accent-green); }
-        .game-btn-short { background-color: #ff0055; box-shadow: 0 0 15px #ff0055; }
+        .game-btn:active {
+            transform: scale(0.95);
+        }
+
+        .game-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+            filter: grayscale(1);
+        }
+
+        .game-btn-long {
+            background-color: var(--accent-green);
+            box-shadow: 0 0 15px var(--accent-green);
+        }
+
+        .game-btn-short {
+            background-color: #ff0055;
+            box-shadow: 0 0 15px #ff0055;
+        }
 
         .game-overlay {
             position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.95);
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
             z-index: 20;
             display: none;
             flex-direction: column;
@@ -1651,8 +1786,13 @@
             text-shadow: 0 0 20px currentColor;
         }
 
-        .game-overlay.win { color: #ffd700; }
-        .game-overlay.lose { color: #ff0055; }
+        .game-overlay.win {
+            color: #ffd700;
+        }
+
+        .game-overlay.lose {
+            color: #ff0055;
+        }
 
         .game-overlay p {
             font-family: monospace;
@@ -1675,16 +1815,40 @@
             box-shadow: 0 0 15px var(--accent-green);
             border-radius: 10px;
         }
+
         .menu-btn:hover {
             background: #fff;
             box-shadow: 0 0 25px #fff;
         }
 
-        .game-win-text { color: var(--accent-green); text-shadow: 0 0 10px var(--accent-green); }
-        .game-lose-text { color: #ff0055; text-shadow: 0 0 10px #ff0055; }
-        .game-wait-text { color: var(--accent-purple); animation: gamePulse 1s infinite; }
+        .game-win-text {
+            color: var(--accent-green);
+            text-shadow: 0 0 10px var(--accent-green);
+        }
 
-        @keyframes gamePulse { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
+        .game-lose-text {
+            color: #ff0055;
+            text-shadow: 0 0 10px #ff0055;
+        }
+
+        .game-wait-text {
+            color: var(--accent-purple);
+            animation: gamePulse 1s infinite;
+        }
+
+        @keyframes gamePulse {
+            0% {
+                opacity: 0.5;
+            }
+
+            50% {
+                opacity: 1;
+            }
+
+            100% {
+                opacity: 0.5;
+            }
+        }
 
         .prize-note {
             margin-top: 20px;
@@ -1696,7 +1860,10 @@
             font-size: 0.85rem;
             color: var(--text-secondary);
         }
-        .prize-note strong { color: var(--accent-green); }
+
+        .prize-note strong {
+            color: var(--accent-green);
+        }
 
         .video-feature {
             margin-top: 40px;
@@ -2098,14 +2265,30 @@
         }
 
         @media (max-width: 768px) {
-            .hero h1 { font-size: 2.5rem; }
-            .hero-stats { flex-direction: column; gap: 30px; }
-            .scanner-grid { grid-template-columns: 1fr; }
-            .nav-links { display: none; }
-            .trade-details { grid-template-columns: 1fr; }
+            .hero h1 {
+                font-size: 2.5rem;
+            }
+
+            .hero-stats {
+                flex-direction: column;
+                gap: 30px;
+            }
+
+            .scanner-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .nav-links {
+                display: none;
+            }
+
+            .trade-details {
+                grid-template-columns: 1fr;
+            }
         }
-  </style>
+    </style>
 </head>
+
 <body data-theme="dark">
     <nav>
         <div class="logo">
@@ -2131,13 +2314,13 @@
 
         <div style="margin: 24px 0;">
             <a href="https://discord.gg/qk35c4TH5z" target="_blank" class="btn-join">Join Discord (Free)</a>
-    </div>
+        </div>
 
         <div class="hero-stats">
             <div class="stat-item">
                 <div class="stat-value">1–3%</div>
                 <div class="stat-label">Target Moves</div>
-    </div>
+            </div>
             <div class="stat-item">
                 <div class="stat-value">5%</div>
                 <div class="stat-label">Max Daily Drawdown</div>
@@ -2154,7 +2337,7 @@
         <div class="section-header">
             <h2>Sniper Ruleset</h2>
             <p>Simple, strict rules to keep risk controlled and entries clean.</p>
-            </div>
+        </div>
 
         <div class="laws-grid">
             <div class="law-card">
@@ -2175,7 +2358,7 @@
                     <li>Capital preservation first</li>
                     <li>Protects against overtrading</li>
                 </ul>
-                </div>
+            </div>
 
             <div class="law-card">
                 <div class="law-icon">⚖️</div>
@@ -2185,8 +2368,8 @@
                     <li>Drawdown limits always apply</li>
                     <li>Position size is controlled by the plan</li>
                 </ul>
-      </div>
-    </div>
+            </div>
+        </div>
     </div>
 
     <!-- Live Scanner Section -->
@@ -2209,10 +2392,14 @@
                     <div class="price-change" id="btcChange">--</div>
                     <div class="scan-summary">
                         <span class="summary-pill">Session: <span id="sessionStatus">--</span></span>
-                        <span class="summary-pill"><span id="sessionLabel">Last</span> Session High: <span id="sessionHigh">--</span></span>
-                        <span class="summary-pill"><span id="sessionLabel2">Last</span> Session Low: <span id="sessionLow">--</span></span>
-                        <button class="summary-pill signal-toggle" id="signalToggle" type="button">Signals: <span id="signalCount">--</span></button>
-                        <button class="summary-pill signal-toggle" id="watchlistToggle" type="button">Watchlist: <span id="watchlistCount">--</span></button>
+                        <span class="summary-pill"><span id="sessionLabel">Last</span> Session High: <span
+                                id="sessionHigh">--</span></span>
+                        <span class="summary-pill"><span id="sessionLabel2">Last</span> Session Low: <span
+                                id="sessionLow">--</span></span>
+                        <button class="summary-pill signal-toggle" id="signalToggle" type="button">Signals: <span
+                                id="signalCount">--</span></button>
+                        <button class="summary-pill signal-toggle" id="watchlistToggle" type="button">Watchlist: <span
+                                id="watchlistCount">--</span></button>
                     </div>
                     <div class="signal-panel" id="signalPanel" aria-hidden="true">
                         <div class="signal-panel-header">
@@ -2235,7 +2422,7 @@
                     </div>
                 </div>
 
-        <div class="scanner-meta">
+                <div class="scanner-meta">
                     <div>Bot status: <strong id="botStatus">ACTIVE</strong></div>
                     <div>Next scan: <strong id="nextScanTimer">--:--</strong></div>
                     <div>Last scan: <strong id="lastScanAt">--</strong></div>
@@ -2275,45 +2462,46 @@
                     </div>
                     <div class="distance-pill">Support distance: <span id="supportDistance">--</span></div>
                     <div class="distance-pill">Resistance distance: <span id="resistanceDistance">--</span></div>
-            <div class="distance-pill">
-                Pair:
-                <span class="pair-switch" id="pairSwitch">
-                    <button class="pair-pill active" data-symbol="BTC" type="button">
-                        <span class="pair-icon btc">₿</span> BTC
-                    </button>
-                    <button class="pair-pill" data-symbol="ETH" type="button">
-                        <span class="pair-icon eth">Ξ</span> ETH
-                    </button>
-                    <button class="pair-pill" data-symbol="XRP" type="button">
-                        <span class="pair-icon xrp">X</span> XRP
-                    </button>
-                    <button class="pair-pill" data-symbol="SOL" type="button">
-                        <span class="pair-icon sol">S</span> SOL
-                    </button>
-                </span>
-            </div>
+                    <div class="distance-pill">
+                        Pair:
+                        <span class="pair-switch" id="pairSwitch">
+                            <button class="pair-pill active" data-symbol="BTC" type="button">
+                                <span class="pair-icon btc">₿</span> BTC
+                            </button>
+                            <button class="pair-pill" data-symbol="ETH" type="button">
+                                <span class="pair-icon eth">Ξ</span> ETH
+                            </button>
+                            <button class="pair-pill" data-symbol="XRP" type="button">
+                                <span class="pair-icon xrp">X</span> XRP
+                            </button>
+                            <button class="pair-pill" data-symbol="SOL" type="button">
+                                <span class="pair-icon sol">S</span> SOL
+                            </button>
+                        </span>
+                    </div>
                 </div>
 
                 <!-- Signal Spotlight -->
                 <div class="spotlight-panel">
                     <div class="spotlight-card">
                         <div class="spotlight-title">Trade Spotlight</div>
-                        <div id="spotlightTrade" style="color: var(--text-secondary); font-size: 0.9rem;">Waiting for next scan...</div>
+                        <div id="spotlightTrade" style="color: var(--text-secondary); font-size: 0.9rem;">Waiting for
+                            next scan...</div>
                     </div>
-                <div class="spotlight-card">
-                    <div class="spotlight-title">Why This Trade</div>
-                    <ul id="spotlightReasons" class="spotlight-list">
-                        <li>GPS zones + Piv X VWAPs</li>
-                        <li>Volume spikes with VPSR</li>
-                        <li>Divergence via Oath Keeper</li>
-                    </ul>
-                </div>
-                <div class="spotlight-card">
-                    <div class="spotlight-title">Trending Coins</div>
-                    <ul id="trendingCoins" class="spotlight-list">
-                        <li>Waiting for ticker data...</li>
-                    </ul>
-                </div>
+                    <div class="spotlight-card">
+                        <div class="spotlight-title">Why This Trade</div>
+                        <ul id="spotlightReasons" class="spotlight-list">
+                            <li>GPS zones + Piv X VWAPs</li>
+                            <li>Volume spikes with VPSR</li>
+                            <li>Divergence via Oath Keeper</li>
+                        </ul>
+                    </div>
+                    <div class="spotlight-card">
+                        <div class="spotlight-title">Trending Coins</div>
+                        <ul id="trendingCoins" class="spotlight-list">
+                            <li>Waiting for ticker data...</li>
+                        </ul>
+                    </div>
                 </div>
 
             </div>
@@ -2386,23 +2574,21 @@
             <div>
                 <div class="paper-trading-chart">
                     <div id="paperTradingViewChart" class="tv-embed" style="height: 500px;">
-                        <iframe
-                            id="paperTradingIframe"
+                        <iframe id="paperTradingIframe"
                             src="https://www.tradingview.com/widgetembed/?frameElementId=tradingview&symbol=OKX%3ABTCUSDT.P&interval=15&theme=dark&style=1&timezone=Etc%2FUTC&studies=%5B%5D&hideideas=1&overrides=%7B%22mainSeriesProperties.candleStyle.upColor%22%3A%22%230ecb81%22%2C%22mainSeriesProperties.candleStyle.downColor%22%3A%22%239c27b0%22%2C%22mainSeriesProperties.candleStyle.borderUpColor%22%3A%22%230ecb81%22%2C%22mainSeriesProperties.candleStyle.borderDownColor%22%3A%22%239c27b0%22%2C%22mainSeriesProperties.candleStyle.wickUpColor%22%3A%22%230ecb81%22%2C%22mainSeriesProperties.candleStyle.wickDownColor%22%3A%22%239c27b0%22%7D"
-                            style="width: 100%; height: 100%; margin: 0; padding: 0; border: none;"
-                            frameborder="0"
-                            allowtransparency="true"
-                            scrolling="no"
-                            allowfullscreen
-                        ></iframe>
+                            style="width: 100%; height: 100%; margin: 0; padding: 0; border: none;" frameborder="0"
+                            allowtransparency="true" scrolling="no" allowfullscreen></iframe>
                     </div>
                 </div>
 
                 <div class="paper-order-card" style="margin-top: 20px;">
                     <div class="paper-positions-tabs">
-                        <button class="paper-positions-tab active" data-tab="open">Open Positions <span id="openPosCount">0</span></button>
-                        <button class="paper-positions-tab" data-tab="pending">Pending Orders <span id="pendingCount">0</span></button>
-                        <button class="paper-positions-tab" data-tab="closed">Trade History <span id="closedCount">0</span></button>
+                        <button class="paper-positions-tab active" data-tab="open">Open Positions <span
+                                id="openPosCount">0</span></button>
+                        <button class="paper-positions-tab" data-tab="pending">Pending Orders <span
+                                id="pendingCount">0</span></button>
+                        <button class="paper-positions-tab" data-tab="closed">Trade History <span
+                                id="closedCount">0</span></button>
                     </div>
 
                     <div id="paperPositionsContent" style="max-height: 400px; overflow-y: auto;">
@@ -2428,11 +2614,13 @@
                     </div>
                     <div class="paper-portfolio-row">
                         <span class="paper-portfolio-label">Realized P&L</span>
-                        <span class="paper-portfolio-value" id="paperRealizedPnL" style="color: var(--text-secondary);">$0.00</span>
+                        <span class="paper-portfolio-value" id="paperRealizedPnL"
+                            style="color: var(--text-secondary);">$0.00</span>
                     </div>
                     <div class="paper-portfolio-row">
                         <span class="paper-portfolio-label">Unrealized P&L</span>
-                        <span class="paper-portfolio-value" id="paperUnrealizedPnL" style="color: var(--text-secondary);">$0.00</span>
+                        <span class="paper-portfolio-value" id="paperUnrealizedPnL"
+                            style="color: var(--text-secondary);">$0.00</span>
                     </div>
                 </div>
 
@@ -2465,7 +2653,8 @@
                         <div class="paper-input-label">
                             <span>Limit Price (USDT)</span>
                         </div>
-                        <input type="number" step="0.01" class="paper-input" id="paperLimitPrice" placeholder="Enter limit price">
+                        <input type="number" step="0.01" class="paper-input" id="paperLimitPrice"
+                            placeholder="Enter limit price">
                         <div class="paper-percent-buttons">
                             <button class="paper-percent-btn" data-price-offset="-5" type="button">-5%</button>
                             <button class="paper-percent-btn" data-price-offset="5" type="button">+5%</button>
@@ -2474,7 +2663,8 @@
                         </div>
                     </div>
 
-                    <div id="paperOrderSummary" style="display: none; padding: 12px; background: var(--bg-input); border-radius: 8px; margin-bottom: 16px;">
+                    <div id="paperOrderSummary"
+                        style="display: none; padding: 12px; background: var(--bg-input); border-radius: 8px; margin-bottom: 16px;">
                         <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
                             <span style="color: var(--text-secondary);">Price</span>
                             <span id="paperOrderPrice" style="font-weight: 700; font-family: monospace;">--</span>
@@ -2483,13 +2673,15 @@
                             <span style="color: var(--text-secondary);">Amount</span>
                             <span id="paperOrderAmount" style="font-weight: 700; font-family: monospace;">--</span>
                         </div>
-                        <div style="display: flex; justify-content: space-between; padding-top: 8px; border-top: 1px solid var(--glass-border); font-weight: 700;">
+                        <div
+                            style="display: flex; justify-content: space-between; padding-top: 8px; border-top: 1px solid var(--glass-border); font-weight: 700;">
                             <span>Total</span>
                             <span id="paperOrderTotal" style="font-family: monospace;">--</span>
                         </div>
                     </div>
 
-                    <button class="paper-submit-btn long" id="paperSubmitBtn" type="button" disabled>Place Market Order</button>
+                    <button class="paper-submit-btn long" id="paperSubmitBtn" type="button" disabled>Place Market
+                        Order</button>
                 </div>
             </div>
         </div>
@@ -2543,7 +2735,8 @@
         <div class="laws-grid">
             <div class="law-card">
                 <div class="law-icon">🧭</div>
-                <h3><a href="https://www.tradingview.com/script/EzLLjhiA-Piv-X/" target="_blank" rel="noopener">GPS Indicator (Golden Pocket Zones)</a></h3>
+                <h3><a href="https://www.tradingview.com/script/EzLLjhiA-Piv-X/" target="_blank" rel="noopener">GPS
+                        Indicator (Golden Pocket Zones)</a></h3>
                 <p>Maps premium/discount zones for mean reversion levels and confluence.</p>
                 <ul>
                     <li>Golden Pocket levels for daily structure</li>
@@ -2554,7 +2747,8 @@
 
             <div class="law-card">
                 <div class="law-icon">🧠</div>
-                <h3><a href="https://www.tradingview.com/script/EzLLjhiA-Piv-X/" target="_blank" rel="noopener">Piv X Pro</a></h3>
+                <h3><a href="https://www.tradingview.com/script/EzLLjhiA-Piv-X/" target="_blank" rel="noopener">Piv X
+                        Pro</a></h3>
                 <p>Multi‑layer reversal system with dynamic pivots, divergence, and VWAP anchoring.</p>
                 <ul>
                     <li>ATR‑based pivot detection + confluence scoring</li>
@@ -2565,7 +2759,8 @@
 
             <div class="law-card">
                 <div class="law-icon">📈</div>
-                <h3><a href="https://www.tradingview.com/script/krDAvdXq-Sniper-Mini-VWAP/" target="_blank" rel="noopener">Sniper Mini VWAP</a></h3>
+                <h3><a href="https://www.tradingview.com/script/krDAvdXq-Sniper-Mini-VWAP/" target="_blank"
+                        rel="noopener">Sniper Mini VWAP</a></h3>
                 <p>Session‑based VWAPs to stay in trend and spot new trends at market opens.</p>
                 <ul>
                     <li>1H / 4H / 8H / Daily VWAP stack</li>
@@ -2576,7 +2771,8 @@
 
             <div class="law-card">
                 <div class="law-icon">📊</div>
-                <h3><a href="https://www.tradingview.com/script/D19WFmKE-VPSR/" target="_blank" rel="noopener">VPSR (Volume Profile)</a></h3>
+                <h3><a href="https://www.tradingview.com/script/D19WFmKE-VPSR/" target="_blank" rel="noopener">VPSR
+                        (Volume Profile)</a></h3>
                 <p>Advanced volume profiling to spot institutional participation and reversals.</p>
                 <ul>
                     <li>Abnormal + extreme volume detection</li>
@@ -2587,7 +2783,8 @@
 
             <div class="law-card">
                 <div class="law-icon">🧿</div>
-                <h3><a href="https://www.tradingview.com/script/JAklR7OP-Vector-Sniper/" target="_blank" rel="noopener">Vector Sniper</a></h3>
+                <h3><a href="https://www.tradingview.com/script/JAklR7OP-Vector-Sniper/" target="_blank"
+                        rel="noopener">Vector Sniper</a></h3>
                 <p>Highlights high‑energy vector candles and absolute reversal signals.</p>
                 <ul>
                     <li>Volatility + volume + structure filters</li>
@@ -2598,7 +2795,8 @@
 
             <div class="law-card">
                 <div class="law-icon">🧲</div>
-                <h3><a href="https://www.tradingview.com/script/nIylWlQs-Liquidity-Hunter-Heatmap/" target="_blank" rel="noopener">Liquidity Hunter Heatmap</a></h3>
+                <h3><a href="https://www.tradingview.com/script/nIylWlQs-Liquidity-Hunter-Heatmap/" target="_blank"
+                        rel="noopener">Liquidity Hunter Heatmap</a></h3>
                 <p>Visualizes liquidation clusters, traps, and sweep zones in real time.</p>
                 <ul>
                     <li>Liquidation cluster strength bubbles</li>
@@ -2609,8 +2807,11 @@
         </div>
 
         <div style="text-align: center; margin-top: 50px; color: var(--text-secondary);">
-            <p><strong>Trade approach:</strong> GPS zones + VWAP structure + Piv X + VPSR + Vector Sniper = high‑probability entries.</p>
-            <p style="margin-top: 15px;"><em>Check out all Sniper indicators on TradingView.</em> <a href="https://www.tradingview.com/u/RickyTSpanish/#published-scripts" target="_blank" rel="noopener">View indicators</a></p>
+            <p><strong>Trade approach:</strong> GPS zones + VWAP structure + Piv X + VPSR + Vector Sniper =
+                high‑probability entries.</p>
+            <p style="margin-top: 15px;"><em>Check out all Sniper indicators on TradingView.</em> <a
+                    href="https://www.tradingview.com/u/RickyTSpanish/#published-scripts" target="_blank"
+                    rel="noopener">View indicators</a></p>
             <p style="margin-top: 15px;"><em>We never blindly follow bots. Always do your own analysis.</em></p>
         </div>
 
@@ -2618,7 +2819,9 @@
             <h3>Sniper Mini VWAPs — Trend Read (Bull / Bear / Neutral)</h3>
             <p>This is the exact method I use to stay in trend and spot new trend shifts at market opens.</p>
             <div class="video-frame">
-                <iframe src="https://www.youtube.com/embed/ty3QjO8AFW8?si=5Ybsx9Pr0gQz8WUl" title="Sniper Mini VWAPs" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+                <iframe src="https://www.youtube.com/embed/ty3QjO8AFW8?si=5Ybsx9Pr0gQz8WUl" title="Sniper Mini VWAPs"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
             </div>
         </div>
     </div>
@@ -2633,19 +2836,22 @@
         <div class="tiers-grid">
             <div class="tier-card">
                 <div class="tier-title">Headhunters</div>
-                <div class="tier-price">$20<span style="font-size:0.9rem; color: var(--text-secondary);">/month</span></div>
+                <div class="tier-price">$20<span style="font-size:0.9rem; color: var(--text-secondary);">/month</span>
+                </div>
                 <ul class="tier-list">
                     <li>Access to Piv X bot</li>
                     <li>Access to Liquidation monitor</li>
                     <li>Daily market analysis & trade ideas</li>
                     <li>Member-only channels</li>
                 </ul>
-                <a class="tier-link" href="https://upgrade.chat/734621342069948446/p/ath" target="_blank">Join Headhunters</a>
+                <a class="tier-link" href="https://upgrade.chat/734621342069948446/p/ath" target="_blank">Join
+                    Headhunters</a>
             </div>
 
             <div class="tier-card">
                 <div class="tier-title">Bounty Seeker</div>
-                <div class="tier-price">$40<span style="font-size:0.9rem; color: var(--text-secondary);">/month</span></div>
+                <div class="tier-price">$40<span style="font-size:0.9rem; color: var(--text-secondary);">/month</span>
+                </div>
                 <ul class="tier-list">
                     <li>24/7 Bounty Seeker bot</li>
                     <li>Short Hunter bot access</li>
@@ -2655,19 +2861,23 @@
                     <li>1-on-1 access with Ricky Spanish</li>
                     <li>Talk to me anytime (community DM access)</li>
                 </ul>
-                <a class="tier-link" href="https://upgrade.chat/734621342069948446/p/a598f604-c852-4abc-b7f9-3c4acdcd9389" target="_blank">Join Bounty Seeker</a>
+                <a class="tier-link"
+                    href="https://upgrade.chat/734621342069948446/p/a598f604-c852-4abc-b7f9-3c4acdcd9389"
+                    target="_blank">Join Bounty Seeker</a>
             </div>
 
             <div class="tier-card">
                 <div class="tier-title">Lifetime</div>
-                <div class="tier-price">$333<span style="font-size:0.9rem; color: var(--text-secondary);"> one-time</span></div>
+                <div class="tier-price">$333<span style="font-size:0.9rem; color: var(--text-secondary);">
+                        one-time</span></div>
                 <ul class="tier-list">
                     <li>Permanent access to all content</li>
                     <li>Never pay another monthly fee</li>
                     <li>All current & future indicators</li>
                     <li>Priority access to updates</li>
                 </ul>
-                <a class="tier-link" href="https://upgrade.chat/734621342069948446/p/lifetime" target="_blank">Go Lifetime</a>
+                <a class="tier-link" href="https://upgrade.chat/734621342069948446/p/lifetime" target="_blank">Go
+                    Lifetime</a>
             </div>
         </div>
 
@@ -2680,7 +2890,8 @@
     <div class="arcade-section" id="arcade">
         <div class="section-header">
             <h2>Candle Sniper Arcade</h2>
-            <p>Test your market instincts. Reach 2000 credits to win a <strong style="color:var(--accent-green)">FREE WEEK</strong> of Bounty Seeker access!</p>
+            <p>Test your market instincts. Reach 2000 credits to win a <strong style="color:var(--accent-green)">FREE
+                    WEEK</strong> of Bounty Seeker access!</p>
         </div>
 
         <div id="game-widget">
@@ -2690,7 +2901,8 @@
 
             <!-- MAIN MENU OVERLAY -->
             <div id="menu-overlay" class="game-overlay" style="display:flex">
-                <h2>MISSION BRIEFING:<br><br>GOAL: REACH 2000 CREDITS<br>3 LOSSES = GAME OVER<br>PREDICT GREEN OR RED</h2>
+                <h2>MISSION BRIEFING:<br><br>GOAL: REACH 2000 CREDITS<br>3 LOSSES = GAME OVER<br>PREDICT GREEN OR RED
+                </h2>
                 <button id="btn-start" class="menu-btn">START GAME</button>
             </div>
 
@@ -2735,7 +2947,8 @@
         <a href="#membership" class="btn-large">View Membership</a>
 
         <div class="social-links">
-            <a href="https://www.tradingview.com/u/RickyTSpanish/#published-scripts" target="_blank" class="social-btn">📊 TradingView</a>
+            <a href="https://www.tradingview.com/u/RickyTSpanish/#published-scripts" target="_blank"
+                class="social-btn">📊 TradingView</a>
             <a href="https://www.youtube.com/@rickytspanish" target="_blank" class="social-btn">📺 YouTube</a>
             <a href="https://x.com/Brypto_sniper" target="_blank" class="social-btn">🐦 X (Twitter)</a>
         </div>
@@ -2755,12 +2968,14 @@
                 <a href="https://discord.gg/qk35c4TH5z" target="_blank" rel="noopener">💬 Discord</a>
                 <a href="https://www.youtube.com/@rickytspanish" target="_blank" rel="noopener">📺 YouTube</a>
                 <a href="https://x.com/Brypto_sniper" target="_blank" rel="noopener">🐦 X (Twitter)</a>
-                <a href="https://www.tradingview.com/u/RickyTSpanish/#published-scripts" target="_blank" rel="noopener">📊 TradingView</a>
+                <a href="https://www.tradingview.com/u/RickyTSpanish/#published-scripts" target="_blank"
+                    rel="noopener">📊 TradingView</a>
             </div>
         </div>
 
         <p>© 2025 Snipers-R-Us. All rights reserved.</p>
-        <p style="font-size: 0.85rem;">Never blindly follow bots. Do your own research and analysis. Not financial advice.</p>
+        <p style="font-size: 0.85rem;">Never blindly follow bots. Do your own research and analysis. Not financial
+            advice.</p>
 
         <div class="view-counter">
             <span class="view-counter-number" id="viewCount">--</span>
@@ -2775,7 +2990,9 @@
                 Get full access to the Bounty Seeker bot and signals for 3 days. See how it works before you commit.
             </div>
             <div class="trial-actions">
-                <a class="trial-btn" href="https://upgrade.chat/734621342069948446/p/a598f604-c852-4abc-b7f9-3c4acdcd9389" target="_blank">Start Free Trial</a>
+                <a class="trial-btn"
+                    href="https://upgrade.chat/734621342069948446/p/a598f604-c852-4abc-b7f9-3c4acdcd9389"
+                    target="_blank">Start Free Trial</a>
                 <button class="trial-btn secondary" type="button" onclick="closeTrialModal()">Maybe Later</button>
             </div>
         </div>
@@ -2835,7 +3052,7 @@
                 }
                 ws = new WebSocket(OKX_WS_URL);
 
-                ws.onopen = function() {
+                ws.onopen = function () {
                     console.log('✅ Connected to OKX WebSocket');
                     updateConnectionStatus(true);
 
@@ -2859,7 +3076,7 @@
                     }
                 };
 
-                ws.onmessage = function(event) {
+                ws.onmessage = function (event) {
                     const payload = JSON.parse(event.data);
                     if (!payload || !payload.data || !payload.data[0]) return;
 
@@ -2886,7 +3103,7 @@
                     }
                 };
 
-                ws.onclose = function() {
+                ws.onclose = function () {
                     console.log('❌ OKX WebSocket disconnected');
                     updateConnectionStatus(false);
 
@@ -2897,7 +3114,7 @@
                     }, 5000);
                 };
 
-                ws.onerror = function(error) {
+                ws.onerror = function (error) {
                     console.error('❌ OKX WebSocket error:', error);
                     updateConnectionStatus(false);
                 };
@@ -2937,7 +3154,7 @@
             } else if (state.lastPrice) {
                 const change = price - state.lastPrice;
                 pctChange = (change / state.lastPrice * 100);
-                } else {
+            } else {
                 pctChange = 0;
             }
             updatePriceDisplay(price, pctChange);
@@ -3044,7 +3261,7 @@
                 const volumeMillions = (state.volume24h / 1_000_000).toFixed(1);
                 volEl.textContent = `${volumeMillions}M`;
                 volEl.className = 'info-value value-neutral';
-                    } else {
+            } else {
                 volEl.textContent = '--';
                 volEl.className = 'info-value value-neutral';
             }
@@ -3070,7 +3287,7 @@
             if (state.dailyGpHigh && state.dailyGpLow) {
                 gpsEl.textContent = `${priceFormatter.format(state.dailyGpLow)} - ${priceFormatter.format(state.dailyGpHigh)}`;
                 gpsEl.className = 'info-value value-neutral';
-                    } else {
+            } else {
                 gpsEl.textContent = '--';
                 gpsEl.className = 'info-value value-neutral';
             }
@@ -3531,8 +3748,8 @@
                         highEl.textContent = priceFormatter.format(high);
                         lowEl.textContent = priceFormatter.format(low);
                         if (sessionLabelEl) sessionLabelEl.textContent = windowInfo.name;
-                const sessionLabel2El = document.getElementById('sessionLabel2');
-                if (sessionLabel2El) sessionLabel2El.textContent = windowInfo.name;
+                        const sessionLabel2El = document.getElementById('sessionLabel2');
+                        if (sessionLabel2El) sessionLabel2El.textContent = windowInfo.name;
                         return;
                     }
 
@@ -3975,13 +4192,13 @@
         // THEME TOGGLE
         // ============================================
         // Track clicked buttons to stop glow animation
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             const btnJoin = document.querySelector('.btn-join');
             const btnLarge = document.querySelector('.btn-large');
             const themeToggle = document.querySelector('.theme-toggle');
 
             if (btnJoin) {
-                btnJoin.addEventListener('click', function() {
+                btnJoin.addEventListener('click', function () {
                     if (!this.classList.contains('clicked')) {
                         this.classList.add('clicked');
                     }
@@ -3989,7 +4206,7 @@
             }
 
             if (btnLarge) {
-                btnLarge.addEventListener('click', function() {
+                btnLarge.addEventListener('click', function () {
                     if (!this.classList.contains('clicked')) {
                         this.classList.add('clicked');
                     }
@@ -3997,7 +4214,7 @@
             }
 
             if (themeToggle) {
-                themeToggle.addEventListener('click', function() {
+                themeToggle.addEventListener('click', function () {
                     if (!this.classList.contains('clicked')) {
                         this.classList.add('clicked');
                     }
@@ -4384,27 +4601,27 @@
 
             if (currentMarket === 'all' || currentMarket === 'crypto') {
                 const cryptoNews = await fetchYahooNews('crypto');
-                yahooNewsData.push(...cryptoNews.map(item => ({...item, market: 'crypto'})));
+                yahooNewsData.push(...cryptoNews.map(item => ({ ...item, market: 'crypto' })));
             }
 
             if (currentMarket === 'all' || currentMarket === 'stocks') {
                 const stocksNews = await fetchYahooNews('stocks');
-                yahooNewsData.push(...stocksNews.map(item => ({...item, market: 'stocks'})));
+                yahooNewsData.push(...stocksNews.map(item => ({ ...item, market: 'stocks' })));
             }
 
             if (currentMarket === 'all' || currentMarket === 'forex') {
                 const forexNews = await fetchYahooNews('forex');
-                yahooNewsData.push(...forexNews.map(item => ({...item, market: 'forex'})));
+                yahooNewsData.push(...forexNews.map(item => ({ ...item, market: 'forex' })));
             }
 
             if (currentMarket === 'all' || currentMarket === 'commodities') {
                 const commoditiesNews = await fetchYahooNews('commodities');
-                yahooNewsData.push(...commoditiesNews.map(item => ({...item, market: 'commodities'})));
+                yahooNewsData.push(...commoditiesNews.map(item => ({ ...item, market: 'commodities' })));
             }
 
             if (currentMarket === 'all' || currentMarket === 'economy') {
                 const economyNews = await fetchYahooNews('economy');
-                yahooNewsData.push(...economyNews.map(item => ({...item, market: 'economy'})));
+                yahooNewsData.push(...economyNews.map(item => ({ ...item, market: 'economy' })));
             }
 
             // Combine with crypto news data
@@ -4440,7 +4657,7 @@
             // Render main news list
             if (filteredNews.length === 0) {
                 newsListEl.innerHTML = '<div class="news-item"><p style="text-align:center;padding:20px;color:var(--text-secondary);">No news available. Try refreshing or selecting a different market.</p></div>';
-                    } else {
+            } else {
                 newsListEl.innerHTML = filteredNews.slice(0, 20).map(item => {
                     const impactClass = item.impact === 'critical' ? 'critical' : item.impact === 'high' ? 'high' : '';
                     const impactBadge = item.impact === 'critical' ? 'CRITICAL' : item.impact === 'high' ? 'HIGH' : 'MEDIUM';
@@ -4636,39 +4853,67 @@
 
             // Initialize
             loadPaperPortfolio();
+
+            // Force initial balance display
+            const balanceEl = document.getElementById('paperBalance');
+            if (balanceEl && paperPortfolio.balance) {
+                balanceEl.textContent = `$${paperPortfolio.balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+            }
+
             updatePaperUI();
 
-            // Order type tabs (Market/Limit) - Use event delegation
-            document.addEventListener('click', function(e) {
-                if (e.target.classList.contains('paper-order-tab')) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    const tab = e.target;
-                    document.querySelectorAll('.paper-order-tab').forEach(t => t.classList.remove('active'));
-                    tab.classList.add('active');
-                    paperCurrentOrderType = tab.dataset.orderType || 'market';
-                    const limitGroup = document.getElementById('paperLimitPriceGroup');
-                    if (limitGroup) {
-                        limitGroup.style.display = paperCurrentOrderType === 'limit' ? 'block' : 'none';
-                    }
-                    updatePaperSubmitButton();
-                    updatePaperOrderSummary();
-                }
-            });
+            // Initialize buttons with direct onclick handlers (more reliable)
+            function initPaperButtons() {
+                // Order type tabs (Market/Limit) - Direct handlers
+                const orderTabs = document.querySelectorAll('.paper-order-tab');
+                console.log('Found order tabs:', orderTabs.length);
+                orderTabs.forEach(tab => {
+                    // Remove any existing onclick
+                    tab.onclick = null;
+                    tab.onclick = function (e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        console.log('Order tab clicked:', this.dataset.orderType);
+                        document.querySelectorAll('.paper-order-tab').forEach(t => t.classList.remove('active'));
+                        this.classList.add('active');
+                        paperCurrentOrderType = this.dataset.orderType || 'market';
+                        const limitGroup = document.getElementById('paperLimitPriceGroup');
+                        if (limitGroup) {
+                            limitGroup.style.display = paperCurrentOrderType === 'limit' ? 'block' : 'none';
+                        }
+                        updatePaperSubmitButton();
+                        updatePaperOrderSummary();
+                    };
+                });
 
-            // Trade type buttons (LONG/SHORT) - Use event delegation
-            document.addEventListener('click', function(e) {
-                if (e.target.classList.contains('paper-trade-btn')) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    const btn = e.target;
-                    document.querySelectorAll('.paper-trade-btn').forEach(b => b.classList.remove('active'));
-                    btn.classList.add('active');
-                    paperCurrentTradeType = btn.dataset.tradeType || 'buy';
-                    updatePaperSubmitButton();
-                    updatePaperOrderSummary();
-                }
-            });
+                // Trade type buttons (LONG/SHORT) - Direct handlers
+                const tradeButtons = document.querySelectorAll('.paper-trade-btn');
+                console.log('Found trade buttons:', tradeButtons.length);
+                tradeButtons.forEach(btn => {
+                    // Remove any existing onclick
+                    btn.onclick = null;
+                    btn.onclick = function (e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        console.log('Trade button clicked:', this.dataset.tradeType);
+                        document.querySelectorAll('.paper-trade-btn').forEach(b => b.classList.remove('active'));
+                        this.classList.add('active');
+                        paperCurrentTradeType = this.dataset.tradeType || 'buy';
+                        updatePaperSubmitButton();
+                        updatePaperOrderSummary();
+                    };
+                });
+            }
+
+            // Initialize immediately and retry if needed
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', initPaperButtons);
+            } else {
+                initPaperButtons();
+            }
+            setTimeout(initPaperButtons, 500);
+            setTimeout(initPaperButtons, 1500);
+            setTimeout(initPaperButtons, 3000);
 
             // Position tabs
             document.querySelectorAll('.paper-positions-tab').forEach(tab => {
@@ -4699,7 +4944,7 @@
             }
 
             // Percent buttons - Use event delegation
-            document.addEventListener('click', function(e) {
+            document.addEventListener('click', function (e) {
                 if (e.target.classList.contains('paper-percent-btn') && e.target.dataset.percent) {
                     e.preventDefault();
                     e.stopPropagation();
@@ -4715,7 +4960,7 @@
             });
 
             // Price offset buttons - Use event delegation
-            document.addEventListener('click', function(e) {
+            document.addEventListener('click', function (e) {
                 if (e.target.classList.contains('paper-percent-btn') && e.target.dataset.priceOffset) {
                     e.preventDefault();
                     e.stopPropagation();
@@ -4757,12 +5002,18 @@
                 const amount = parseFloat(amountInput?.value || '0');
                 if (!amount || amount <= 0) return;
 
+                const currentPrice = state && state.price ? state.price : 0;
                 const price = paperCurrentOrderType === 'market'
-                    ? state.price
+                    ? currentPrice
                     : parseFloat(limitPriceInput?.value || '0');
 
                 if (paperCurrentOrderType === 'limit' && (!price || price <= 0)) {
                     alert('Please enter a valid limit price');
+                    return;
+                }
+
+                if (price <= 0) {
+                    alert('Waiting for market data...');
                     return;
                 }
 
@@ -4823,22 +5074,24 @@
                     : parseFloat(limitPriceInput?.value || state.price || 0);
 
                 if (summaryEl) summaryEl.style.display = 'block';
-                if (priceEl) priceEl.textContent = `$${price.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
+                if (priceEl) priceEl.textContent = `$${price.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
                 if (amountEl) amountEl.textContent = `${amount.toFixed(8)} ${state.symbol}`;
-                if (totalEl) totalEl.textContent = `$${(amount * price).toLocaleString(undefined, {minimumFractionDigits: 2})}`;
+                if (totalEl) totalEl.textContent = `$${(amount * price).toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
             }
 
             // Update submit button
             function updatePaperSubmitButton() {
                 const amount = parseFloat(amountInput?.value || '0');
+                const currentPrice = state && state.price ? state.price : 0;
                 const price = paperCurrentOrderType === 'market'
-                    ? state.price
+                    ? currentPrice
                     : parseFloat(limitPriceInput?.value || '0');
                 const totalCost = amount * price;
 
                 const isValid = amount > 0 &&
-                    (paperCurrentOrderType === 'market' || (price > 0 && price !== state.price)) &&
-                    (paperCurrentTradeType === 'sell' || totalCost <= paperPortfolio.balance);
+                    (paperCurrentOrderType === 'market' || (price > 0 && price !== currentPrice)) &&
+                    (paperCurrentTradeType === 'sell' || totalCost <= paperPortfolio.balance) &&
+                    price > 0;
 
                 if (submitBtn) {
                     submitBtn.disabled = !isValid;
@@ -4851,6 +5104,16 @@
 
             // Update UI
             function updatePaperUI() {
+                // Safety check for state
+                if (!state || !state.symbol) {
+                    // Update at least the balance if possible
+                    const balanceEl = document.getElementById('paperBalance');
+                    if (balanceEl) balanceEl.textContent = `$${paperPortfolio.balance.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+                    return;
+                }
+
+                const currentPrice = state.price || 0;
+
                 const openPositions = paperPortfolio.trades.filter(t => t.status === 'open' && t.symbol === state.symbol);
                 const pendingOrders = paperPortfolio.trades.filter(t => t.status === 'pending' && t.symbol === state.symbol);
                 const closedTrades = paperPortfolio.trades.filter(t => t.status === 'closed' && t.symbol === state.symbol);
@@ -4858,10 +5121,12 @@
                 // Calculate unrealized P&L
                 let unrealizedPnL = 0;
                 openPositions.forEach(trade => {
-                    if (trade.type === 'buy') {
-                        unrealizedPnL += (state.price - trade.price) * trade.amount;
-                    } else {
-                        unrealizedPnL += (trade.price - state.price) * trade.amount;
+                    if (currentPrice > 0) {
+                        if (trade.type === 'buy') {
+                            unrealizedPnL += (currentPrice - trade.price) * trade.amount;
+                        } else {
+                            unrealizedPnL += (trade.price - currentPrice) * trade.amount;
+                        }
                     }
                 });
 
@@ -4877,8 +5142,8 @@
                 const realizedEl = document.getElementById('paperRealizedPnL');
                 const unrealizedEl = document.getElementById('paperUnrealizedPnL');
 
-                if (balanceEl) balanceEl.textContent = `$${paperPortfolio.balance.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
-                if (equityEl) equityEl.textContent = `$${equity.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
+                if (balanceEl) balanceEl.textContent = `$${paperPortfolio.balance.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+                if (equityEl) equityEl.textContent = `$${equity.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
                 if (realizedEl) {
                     realizedEl.textContent = `${realizedPnL >= 0 ? '+' : ''}$${realizedPnL.toFixed(2)}`;
                     realizedEl.style.color = realizedPnL >= 0 ? 'var(--accent-green)' : 'var(--accent-purple)';
@@ -4902,12 +5167,17 @@
                 if (availableEl) {
                     if (state.price && state.price > 0 && state.symbol) {
                         const availableBTC = paperPortfolio.balance / state.price;
-                        const symbolDisplay = state.symbol.replace('USDT', '').replace('/', '');
+                        const symbolDisplay = state.symbol.replace('USDT', '').replace('/', '').replace(':USDT', '');
                         availableEl.textContent = `Available: ${availableBTC.toFixed(8)} ${symbolDisplay}`;
+                    } else if (state.price && state.price > 0) {
+                        const availableBTC = paperPortfolio.balance / state.price;
+                        availableEl.textContent = `Available: ${availableBTC.toFixed(8)} BTC`;
                     } else {
-                        availableEl.textContent = `Available: -- ${state.symbol || 'BTC'}`;
+                        availableEl.textContent = `Available: -- BTC`;
                     }
                 }
+
+                // Balance updated above
 
                 // Update submit button state
                 updatePaperSubmitButton();
@@ -4984,7 +5254,7 @@
       </div>
                                     <div>
                                         <div class="paper-position-label">Entry</div>
-                                        <div class="paper-position-value">$${trade.price.toLocaleString(undefined, {minimumFractionDigits: 2})}</div>
+                                        <div class="paper-position-value">$${trade.price.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
     </div>
                                     <div>
                                         <div class="paper-position-label">P&L</div>
@@ -5013,7 +5283,7 @@
                                     </div>
                                     <div>
                                         <div class="paper-position-label">Limit Price</div>
-                                        <div class="paper-position-value">$${trade.limitPrice.toLocaleString(undefined, {minimumFractionDigits: 2})}</div>
+                                        <div class="paper-position-value">$${trade.limitPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
                                     </div>
                                     <div>
                                         <div class="paper-position-label">Distance</div>
@@ -5039,7 +5309,7 @@
                                     </div>
                                     <div>
                                         <div class="paper-position-label">Entry</div>
-                                        <div class="paper-position-value">$${trade.price.toLocaleString(undefined, {minimumFractionDigits: 2})}</div>
+                                        <div class="paper-position-value">$${trade.price.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
                                     </div>
                                     <div>
                                         <div class="paper-position-label">P&L</div>
@@ -5055,7 +5325,7 @@
             }
 
             // Close trade function (global)
-            window.closePaperTrade = function(tradeId) {
+            window.closePaperTrade = function (tradeId) {
                 const trade = paperPortfolio.trades.find(t => t.id === tradeId);
                 if (!trade || trade.status !== 'open') return;
 
@@ -5080,7 +5350,7 @@
             };
 
             // Cancel order function (global)
-            window.cancelPaperOrder = function(tradeId) {
+            window.cancelPaperOrder = function (tradeId) {
                 const trade = paperPortfolio.trades.find(t => t.id === tradeId);
                 if (!trade || trade.status !== 'pending') return;
 
@@ -5093,7 +5363,7 @@
             // Hook into price updates
             const originalUpdatePriceDisplay = window.updatePriceDisplay;
             if (originalUpdatePriceDisplay) {
-                window.updatePriceDisplay = function(price, pctChange) {
+                window.updatePriceDisplay = function (price, pctChange) {
                     originalUpdatePriceDisplay(price, pctChange);
                     updatePaperUI();
                     if (paperCurrentTab === 'open') {
@@ -5139,9 +5409,9 @@
             // Hook into pair changes
             const originalSetPair = window.setPair;
             if (originalSetPair) {
-                window.setPair = function(symbol) {
+                window.setPair = function (symbol) {
                     originalSetPair(symbol);
-            setTimeout(() => {
+                    setTimeout(() => {
                         updatePaperTradingChart();
                     }, 300);
                 };
@@ -5189,16 +5459,19 @@
                 generateFakeCandle(true);
             }
 
-            btnStart.addEventListener('click', startGame);
-            btnRetry.addEventListener('click', startGame);
-            btnLong.addEventListener('click', () => placeBet('LONG'));
-            btnShort.addEventListener('click', () => placeBet('SHORT'));
+            // Game button handlers with null checks
+            if (btnStart) btnStart.onclick = startGame;
+            if (btnRetry) btnRetry.onclick = startGame;
+            if (btnLong) btnLong.onclick = () => placeBet('LONG');
+            if (btnShort) btnShort.onclick = () => placeBet('SHORT');
 
-            btnQuit.addEventListener('click', () => {
-                if (confirm("QUIT GAME? ALL PROGRESS WILL BE LOST.")) {
-                    quitToMenu();
-                }
-            });
+            if (btnQuit) {
+                btnQuit.onclick = () => {
+                    if (confirm("QUIT GAME? ALL PROGRESS WILL BE LOST.")) {
+                        quitToMenu();
+                    }
+                };
+            }
 
             function gameLoop() {
                 if (gameState !== 'GAMEOVER' && gameState !== 'MENU') {
@@ -5221,7 +5494,7 @@
 
                 if (gameState === 'RUNNING') {
                     roundTimer -= 1 / 60;
-                    gameStatusEl.innerText = `CANDLE CLOSING IN: ${Math.ceil(roundTimer)}s`;
+                    if (gameStatusEl) gameStatusEl.innerText = `CANDLE CLOSING IN: ${Math.ceil(roundTimer)}s`;
                     if (roundTimer <= 0) {
                         endRound();
                     }
@@ -5232,7 +5505,7 @@
                 gameCredits = 1000;
                 gameLives = 3;
                 gameStreak = 0;
-                gameScoreEl.innerText = gameCredits;
+                if (gameScoreEl) gameScoreEl.innerText = gameCredits;
                 updateLivesDisplay();
 
                 gameCandles = [];
@@ -5241,33 +5514,37 @@
                     generateFakeCandle(true);
                 }
 
-                menuOverlay.style.display = 'none';
-                endOverlay.style.display = 'none';
-                btnQuit.style.display = 'block';
+                if (menuOverlay) menuOverlay.style.display = 'none';
+                if (endOverlay) endOverlay.style.display = 'none';
+                if (btnQuit) btnQuit.style.display = 'block';
 
                 gameState = 'BETTING';
-                gameStatusEl.innerText = "PLACE YOUR BET";
-                gameStatusEl.className = "game-wait-text";
-                btnLong.disabled = false;
-                btnShort.disabled = false;
+                if (gameStatusEl) {
+                    gameStatusEl.innerText = "PLACE YOUR BET";
+                    gameStatusEl.className = "game-wait-text";
+                }
+                if (btnLong) btnLong.disabled = false;
+                if (btnShort) btnShort.disabled = false;
             }
 
             function quitToMenu() {
                 gameState = 'MENU';
-                menuOverlay.style.display = 'flex';
-                endOverlay.style.display = 'none';
-                btnQuit.style.display = 'none';
+                if (menuOverlay) menuOverlay.style.display = 'flex';
+                if (endOverlay) endOverlay.style.display = 'none';
+                if (btnQuit) btnQuit.style.display = 'none';
             }
 
             function placeBet(direction) {
                 if (gameState !== 'BETTING') return;
 
-                btnLong.disabled = true;
-                btnShort.disabled = true;
+                if (btnLong) btnLong.disabled = true;
+                if (btnShort) btnShort.disabled = true;
                 gameState = 'RUNNING';
                 roundTimer = ROUND_LENGTH;
-                gameStatusEl.innerText = "ROUND STARTED...";
-                gameStatusEl.className = "game-wait-text";
+                if (gameStatusEl) {
+                    gameStatusEl.innerText = "ROUND STARTED...";
+                    gameStatusEl.className = "game-wait-text";
+                }
 
                 let prevClose = gameCandles[gameCandles.length - 1].close;
 
@@ -5310,28 +5587,32 @@
 
                 if (win) {
                     handleWin();
-            } else {
+                } else {
                     handleLoss();
                 }
 
                 if (gameState !== 'GAMEOVER') {
                     setTimeout(() => {
                         gameState = 'BETTING';
-                        btnLong.disabled = false;
-                        btnShort.disabled = false;
-                        gameStatusEl.innerText = "PLACE YOUR BET";
-                        gameStatusEl.className = "game-wait-text";
+                        if (btnLong) btnLong.disabled = false;
+                        if (btnShort) btnShort.disabled = false;
+                        if (gameStatusEl) {
+                            gameStatusEl.innerText = "PLACE YOUR BET";
+                            gameStatusEl.className = "game-wait-text";
+                        }
                         currentRoundCandle = null;
                     }, 2000);
                 }
             }
 
             function handleWin() {
-                gameStatusEl.innerText = "WIN! +100 CREDITS";
-                gameStatusEl.className = "game-win-text";
+                if (gameStatusEl) {
+                    gameStatusEl.innerText = "WIN! +100 CREDITS";
+                    gameStatusEl.className = "game-win-text";
+                }
                 gameCredits += 100;
                 gameStreak++;
-                gameScoreEl.innerText = gameCredits;
+                if (gameScoreEl) gameScoreEl.innerText = gameCredits;
 
                 if (gameCredits >= WINNING_SCORE) {
                     triggerWin();
@@ -5345,11 +5626,13 @@
             }
 
             function handleLoss() {
-                gameStatusEl.innerText = "LOSS. -1 LIFE";
-                gameStatusEl.className = "game-lose-text";
+                if (gameStatusEl) {
+                    gameStatusEl.innerText = "LOSS. -1 LIFE";
+                    gameStatusEl.className = "game-lose-text";
+                }
                 gameCredits = Math.max(0, gameCredits - 100);
                 gameStreak = 0;
-                gameScoreEl.innerText = gameCredits;
+                if (gameScoreEl) gameScoreEl.innerText = gameCredits;
 
                 gameLives--;
                 updateLivesDisplay();
@@ -5362,17 +5645,23 @@
             function updateLivesDisplay() {
                 let hearts = "";
                 for (let i = 0; i < gameLives; i++) hearts += "♥";
-                gameLivesEl.innerText = hearts;
+                if (gameLivesEl) gameLivesEl.innerText = hearts;
             }
 
             function triggerWin() {
                 gameState = 'GAMEOVER';
-                endOverlay.style.display = 'flex';
-                endOverlay.className = 'game-overlay win';
-                endTitle.innerText = "VICTORY!";
-                endTitle.style.color = "#ffd700";
-                endMsg.innerHTML = "FINAL SCORE: " + gameCredits + "<br><br><strong style='color:#0ecb81'>FREE WEEK OF BOUNTY SEEKER!</strong><br>Screenshot this & DM @RickySpanish on Discord";
-                btnQuit.style.display = 'none';
+                if (endOverlay) {
+                    endOverlay.style.display = 'flex';
+                    endOverlay.className = 'game-overlay win';
+                }
+                if (endTitle) {
+                    endTitle.innerText = "VICTORY!";
+                    endTitle.style.color = "#ffd700";
+                }
+                if (endMsg) {
+                    endMsg.innerHTML = "FINAL SCORE: " + gameCredits + "<br><br><strong style='color:#0ecb81'>FREE WEEK OF BOUNTY SEEKER!</strong><br>Screenshot this & DM @RickySpanish on Discord";
+                }
+                if (btnQuit) btnQuit.style.display = 'none';
 
                 // Check monthly play limit
                 const lastWinMonth = localStorage.getItem('arcadeWinMonth');
@@ -5384,12 +5673,16 @@
 
             function triggerGameOver() {
                 gameState = 'GAMEOVER';
-                endOverlay.style.display = 'flex';
-                endOverlay.className = 'game-overlay lose';
-                endTitle.innerText = "GAME OVER";
-                endTitle.style.color = "#ff0055";
-                endMsg.innerText = "FINAL SCORE: " + gameCredits;
-                btnQuit.style.display = 'none';
+                if (endOverlay) {
+                    endOverlay.style.display = 'flex';
+                    endOverlay.className = 'game-overlay lose';
+                }
+                if (endTitle) {
+                    endTitle.innerText = "GAME OVER";
+                    endTitle.style.color = "#ff0055";
+                }
+                if (endMsg) endMsg.innerText = "FINAL SCORE: " + gameCredits;
+                if (btnQuit) btnQuit.style.display = 'none';
             }
 
             function drawGame() {
@@ -5463,4 +5756,5 @@
         })();
     </script>
 </body>
+
 </html>
