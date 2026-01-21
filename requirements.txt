@@ -1,6 +1,7 @@
 yfinance>=0.2.43
 pandas>=2.2.2
 numpy>=1.26.4
+scipy>=1.11.0
 requests>=2.32.3
 python-dotenv>=1.0.1
 ta>=0.11.0
@@ -14,4 +15,3 @@ flask>=3.0.0
 discord.py>=2.3.0
 vaderSentiment>=3.3.2
 textblob>=0.17.1
-beautifulsoup4>=4.13.5

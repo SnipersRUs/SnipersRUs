@@ -4700,7 +4700,37 @@
 
             // Initialize
             loadPaperPortfolio();
+            
+            // Ensure balance is initialized
+            if (!paperPortfolio.balance || paperPortfolio.balance <= 0 || isNaN(paperPortfolio.balance)) {
+                paperPortfolio.balance = 10000;
+                savePaperPortfolio();
+            }
+            
+            // Ensure trades array exists
+            if (!Array.isArray(paperPortfolio.trades)) {
+                paperPortfolio.trades = [];
+                savePaperPortfolio();
+            }
+            
+            // Set default order type to market
+            paperCurrentOrderType = 'market';
+            const defaultMarketTab = document.querySelector('.paper-order-tab[data-order-type="market"]');
+            if (defaultMarketTab) {
+                document.querySelectorAll('.paper-order-tab').forEach(t => t.classList.remove('active'));
+                defaultMarketTab.classList.add('active');
+            }
+            
+            // Set default trade type to buy
+            paperCurrentTradeType = 'buy';
+            const defaultBuyBtn = document.querySelector('.paper-trade-btn[data-trade-type="buy"]');
+            if (defaultBuyBtn) {
+                document.querySelectorAll('.paper-trade-btn').forEach(b => b.classList.remove('active'));
+                defaultBuyBtn.classList.add('active');
+            }
+            
             updatePaperUI();
+            updatePaperSubmitButton();
 
             // Trade type buttons
             document.querySelectorAll('.paper-trade-btn').forEach(btn => {
@@ -4712,16 +4742,37 @@
                 });
             });
 
-            // Order type tabs
-            document.querySelectorAll('.paper-order-tab').forEach(tab => {
-                tab.addEventListener('click', () => {
+            // Order type tabs - use event delegation to ensure it works
+            const orderTabsContainer = document.querySelector('.paper-order-tabs');
+            if (orderTabsContainer) {
+                orderTabsContainer.addEventListener('click', (e) => {
+                    const tab = e.target.closest('.paper-order-tab');
+                    if (!tab) return;
+                    
                     document.querySelectorAll('.paper-order-tab').forEach(t => t.classList.remove('active'));
                     tab.classList.add('active');
-                    paperCurrentOrderType = tab.dataset.orderType;
+                    paperCurrentOrderType = tab.dataset.orderType || tab.getAttribute('data-order-type');
                     const limitGroup = document.getElementById('paperLimitPriceGroup');
                     if (limitGroup) {
                         limitGroup.style.display = paperCurrentOrderType === 'limit' ? 'block' : 'none';
                     }
+                    updatePaperOrderSummary();
+                    updatePaperSubmitButton();
+                });
+            }
+            
+            // Also attach direct listeners as fallback
+            document.querySelectorAll('.paper-order-tab').forEach(tab => {
+                tab.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    document.querySelectorAll('.paper-order-tab').forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+                    paperCurrentOrderType = tab.dataset.orderType || tab.getAttribute('data-order-type');
+                    const limitGroup = document.getElementById('paperLimitPriceGroup');
+                    if (limitGroup) {
+                        limitGroup.style.display = paperCurrentOrderType === 'limit' ? 'block' : 'none';
+                    }
+                    updatePaperOrderSummary();
                     updatePaperSubmitButton();
                 });
             });
@@ -4882,40 +4933,65 @@
 
             // Update submit button
             function updatePaperSubmitButton() {
+                if (!submitBtn) return;
+                
                 const amount = parseFloat(amountInput?.value || '0');
                 const price = paperCurrentOrderType === 'market'
-                    ? state.price
+                    ? (state.price || 0)
                     : parseFloat(limitPriceInput?.value || '0');
                 const totalCost = amount * price;
 
-                const isValid = amount > 0 &&
-                    (paperCurrentOrderType === 'market' || (price > 0 && price !== state.price)) &&
-                    (paperCurrentTradeType === 'sell' || totalCost <= paperPortfolio.balance);
-
-                if (submitBtn) {
-                    submitBtn.disabled = !isValid;
-                    submitBtn.textContent = paperCurrentOrderType === 'market'
-                        ? (paperCurrentTradeType === 'buy' ? 'Buy Market' : 'Sell Market')
-                        : (paperCurrentTradeType === 'buy' ? 'Place Buy Limit' : 'Place Sell Limit');
-                    submitBtn.className = `paper-submit-btn ${paperCurrentTradeType}`;
+                // Validation
+                let isValid = amount > 0;
+                
+                if (paperCurrentOrderType === 'limit') {
+                    isValid = isValid && price > 0 && price !== (state.price || 0);
+                } else {
+                    isValid = isValid && (state.price && state.price > 0);
                 }
+                
+                if (paperCurrentTradeType === 'buy') {
+                    isValid = isValid && totalCost <= paperPortfolio.balance;
+                }
+
+                submitBtn.disabled = !isValid;
+                
+                // Update button text based on order type and trade type
+                const orderTypeText = paperCurrentOrderType === 'market' ? 'Market' : 'Limit';
+                const tradeTypeText = paperCurrentTradeType === 'buy' ? 'Buy' : 'Sell';
+                submitBtn.textContent = `Place ${tradeTypeText} ${orderTypeText} Order`;
+                submitBtn.className = `paper-submit-btn ${paperCurrentTradeType}`;
             }
 
             // Update UI
             function updatePaperUI() {
+                // Ensure balance exists
+                if (!paperPortfolio.balance || isNaN(paperPortfolio.balance)) {
+                    paperPortfolio.balance = 10000;
+                    savePaperPortfolio();
+                }
+                
+                // Ensure trades array exists
+                if (!Array.isArray(paperPortfolio.trades)) {
+                    paperPortfolio.trades = [];
+                    savePaperPortfolio();
+                }
+                
                 const openPositions = paperPortfolio.trades.filter(t => t.status === 'open' && t.symbol === state.symbol);
                 const pendingOrders = paperPortfolio.trades.filter(t => t.status === 'pending' && t.symbol === state.symbol);
                 const closedTrades = paperPortfolio.trades.filter(t => t.status === 'closed' && t.symbol === state.symbol);
 
                 // Calculate unrealized P&L
                 let unrealizedPnL = 0;
-                openPositions.forEach(trade => {
-                    if (trade.type === 'buy') {
-                        unrealizedPnL += (state.price - trade.price) * trade.amount;
-                    } else {
-                        unrealizedPnL += (trade.price - state.price) * trade.amount;
-                    }
-                });
+                if (state.price && state.price > 0) {
+                    openPositions.forEach(trade => {
+                        if (trade.type === 'buy') {
+                            unrealizedPnL += (state.price - trade.price) * trade.amount;
+                        } else {
+                            unrealizedPnL += (trade.price - state.price) * trade.amount;
+                        }
+                    });
+                }
 
                 // Calculate realized P&L
                 const realizedPnL = closedTrades.reduce((sum, t) => sum + (t.pnl || 0), 0);
@@ -4929,8 +5005,12 @@
                 const realizedEl = document.getElementById('paperRealizedPnL');
                 const unrealizedEl = document.getElementById('paperUnrealizedPnL');
 
-                if (balanceEl) balanceEl.textContent = `$${paperPortfolio.balance.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
-                if (equityEl) equityEl.textContent = `$${equity.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
+                if (balanceEl) {
+                    balanceEl.textContent = `$${paperPortfolio.balance.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                }
+                if (equityEl) {
+                    equityEl.textContent = `$${equity.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                }
                 if (realizedEl) {
                     realizedEl.textContent = `${realizedPnL >= 0 ? '+' : ''}$${realizedPnL.toFixed(2)}`;
                     realizedEl.style.color = realizedPnL >= 0 ? 'var(--accent-green)' : 'var(--accent-purple)';
@@ -5165,8 +5245,16 @@
                 }
             }, 1000);
 
-            // Initial render
-            renderPaperPositions();
+            // Initial render - wait for DOM to be ready
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', () => {
+                    renderPaperPositions();
+                    updatePaperUI();
+                });
+            } else {
+                renderPaperPositions();
+                updatePaperUI();
+            }
 
             // Update every second
             setInterval(() => {
@@ -5174,7 +5262,39 @@
                 if (paperCurrentTab === 'open') {
                     renderPaperPositions();
                 }
+                // Check pending orders
+                checkPendingOrders();
             }, 1000);
+            
+            // Check pending limit orders
+            function checkPendingOrders() {
+                if (!state.price || state.price <= 0) return;
+                
+                const pending = paperPortfolio.trades.filter(t => t.status === 'pending' && t.symbol === state.symbol);
+                let updated = false;
+                
+                pending.forEach(trade => {
+                    if (trade.type === 'buy' && state.price <= trade.limitPrice) {
+                        // Buy limit filled
+                        trade.status = 'open';
+                        trade.price = trade.limitPrice;
+                        paperPortfolio.balance -= trade.amount * trade.limitPrice;
+                        updated = true;
+                    } else if (trade.type === 'sell' && state.price >= trade.limitPrice) {
+                        // Sell limit filled
+                        trade.status = 'open';
+                        trade.price = trade.limitPrice;
+                        paperPortfolio.balance += trade.amount * trade.limitPrice;
+                        updated = true;
+                    }
+                });
+                
+                if (updated) {
+                    savePaperPortfolio();
+                    updatePaperUI();
+                    renderPaperPositions();
+                }
+            }
 
             // Update paper trading chart when pair changes
             function updatePaperTradingChart() {
