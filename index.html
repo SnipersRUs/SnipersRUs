@@ -2400,6 +2400,9 @@
                                 id="signalCount">--</span></button>
                         <button class="summary-pill signal-toggle" id="watchlistToggle" type="button">Watchlist: <span
                                 id="watchlistCount">--</span></button>
+                        <button class="summary-pill signal-toggle" id="userProfileBtn" type="button"
+                            style="border-color: var(--accent-blue); color: var(--accent-blue);">👤 <span
+                                id="userProfileName">Set Name</span></button>
                     </div>
                     <div class="signal-panel" id="signalPanel" aria-hidden="true">
                         <div class="signal-panel-header">
@@ -4086,6 +4089,40 @@
                     // Update header counts
                     const signalCountEl = document.getElementById('signalCount');
                     if (signalCountEl) signalCountEl.textContent = topSignals.length;
+
+                    // Discord Notification for Signals (Purple Card)
+                    sendToDiscord({
+                        username: "Bounty Seeker Bot",
+                        avatar_url: "https://i.imgur.com/4M34hi2.png",
+                        embeds: [{
+                            title: `🎯 ${topSignals.length} New High-Confidence Signals Detected`,
+                            color: 10181046, // Purple
+                            fields: topSignals.map(s => ({
+                                name: `${s.symbol} ${s.direction} (Score: ${s.confidence_score})`,
+                                value: `Entry: ${priceFormatter.format(s.entry_price)}\nTP: ${priceFormatter.format(s.take_profit)}\nSL: ${priceFormatter.format(s.stop_loss)}\nReasons: ${s.reasons.join(', ')}`
+                            })),
+                            footer: { text: "Snipers R Us • Live Scanner" },
+                            timestamp: new Date().toISOString()
+                        }]
+                    });
+                }
+
+                // Discord Notification for Watchlist (Orange Card) -> Only if top 3 changed?
+                // For simplicity, we send if we have a robust list, but maybe throttle it?
+                // Depending on user request "watchlist on the other orange card"
+                // Let's send the top 5 watchlist items
+                if (candidates.length > 0) {
+                    sendToDiscord({
+                        username: "Bounty Seeker Bot",
+                        avatar_url: "https://i.imgur.com/4M34hi2.png",
+                        embeds: [{
+                            title: `👀 Watchlist Update: ${candidates.length} Sets in Focus`,
+                            color: 16753920, // Orange
+                            description: candidates.slice(0, 5).map(c => `**${c.symbol}** (${c.bias || 'Neutral'}) - ${c.reasons[0]}`).join('\n'),
+                            footer: { text: "Snipers R Us • Watchlist" },
+                            timestamp: new Date().toISOString()
+                        }]
+                    });
                 }
 
             } catch (error) {
@@ -4340,6 +4377,13 @@
                 });
             }
             updatePairUI(state.symbol);
+
+            // User Profile
+            const profileBtn = document.getElementById('userProfileBtn');
+            if (profileBtn) {
+                profileBtn.addEventListener('click', setUsername);
+                updateProfileUI();
+            }
 
             // Engagement panels
             renderEngagement({ signals: [], watchlist_size: '--' });
@@ -5118,6 +5162,24 @@
                         updatePaperSubmitButton();
                     }, 1500);
                 }
+
+                // Send to Discord Leaderboard
+                const user = getUsername();
+                sendToDiscord({
+                    username: "Snipers Leaderboard",
+                    embeds: [{
+                        title: `🔔 New Trade Opened`,
+                        color: 3447003, // Blue
+                        description: `**${user}** opened a **${trade.type.toUpperCase()}** on **${trade.symbol}**`,
+                        fields: [
+                            { name: "Entry Price", value: `$${trade.price.toLocaleString()}`, inline: true },
+                            { name: "Size", value: `${trade.amount} ${trade.symbol}`, inline: true },
+                            { name: "Order Type", value: trade.orderType.toUpperCase(), inline: true }
+                        ],
+                        footer: { text: "Paper Trading Competition" },
+                        timestamp: new Date().toISOString()
+                    }]
+                });
             }
 
             // Make executePaperTrade globally accessible for onclick
@@ -5462,6 +5524,26 @@
                 savePaperPortfolio();
                 updatePaperUI();
                 renderPaperPositions();
+
+                // Notify Discord (Green for profit, Red for loss)
+                const user = getUsername();
+                const isWin = pnl >= 0;
+
+                sendToDiscord({
+                    username: "Snipers Leaderboard",
+                    embeds: [{
+                        title: isWin ? `💰 Trade Closed (Profit)` : `🔻 Trade Closed (Loss)`,
+                        color: isWin ? 3066993 : 15158332, // Green or Red
+                        description: `**${user}** closed **${trade.type.toUpperCase()}** on **${trade.symbol}**`,
+                        fields: [
+                            { name: "PnL", value: `${isWin ? '+' : ''}$${pnl.toFixed(2)}`, inline: true },
+                            { name: "Entry", value: `$${trade.price.toLocaleString()}`, inline: true },
+                            { name: "Exit", value: `$${currentPrice.toLocaleString()}`, inline: true }
+                        ],
+                        footer: { text: "Paper Trading Competition" },
+                        timestamp: new Date().toISOString()
+                    }]
+                });
             };
 
             // Cancel order function (global)

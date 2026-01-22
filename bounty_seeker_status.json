@@ -3,8 +3,8 @@
   "exchange": "okx",
   "watchlist_size": 10,
   "signal_count": 49,
-  "last_scan_time": "2026-01-22T03:00:00.375720+00:00",
-  "next_scan_time": "2026-01-22T03:30:00+00:00",
+  "last_scan_time": "2026-01-22T03:30:00.122721+00:00",
+  "next_scan_time": "2026-01-22T04:00:00+00:00",
   "open_trades": [
     {
       "id": 240,
