@@ -3,8 +3,8 @@
   "exchange": "okx",
   "watchlist_size": 10,
   "signal_count": 52,
-  "last_scan_time": "2026-01-22T06:00:00.708976+00:00",
-  "next_scan_time": "2026-01-22T06:30:00+00:00",
+  "last_scan_time": "2026-01-22T06:30:00.053687+00:00",
+  "next_scan_time": "2026-01-22T07:00:00+00:00",
   "open_trades": [
     {
       "id": 246,
@@ -14,15 +14,6 @@
       "stop_loss": 0.8369460000000001,
       "take_profit": 0.8665349999999999,
       "entry_time": "2026-01-22T03:00:03.710283+00:00"
-    },
-    {
-      "id": 247,
-      "trade_number": 59,
-      "symbol": "BERA/USDT:USDT",
-      "entry_price": 0.8467,
-      "stop_loss": 0.838233,
-      "take_profit": 0.8678674999999999,
-      "entry_time": "2026-01-22T04:00:04.176642+00:00"
     },
     {
       "id": 248,
