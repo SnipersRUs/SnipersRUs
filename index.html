@@ -2626,13 +2626,13 @@
 
                 <div class="paper-order-card">
                     <div class="paper-order-tabs">
-                        <button class="paper-order-tab active" data-order-type="market" type="button">Market</button>
-                        <button class="paper-order-tab" data-order-type="limit" type="button">Limit</button>
+                        <button class="paper-order-tab active" data-order-type="market" type="button" onclick="window.paperSetOrderType('market', this)">Market</button>
+                        <button class="paper-order-tab" data-order-type="limit" type="button" onclick="window.paperSetOrderType('limit', this)">Limit</button>
                     </div>
 
                     <div class="paper-trade-buttons">
-                        <button class="paper-trade-btn long active" data-trade-type="buy" type="button">LONG</button>
-                        <button class="paper-trade-btn short" data-trade-type="sell" type="button">SHORT</button>
+                        <button class="paper-trade-btn long active" data-trade-type="buy" type="button" onclick="window.paperSetTradeType('buy', this)">LONG</button>
+                        <button class="paper-trade-btn short" data-trade-type="sell" type="button" onclick="window.paperSetTradeType('sell', this)">SHORT</button>
                     </div>
 
                     <div class="paper-input-group">
@@ -2642,10 +2642,10 @@
                         </div>
                         <input type="number" step="0.00001" class="paper-input" id="paperAmount" placeholder="0.00000">
                         <div class="paper-percent-buttons">
-                            <button class="paper-percent-btn" data-percent="25" type="button">25%</button>
-                            <button class="paper-percent-btn" data-percent="50" type="button">50%</button>
-                            <button class="paper-percent-btn" data-percent="75" type="button">75%</button>
-                            <button class="paper-percent-btn" data-percent="100" type="button">100%</button>
+                            <button class="paper-percent-btn" data-percent="25" type="button" onclick="window.paperSetPercent(25)">25%</button>
+                            <button class="paper-percent-btn" data-percent="50" type="button" onclick="window.paperSetPercent(50)">50%</button>
+                            <button class="paper-percent-btn" data-percent="75" type="button" onclick="window.paperSetPercent(75)">75%</button>
+                            <button class="paper-percent-btn" data-percent="100" type="button" onclick="window.paperSetPercent(100)">100%</button>
                         </div>
                     </div>
 
@@ -2656,10 +2656,10 @@
                         <input type="number" step="0.01" class="paper-input" id="paperLimitPrice"
                             placeholder="Enter limit price">
                         <div class="paper-percent-buttons">
-                            <button class="paper-percent-btn" data-price-offset="-5" type="button">-5%</button>
-                            <button class="paper-percent-btn" data-price-offset="5" type="button">+5%</button>
-                            <button class="paper-percent-btn" data-price-offset="-1" type="button">-1%</button>
-                            <button class="paper-percent-btn" data-price-offset="1" type="button">+1%</button>
+                            <button class="paper-percent-btn" data-price-offset="-5" type="button" onclick="window.paperSetPriceOffset(-5)">-5%</button>
+                            <button class="paper-percent-btn" data-price-offset="5" type="button" onclick="window.paperSetPriceOffset(5)">+5%</button>
+                            <button class="paper-percent-btn" data-price-offset="-1" type="button" onclick="window.paperSetPriceOffset(-1)">-1%</button>
+                            <button class="paper-percent-btn" data-price-offset="1" type="button" onclick="window.paperSetPriceOffset(1)">+1%</button>
                         </div>
                     </div>
 
@@ -2680,8 +2680,7 @@
                         </div>
                     </div>
 
-                    <button class="paper-submit-btn long" id="paperSubmitBtn" type="button" disabled>Place Market
-                        Order</button>
+                    <button class="paper-submit-btn long" id="paperSubmitBtn" type="button" onclick="if(typeof window.executePaperTrade === 'function') window.executePaperTrade();" disabled>Place Market Order</button>
                 </div>
             </div>
         </div>
@@ -2897,20 +2896,20 @@
         <div id="game-widget">
             <div class="game-scanlines"></div>
 
-            <button id="btn-quit">QUIT</button>
+            <button id="btn-quit" onclick="if(typeof window.gameQuit === 'function') window.gameQuit()">QUIT</button>
 
             <!-- MAIN MENU OVERLAY -->
             <div id="menu-overlay" class="game-overlay" style="display:flex">
                 <h2>MISSION BRIEFING:<br><br>GOAL: REACH 2000 CREDITS<br>3 LOSSES = GAME OVER<br>PREDICT GREEN OR RED
                 </h2>
-                <button id="btn-start" class="menu-btn">START GAME</button>
+                <button id="btn-start" class="menu-btn" onclick="if(typeof window.gameStart === 'function') window.gameStart()">START GAME</button>
             </div>
 
             <!-- GAME OVER / WIN OVERLAY -->
             <div id="end-overlay" class="game-overlay">
                 <h1 id="end-title">GAME OVER</h1>
                 <p id="end-msg">SCORE: 0</p>
-                <button id="btn-retry" class="menu-btn">RETRY</button>
+                <button id="btn-retry" class="menu-btn" onclick="if(typeof window.gameStart === 'function') window.gameStart()">RETRY</button>
             </div>
 
             <div class="game-header">
@@ -2929,8 +2928,8 @@
             <div id="game-status" class="game-wait-text">PLACE YOUR BET</div>
 
             <div class="game-controls">
-                <button class="game-btn game-btn-long" id="btnLong">LONG (GREEN)</button>
-                <button class="game-btn game-btn-short" id="btnShort">SHORT (RED)</button>
+                <button class="game-btn game-btn-long" id="btnLong" onclick="if(typeof window.gamePlaceBet === 'function') window.gamePlaceBet('LONG')">LONG (GREEN)</button>
+                <button class="game-btn game-btn-short" id="btnShort" onclick="if(typeof window.gamePlaceBet === 'function') window.gamePlaceBet('SHORT')">SHORT (RED)</button>
             </div>
         </div>
 
@@ -4862,58 +4861,49 @@
 
             updatePaperUI();
 
-            // Initialize buttons with direct onclick handlers (more reliable)
-            function initPaperButtons() {
-                // Order type tabs (Market/Limit) - Direct handlers
-                const orderTabs = document.querySelectorAll('.paper-order-tab');
-                console.log('Found order tabs:', orderTabs.length);
-                orderTabs.forEach(tab => {
-                    // Remove any existing onclick
-                    tab.onclick = null;
-                    tab.onclick = function (e) {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        console.log('Order tab clicked:', this.dataset.orderType);
-                        document.querySelectorAll('.paper-order-tab').forEach(t => t.classList.remove('active'));
-                        this.classList.add('active');
-                        paperCurrentOrderType = this.dataset.orderType || 'market';
-                        const limitGroup = document.getElementById('paperLimitPriceGroup');
-                        if (limitGroup) {
-                            limitGroup.style.display = paperCurrentOrderType === 'limit' ? 'block' : 'none';
-                        }
-                        updatePaperSubmitButton();
-                        updatePaperOrderSummary();
-                    };
-                });
+            // Global functions for inline onclick handlers (most reliable)
+            window.paperSetOrderType = function(type, clickedBtn) {
+                console.log('Setting order type to:', type);
+                document.querySelectorAll('.paper-order-tab').forEach(t => t.classList.remove('active'));
+                clickedBtn.classList.add('active');
+                paperCurrentOrderType = type;
+                const limitGroup = document.getElementById('paperLimitPriceGroup');
+                if (limitGroup) {
+                    limitGroup.style.display = type === 'limit' ? 'block' : 'none';
+                }
+                updatePaperSubmitButton();
+                updatePaperOrderSummary();
+            };
 
-                // Trade type buttons (LONG/SHORT) - Direct handlers
-                const tradeButtons = document.querySelectorAll('.paper-trade-btn');
-                console.log('Found trade buttons:', tradeButtons.length);
-                tradeButtons.forEach(btn => {
-                    // Remove any existing onclick
-                    btn.onclick = null;
-                    btn.onclick = function (e) {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        console.log('Trade button clicked:', this.dataset.tradeType);
-                        document.querySelectorAll('.paper-trade-btn').forEach(b => b.classList.remove('active'));
-                        this.classList.add('active');
-                        paperCurrentTradeType = this.dataset.tradeType || 'buy';
-                        updatePaperSubmitButton();
-                        updatePaperOrderSummary();
-                    };
-                });
-            }
+            window.paperSetTradeType = function(type, clickedBtn) {
+                console.log('Setting trade type to:', type);
+                document.querySelectorAll('.paper-trade-btn').forEach(b => b.classList.remove('active'));
+                clickedBtn.classList.add('active');
+                paperCurrentTradeType = type;
+                updatePaperSubmitButton();
+                updatePaperOrderSummary();
+            };
 
-            // Initialize immediately and retry if needed
-            if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', initPaperButtons);
-            } else {
-                initPaperButtons();
-            }
-            setTimeout(initPaperButtons, 500);
-            setTimeout(initPaperButtons, 1500);
-            setTimeout(initPaperButtons, 3000);
+            // Event Delegation for other buttons (percent buttons, etc.)
+            document.addEventListener('click', function (e) {
+
+                // 3. Position Tabs (Open/Pending/Closed)
+                const posTab = e.target.closest('.paper-positions-tab');
+                if (posTab) {
+                    document.querySelectorAll('.paper-positions-tab').forEach(t => t.classList.remove('active'));
+                    posTab.classList.add('active');
+                    paperCurrentTab = posTab.dataset.tab;
+                    renderPaperPositions();
+                    return;
+                }
+
+                // 4. Submit Button
+                if (e.target.id === 'paperSubmitBtn') {
+                    e.preventDefault();
+                    executePaperTrade();
+                    return;
+                }
+            });
 
             // Position tabs
             document.querySelectorAll('.paper-positions-tab').forEach(tab => {
@@ -4943,42 +4933,30 @@
                 });
             }
 
-            // Percent buttons - Use event delegation
-            document.addEventListener('click', function (e) {
-                if (e.target.classList.contains('paper-percent-btn') && e.target.dataset.percent) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    const percent = parseFloat(e.target.dataset.percent);
-                    if (state.price && amountInput) {
-                        const availableBalance = paperPortfolio.balance;
-                        const coinAmount = (availableBalance / state.price) * (percent / 100);
-                        amountInput.value = coinAmount.toFixed(8);
-                        updatePaperOrderSummary();
-                        updatePaperSubmitButton();
-                    }
+            // Global functions for percent and price offset buttons
+            window.paperSetPercent = function(percent) {
+                const amountInput = document.getElementById('paperAmount');
+                if (state.price && amountInput) {
+                    const availableBalance = paperPortfolio.balance;
+                    const coinAmount = (availableBalance / state.price) * (percent / 100);
+                    amountInput.value = coinAmount.toFixed(8);
+                    updatePaperOrderSummary();
+                    updatePaperSubmitButton();
                 }
-            });
+            };
 
-            // Price offset buttons - Use event delegation
-            document.addEventListener('click', function (e) {
-                if (e.target.classList.contains('paper-percent-btn') && e.target.dataset.priceOffset) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    const offset = parseFloat(e.target.dataset.priceOffset);
-                    if (state.price && limitPriceInput) {
-                        const newPrice = state.price * (1 + offset / 100);
-                        limitPriceInput.value = newPrice.toFixed(2);
-                        updatePaperOrderSummary();
-                        updatePaperSubmitButton();
-                    }
+            window.paperSetPriceOffset = function(offset) {
+                const limitPriceInput = document.getElementById('paperLimitPrice');
+                if (state.price && limitPriceInput) {
+                    const newPrice = state.price * (1 + offset / 100);
+                    limitPriceInput.value = newPrice.toFixed(2);
+                    updatePaperOrderSummary();
+                    updatePaperSubmitButton();
                 }
-            });
+            };
 
-            // Submit button
-            const submitBtn = document.getElementById('paperSubmitBtn');
-            if (submitBtn) {
-                submitBtn.addEventListener('click', executePaperTrade);
-            }
+            // Make executePaperTrade globally accessible (defined below)
+            // Will be assigned after function definition
 
             // Reset button
             const resetBtn = document.getElementById('paperResetBtn');
@@ -4997,10 +4975,15 @@
                 });
             }
 
-            // Execute trade
+            // Execute trade function
             function executePaperTrade() {
+                const amountInput = document.getElementById('paperAmount');
+                const limitPriceInput = document.getElementById('paperLimitPrice');
                 const amount = parseFloat(amountInput?.value || '0');
-                if (!amount || amount <= 0) return;
+                if (!amount || amount <= 0) {
+                    alert('Please enter a valid amount');
+                    return;
+                }
 
                 const currentPrice = state && state.price ? state.price : 0;
                 const price = paperCurrentOrderType === 'market'
@@ -5012,25 +4995,25 @@
                     return;
                 }
 
-                if (price <= 0) {
-                    alert('Waiting for market data...');
+                if (!price || price <= 0) {
+                    alert('Waiting for market price data. Please try again in a moment.');
                     return;
                 }
 
                 const totalCost = amount * price;
                 if (paperCurrentTradeType === 'buy' && totalCost > paperPortfolio.balance) {
-                    alert('Insufficient balance');
+                    alert('Insufficient balance. You need $' + totalCost.toFixed(2));
                     return;
                 }
 
                 const trade = {
                     id: Date.now(),
-                    symbol: state.symbol,
+                    symbol: state.symbol || 'BTC',
                     type: paperCurrentTradeType,
                     orderType: paperCurrentOrderType,
                     amount: amount,
                     price: price,
-                    limitPrice: paperCurrentOrderType === 'limit' ? price : undefined,
+                    limitPrice: paperCurrentOrderType === 'limit' ? price : null,
                     timestamp: new Date().toISOString(),
                     status: paperCurrentOrderType === 'market' ? 'open' : 'pending'
                 };
@@ -5039,8 +5022,11 @@
                     if (paperCurrentTradeType === 'buy') {
                         paperPortfolio.balance -= totalCost;
                     } else {
-                        // For shorts, we add to balance (selling)
-                        paperPortfolio.balance += totalCost;
+                        // Short entry: We deduct margin or just track it.
+                        // Simplified: Deduct "cost" from balance to ensure they have skin in the game
+                        // In a real short, you borrow. Here we'll simulate "margin used".
+                        paperPortfolio.balance -= totalCost;
+                        // Note: This logic was weird in original: "for shorts we add to balance" -> that's incorrect for OPENING a short.
                     }
                 }
 
@@ -5054,10 +5040,26 @@
                 updatePaperUI();
                 renderPaperPositions();
                 updatePaperOrderSummary();
+
+                // Show success feedback
+                const submitBtn = document.getElementById('paperSubmitBtn');
+                if (submitBtn) {
+                    const btnOriginalText = submitBtn.textContent;
+                    submitBtn.textContent = "Order Placed!";
+                    setTimeout(() => {
+                        submitBtn.textContent = btnOriginalText;
+                        updatePaperSubmitButton();
+                    }, 1500);
+                }
             }
+            
+            // Make executePaperTrade globally accessible for onclick
+            window.executePaperTrade = executePaperTrade;
 
             // Update order summary
             function updatePaperOrderSummary() {
+                const amountInput = document.getElementById('paperAmount');
+                const limitPriceInput = document.getElementById('paperLimitPrice');
                 const amount = parseFloat(amountInput?.value || '0');
                 const summaryEl = document.getElementById('paperOrderSummary');
                 const priceEl = document.getElementById('paperOrderPrice');
@@ -5142,8 +5144,12 @@
                 const realizedEl = document.getElementById('paperRealizedPnL');
                 const unrealizedEl = document.getElementById('paperUnrealizedPnL');
 
-                if (balanceEl) balanceEl.textContent = `$${paperPortfolio.balance.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
-                if (equityEl) equityEl.textContent = `$${equity.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+                if (balanceEl) {
+                    balanceEl.textContent = `$${paperPortfolio.balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                }
+                if (equityEl) {
+                    equityEl.textContent = `$${equity.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                }
                 if (realizedEl) {
                     realizedEl.textContent = `${realizedPnL >= 0 ? '+' : ''}$${realizedPnL.toFixed(2)}`;
                     realizedEl.style.color = realizedPnL >= 0 ? 'var(--accent-green)' : 'var(--accent-purple)';
@@ -5165,15 +5171,12 @@
                 // Update available amount
                 const availableEl = document.getElementById('paperAvailableAmount');
                 if (availableEl) {
-                    if (state.price && state.price > 0 && state.symbol) {
-                        const availableBTC = paperPortfolio.balance / state.price;
-                        const symbolDisplay = state.symbol.replace('USDT', '').replace('/', '').replace(':USDT', '');
-                        availableEl.textContent = `Available: ${availableBTC.toFixed(8)} ${symbolDisplay}`;
-                    } else if (state.price && state.price > 0) {
-                        const availableBTC = paperPortfolio.balance / state.price;
-                        availableEl.textContent = `Available: ${availableBTC.toFixed(8)} BTC`;
+                    if (state.price && state.price > 0) {
+                        const symbolDisplay = state.symbol ? state.symbol.replace('USDT', '').replace('/', '').replace(':USDT', '') : 'BTC';
+                        const availableQty = paperPortfolio.balance / state.price;
+                        availableEl.textContent = `Available: ${availableQty.toFixed(8)} ${symbolDisplay}`;
                     } else {
-                        availableEl.textContent = `Available: -- BTC`;
+                        availableEl.textContent = `Available: Loading...`;
                     }
                 }
 
@@ -5189,24 +5192,48 @@
             // Check pending orders
             function checkPendingOrders() {
                 const pendingOrders = paperPortfolio.trades.filter(t => t.status === 'pending' && t.symbol === state.symbol);
+                if (pendingOrders.length === 0) return;
+
+                let stateChanged = false;
                 pendingOrders.forEach(trade => {
                     if (!trade.limitPrice || !state.price) return;
 
+                    // Improved logic:
+                    // Buy Limit: execute if current price <= limit price
+                    // Sell Limit: execute if current price >= limit price
                     const shouldExecute = trade.type === 'buy'
                         ? state.price <= trade.limitPrice
                         : state.price >= trade.limitPrice;
 
                     if (shouldExecute) {
                         trade.status = 'open';
-                        trade.price = state.price;
-                        if (trade.type === 'buy') {
-                            paperPortfolio.balance -= trade.amount * trade.price;
+                        trade.price = trade.limitPrice; // Execute at limit price (or better)
+                        trade.entryTime = new Date().toISOString();
+
+                        // Deduct balance now if we haven't already (depending on margin model)
+                        // In executePaperTrade we didn't deduct for pending. So do it now.
+                        const totalCost = trade.amount * trade.price;
+                        // For simplicity in this demo, just deduct cost for both long and short to simulate margin usage
+                        if (paperPortfolio.balance >= totalCost) {
+                            paperPortfolio.balance -= totalCost;
                         } else {
-                            paperPortfolio.balance += trade.amount * trade.price;
+                            // Failed to fill due to balance? Cancel it?
+                            // For now let's just allow it or set negative balance (margin call sim)
+                            paperPortfolio.balance -= totalCost;
                         }
-                        savePaperPortfolio();
+
+                        stateChanged = true;
+
+                        // Notify user (simple toast or console for now)
+                        console.log(`Order Filled: ${trade.type.toUpperCase()} ${trade.symbol} at ${trade.price}`);
                     }
                 });
+
+                if (stateChanged) {
+                    savePaperPortfolio();
+                    renderPaperPositions(); // Re-render to show moved trades
+                    updatePaperUI();
+                }
             }
 
             // Render positions
@@ -5329,18 +5356,20 @@
                 const trade = paperPortfolio.trades.find(t => t.id === tradeId);
                 if (!trade || trade.status !== 'open') return;
 
-                const pnl = trade.type === 'buy'
-                    ? (state.price - trade.price) * trade.amount
-                    : (trade.price - state.price) * trade.amount;
+                const currentPrice = state.price;
 
-                if (trade.type === 'buy') {
-                    paperPortfolio.balance += trade.amount * state.price;
-                } else {
-                    paperPortfolio.balance -= trade.amount * state.price;
-                }
+                const pnl = trade.type === 'buy'
+                    ? (currentPrice - trade.price) * trade.amount
+                    : (trade.price - currentPrice) * trade.amount;
+
+                // Return original "margin"/cost + PnL
+                // Cost was: trade.amount * trade.price
+                const originalCost = trade.amount * trade.price;
+
+                paperPortfolio.balance += (originalCost + pnl);
 
                 trade.status = 'closed';
-                trade.closePrice = state.price;
+                trade.closePrice = currentPrice;
                 trade.pnl = pnl;
                 paperPortfolio.totalPnl += pnl;
 
@@ -5459,19 +5488,8 @@
                 generateFakeCandle(true);
             }
 
-            // Game button handlers with null checks
-            if (btnStart) btnStart.onclick = startGame;
-            if (btnRetry) btnRetry.onclick = startGame;
-            if (btnLong) btnLong.onclick = () => placeBet('LONG');
-            if (btnShort) btnShort.onclick = () => placeBet('SHORT');
-
-            if (btnQuit) {
-                btnQuit.onclick = () => {
-                    if (confirm("QUIT GAME? ALL PROGRESS WILL BE LOST.")) {
-                        quitToMenu();
-                    }
-                };
-            }
+            // Make game functions globally accessible (will be assigned after function definitions)
+            // Functions are defined below, we'll assign them to window after they're created
 
             function gameLoop() {
                 if (gameState !== 'GAMEOVER' && gameState !== 'MENU') {
@@ -5481,6 +5499,15 @@
                 requestAnimationFrame(gameLoop);
             }
             gameLoop();
+            
+            // Make game functions globally accessible for inline onclick handlers
+            window.gameStart = startGame;
+            window.gamePlaceBet = placeBet;
+            window.gameQuit = function() {
+                if (confirm("QUIT GAME? ALL PROGRESS WILL BE LOST.")) {
+                    quitToMenu();
+                }
+            };
 
             function updateGame() {
                 let last = gameCandles[gameCandles.length - 1];
@@ -5537,10 +5564,13 @@
             function placeBet(direction) {
                 if (gameState !== 'BETTING') return;
 
-                if (btnLong) btnLong.disabled = true;
-                if (btnShort) btnShort.disabled = true;
                 gameState = 'RUNNING';
                 roundTimer = ROUND_LENGTH;
+
+                // Disable buttons explicitly
+                if (btnLong) btnLong.disabled = true;
+                if (btnShort) btnShort.disabled = true;
+
                 if (gameStatusEl) {
                     gameStatusEl.innerText = "ROUND STARTED...";
                     gameStatusEl.className = "game-wait-text";
@@ -5560,6 +5590,9 @@
                 if (gameCandles.length > MAX_VISIBLE_CANDLES) {
                     gameCandles.shift();
                 }
+
+                // Force immediate draw to show entry line
+                drawGame();
             }
 
             function generateFakeCandle(isComplete) {
@@ -5596,6 +5629,7 @@
                         gameState = 'BETTING';
                         if (btnLong) btnLong.disabled = false;
                         if (btnShort) btnShort.disabled = false;
+                        currentRoundCandle = null; // Reset for next round
                         if (gameStatusEl) {
                             gameStatusEl.innerText = "PLACE YOUR BET";
                             gameStatusEl.className = "game-wait-text";
