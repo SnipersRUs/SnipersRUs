@@ -2626,13 +2626,17 @@
 
                 <div class="paper-order-card">
                     <div class="paper-order-tabs">
-                        <button class="paper-order-tab active" data-order-type="market" type="button" onclick="window.paperSetOrderType('market', this)">Market</button>
-                        <button class="paper-order-tab" data-order-type="limit" type="button" onclick="window.paperSetOrderType('limit', this)">Limit</button>
+                        <button class="paper-order-tab active" data-order-type="market" type="button"
+                            onclick="window.paperSetOrderType('market', this)">Market</button>
+                        <button class="paper-order-tab" data-order-type="limit" type="button"
+                            onclick="window.paperSetOrderType('limit', this)">Limit</button>
                     </div>
 
                     <div class="paper-trade-buttons">
-                        <button class="paper-trade-btn long active" data-trade-type="buy" type="button" onclick="window.paperSetTradeType('buy', this)">LONG</button>
-                        <button class="paper-trade-btn short" data-trade-type="sell" type="button" onclick="window.paperSetTradeType('sell', this)">SHORT</button>
+                        <button class="paper-trade-btn long active" data-trade-type="buy" type="button"
+                            onclick="window.paperSetTradeType('buy', this)">LONG</button>
+                        <button class="paper-trade-btn short" data-trade-type="sell" type="button"
+                            onclick="window.paperSetTradeType('sell', this)">SHORT</button>
                     </div>
 
                     <div class="paper-input-group">
@@ -2642,10 +2646,14 @@
                         </div>
                         <input type="number" step="0.00001" class="paper-input" id="paperAmount" placeholder="0.00000">
                         <div class="paper-percent-buttons">
-                            <button class="paper-percent-btn" data-percent="25" type="button" onclick="window.paperSetPercent(25)">25%</button>
-                            <button class="paper-percent-btn" data-percent="50" type="button" onclick="window.paperSetPercent(50)">50%</button>
-                            <button class="paper-percent-btn" data-percent="75" type="button" onclick="window.paperSetPercent(75)">75%</button>
-                            <button class="paper-percent-btn" data-percent="100" type="button" onclick="window.paperSetPercent(100)">100%</button>
+                            <button class="paper-percent-btn" data-percent="25" type="button"
+                                onclick="window.paperSetPercent(25)">25%</button>
+                            <button class="paper-percent-btn" data-percent="50" type="button"
+                                onclick="window.paperSetPercent(50)">50%</button>
+                            <button class="paper-percent-btn" data-percent="75" type="button"
+                                onclick="window.paperSetPercent(75)">75%</button>
+                            <button class="paper-percent-btn" data-percent="100" type="button"
+                                onclick="window.paperSetPercent(100)">100%</button>
                         </div>
                     </div>
 
@@ -2656,10 +2664,14 @@
                         <input type="number" step="0.01" class="paper-input" id="paperLimitPrice"
                             placeholder="Enter limit price">
                         <div class="paper-percent-buttons">
-                            <button class="paper-percent-btn" data-price-offset="-5" type="button" onclick="window.paperSetPriceOffset(-5)">-5%</button>
-                            <button class="paper-percent-btn" data-price-offset="5" type="button" onclick="window.paperSetPriceOffset(5)">+5%</button>
-                            <button class="paper-percent-btn" data-price-offset="-1" type="button" onclick="window.paperSetPriceOffset(-1)">-1%</button>
-                            <button class="paper-percent-btn" data-price-offset="1" type="button" onclick="window.paperSetPriceOffset(1)">+1%</button>
+                            <button class="paper-percent-btn" data-price-offset="-5" type="button"
+                                onclick="window.paperSetPriceOffset(-5)">-5%</button>
+                            <button class="paper-percent-btn" data-price-offset="5" type="button"
+                                onclick="window.paperSetPriceOffset(5)">+5%</button>
+                            <button class="paper-percent-btn" data-price-offset="-1" type="button"
+                                onclick="window.paperSetPriceOffset(-1)">-1%</button>
+                            <button class="paper-percent-btn" data-price-offset="1" type="button"
+                                onclick="window.paperSetPriceOffset(1)">+1%</button>
                         </div>
                     </div>
 
@@ -2680,7 +2692,9 @@
                         </div>
                     </div>
 
-                    <button class="paper-submit-btn long" id="paperSubmitBtn" type="button" onclick="if(typeof window.executePaperTrade === 'function') window.executePaperTrade();" disabled>Place Market Order</button>
+                    <button class="paper-submit-btn long" id="paperSubmitBtn" type="button"
+                        onclick="if(typeof window.executePaperTrade === 'function') window.executePaperTrade();"
+                        disabled>Place Market Order</button>
                 </div>
             </div>
         </div>
@@ -2902,14 +2916,16 @@
             <div id="menu-overlay" class="game-overlay" style="display:flex">
                 <h2>MISSION BRIEFING:<br><br>GOAL: REACH 2000 CREDITS<br>3 LOSSES = GAME OVER<br>PREDICT GREEN OR RED
                 </h2>
-                <button id="btn-start" class="menu-btn" onclick="if(typeof window.gameStart === 'function') window.gameStart()">START GAME</button>
+                <button id="btn-start" class="menu-btn"
+                    onclick="if(typeof window.gameStart === 'function') window.gameStart()">START GAME</button>
             </div>
 
             <!-- GAME OVER / WIN OVERLAY -->
             <div id="end-overlay" class="game-overlay">
                 <h1 id="end-title">GAME OVER</h1>
                 <p id="end-msg">SCORE: 0</p>
-                <button id="btn-retry" class="menu-btn" onclick="if(typeof window.gameStart === 'function') window.gameStart()">RETRY</button>
+                <button id="btn-retry" class="menu-btn"
+                    onclick="if(typeof window.gameStart === 'function') window.gameStart()">RETRY</button>
             </div>
 
             <div class="game-header">
@@ -2928,8 +2944,12 @@
             <div id="game-status" class="game-wait-text">PLACE YOUR BET</div>
 
             <div class="game-controls">
-                <button class="game-btn game-btn-long" id="btnLong" onclick="if(typeof window.gamePlaceBet === 'function') window.gamePlaceBet('LONG')">LONG (GREEN)</button>
-                <button class="game-btn game-btn-short" id="btnShort" onclick="if(typeof window.gamePlaceBet === 'function') window.gamePlaceBet('SHORT')">SHORT (RED)</button>
+                <button class="game-btn game-btn-long" id="btnLong"
+                    onclick="if(typeof window.gamePlaceBet === 'function') window.gamePlaceBet('LONG')">LONG
+                    (GREEN)</button>
+                <button class="game-btn game-btn-short" id="btnShort"
+                    onclick="if(typeof window.gamePlaceBet === 'function') window.gamePlaceBet('SHORT')">SHORT
+                    (RED)</button>
             </div>
         </div>
 
@@ -4032,9 +4052,41 @@
                     }
                 }
 
-                // Sort by score and take top 5
+                // Sort by score and take top 5 for watchlist
                 candidates.sort((a, b) => b.score - a.score);
                 renderWatchlistItems(candidates.slice(0, 5));
+
+                // ### FIXED: Generate live signals for top 3 candidates ###
+                const topSignals = candidates.slice(0, 3).map(c => {
+                    const isLong = c.bias === 'LONG';
+                    const entry = c.price;
+                    const tp = isLong
+                        ? (c.gpHigh > entry ? c.gpHigh : entry * 1.04)
+                        : (c.gpLow < entry ? c.gpLow : entry * 0.96);
+                    const sl = isLong
+                        ? (c.gpLow < entry ? c.gpLow * 0.99 : entry * 0.99)
+                        : (c.gpHigh > entry ? c.gpHigh * 1.01 : entry * 1.01);
+
+                    return {
+                        id: 'sig_' + c.symbol + '_' + Date.now(),
+                        symbol: c.symbol,
+                        timestamp: new Date().toISOString(),
+                        direction: c.bias || 'NEUTRAL',
+                        entry_price: entry,
+                        take_profit: tp,
+                        stop_loss: sl,
+                        confidence_score: c.score,
+                        reasons: c.reasons,
+                        status: 'ACTIVE'
+                    };
+                });
+
+                if (topSignals.length > 0) {
+                    updateSignalsPanel(topSignals);
+                    // Update header counts
+                    const signalCountEl = document.getElementById('signalCount');
+                    if (signalCountEl) signalCountEl.textContent = topSignals.length;
+                }
 
             } catch (error) {
                 console.error('Failed to scan watchlist candidates:', error);
@@ -4305,8 +4357,8 @@
 
             // Initial watchlist scan (after 5s to let prices load)
             setTimeout(scanWatchlistCandidates, 5000);
-            // Rescan every 5 minutes
-            setInterval(scanWatchlistCandidates, 5 * 60 * 1000);
+            // Rescan every 1 hour (as requested)
+            setInterval(scanWatchlistCandidates, 60 * 60 * 1000);
         }
 
         function closeTrialModal() {
@@ -4834,10 +4886,22 @@
                 try {
                     const saved = localStorage.getItem('srus_paper_portfolio');
                     if (saved) {
-                        paperPortfolio = JSON.parse(saved);
+                        const parsed = JSON.parse(saved);
+                        // Validation / Migration
+                        paperPortfolio = {
+                            balance: typeof parsed.balance === 'number' ? parsed.balance : 10000,
+                            totalPnl: typeof parsed.totalPnl === 'number' ? parsed.totalPnl : 0,
+                            trades: Array.isArray(parsed.trades) ? parsed.trades : []
+                        };
                     }
                 } catch (e) {
                     console.error('Failed to load paper portfolio:', e);
+                    // Reset to default on error
+                    paperPortfolio = {
+                        balance: 10000,
+                        totalPnl: 0,
+                        trades: []
+                    };
                 }
             }
 
@@ -4853,6 +4917,11 @@
             // Initialize
             loadPaperPortfolio();
 
+            // Hoist DOM elements to top scope to avoid Temporal Dead Zone (ReferenceError)
+            const amountInput = document.getElementById('paperAmount');
+            const limitPriceInput = document.getElementById('paperLimitPrice');
+            const submitBtn = document.getElementById('paperSubmitBtn');
+
             // Force initial balance display
             const balanceEl = document.getElementById('paperBalance');
             if (balanceEl && paperPortfolio.balance) {
@@ -4862,7 +4931,7 @@
             updatePaperUI();
 
             // Global functions for inline onclick handlers (most reliable)
-            window.paperSetOrderType = function(type, clickedBtn) {
+            window.paperSetOrderType = function (type, clickedBtn) {
                 console.log('Setting order type to:', type);
                 document.querySelectorAll('.paper-order-tab').forEach(t => t.classList.remove('active'));
                 clickedBtn.classList.add('active');
@@ -4875,7 +4944,7 @@
                 updatePaperOrderSummary();
             };
 
-            window.paperSetTradeType = function(type, clickedBtn) {
+            window.paperSetTradeType = function (type, clickedBtn) {
                 console.log('Setting trade type to:', type);
                 document.querySelectorAll('.paper-trade-btn').forEach(b => b.classList.remove('active'));
                 clickedBtn.classList.add('active');
@@ -4916,7 +4985,6 @@
             });
 
             // Amount input
-            const amountInput = document.getElementById('paperAmount');
             if (amountInput) {
                 amountInput.addEventListener('input', () => {
                     updatePaperOrderSummary();
@@ -4925,7 +4993,6 @@
             }
 
             // Limit price input
-            const limitPriceInput = document.getElementById('paperLimitPrice');
             if (limitPriceInput) {
                 limitPriceInput.addEventListener('input', () => {
                     updatePaperOrderSummary();
@@ -4934,7 +5001,7 @@
             }
 
             // Global functions for percent and price offset buttons
-            window.paperSetPercent = function(percent) {
+            window.paperSetPercent = function (percent) {
                 const amountInput = document.getElementById('paperAmount');
                 if (state.price && amountInput) {
                     const availableBalance = paperPortfolio.balance;
@@ -4945,7 +5012,7 @@
                 }
             };
 
-            window.paperSetPriceOffset = function(offset) {
+            window.paperSetPriceOffset = function (offset) {
                 const limitPriceInput = document.getElementById('paperLimitPrice');
                 if (state.price && limitPriceInput) {
                     const newPrice = state.price * (1 + offset / 100);
@@ -5052,7 +5119,7 @@
                     }, 1500);
                 }
             }
-            
+
             // Make executePaperTrade globally accessible for onclick
             window.executePaperTrade = executePaperTrade;
 
@@ -5110,7 +5177,14 @@
                 if (!state || !state.symbol) {
                     // Update at least the balance if possible
                     const balanceEl = document.getElementById('paperBalance');
-                    if (balanceEl) balanceEl.textContent = `$${paperPortfolio.balance.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+                    if (balanceEl && paperPortfolio && paperPortfolio.balance) {
+                        balanceEl.textContent = `$${paperPortfolio.balance.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+                    }
+                    return;
+                }
+
+                // Safety check for portfolio
+                if (!paperPortfolio || !Array.isArray(paperPortfolio.trades)) {
                     return;
                 }
 
@@ -5352,9 +5426,21 @@
             }
 
             // Close trade function (global)
+            // Close trade function (global)
             window.closePaperTrade = function (tradeId) {
-                const trade = paperPortfolio.trades.find(t => t.id === tradeId);
-                if (!trade || trade.status !== 'open') return;
+                console.log('Attempting to close trade:', tradeId);
+                // Use loose equality (==) to handle string/number mismatch from HTML attribute
+                const trade = paperPortfolio.trades.find(t => t.id == tradeId);
+
+                if (!trade) {
+                    console.error('Trade not found:', tradeId);
+                    return;
+                }
+
+                if (trade.status !== 'open') {
+                    console.warn('Trade is not open:', trade.status);
+                    return;
+                }
 
                 const currentPrice = state.price;
 
@@ -5499,11 +5585,11 @@
                 requestAnimationFrame(gameLoop);
             }
             gameLoop();
-            
+
             // Make game functions globally accessible for inline onclick handlers
             window.gameStart = startGame;
             window.gamePlaceBet = placeBet;
-            window.gameQuit = function() {
+            window.gameQuit = function () {
                 if (confirm("QUIT GAME? ALL PROGRESS WILL BE LOST.")) {
                     quitToMenu();
                 }
