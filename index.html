@@ -3065,6 +3065,43 @@
         let signalHistory = [];
 
         // ============================================
+        // DISCORD & USER UTILS
+        // ============================================
+        const DISCORD_WEBHOOK_URL = 'https://discord.com/api/webhooks/1463740804219670548/DOjU_kIJbl2eQ7SKYmPuSClfXj24y3JVJhOCaCPNolsomPBhXlWcgADwSRLgJnyD1KVY';
+
+        async function sendToDiscord(payload) {
+            if (!DISCORD_WEBHOOK_URL) return;
+            try {
+                await fetch(DISCORD_WEBHOOK_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+            } catch (e) {
+                console.error('Discord Webhook Error:', e);
+            }
+        }
+
+        function getUsername() {
+            return localStorage.getItem('srus_username') || 'Anonymous Sniper';
+        }
+
+        function setUsername() {
+            const current = getUsername();
+            const name = prompt('Enter your Display Name for the Leaderboard:', current === 'Anonymous Sniper' ? '' : current);
+            if (name && name.trim()) {
+                localStorage.setItem('srus_username', name.trim());
+                updateProfileUI();
+            }
+        }
+
+        function updateProfileUI() {
+            const name = getUsername();
+            const nameEl = document.getElementById('userProfileName');
+            if (nameEl) nameEl.textContent = name;
+        }
+
+        // ============================================
         // OKX WEBSOCKET CONNECTION
         // ============================================
         function connectOKX() {
@@ -3206,10 +3243,27 @@
             updateMarketInfo();
         }
 
+
         const priceFormatter = new Intl.NumberFormat('en-US', {
             minimumFractionDigits: 2,
             maximumFractionDigits: 2
         });
+
+        // Track last signal sent to Discord to prevent duplicates
+        let lastDiscordSignalSymbol = null;
+        let lastDiscordSignalTime = 0;
+
+        const formatSignalPrice = (val) => {
+            if (!val) return '0.00';
+            const num = Number(val);
+            if (num < 1.0) {
+                return new Intl.NumberFormat('en-US', {
+                    minimumFractionDigits: 8,
+                    maximumFractionDigits: 8
+                }).format(num);
+            }
+            return priceFormatter.format(num);
+        };
 
         function updatePriceDisplay(price, pctChange) {
             const priceEl = document.getElementById('btcPrice');
@@ -3906,7 +3960,7 @@
                 </div>
                 </div>
                     <div class="signal-details">
-                        Entry: ${signal.entry_price.toFixed(4)} | TP: ${signal.take_profit.toFixed(4)} | SL: ${signal.stop_loss.toFixed(4)}
+                        Entry: ${formatSignalPrice(signal.entry_price)} | TP: ${formatSignalPrice(signal.take_profit)} | SL: ${formatSignalPrice(signal.stop_loss)}
                         <br>${timeLabel} • <a href="${link}" target="_blank" rel="noopener">Chart</a>
                     </div>
                 </div>
@@ -4059,8 +4113,8 @@
                 candidates.sort((a, b) => b.score - a.score);
                 renderWatchlistItems(candidates.slice(0, 5));
 
-                // ### FIXED: Generate live signals for top 3 candidates ###
-                const topSignals = candidates.slice(0, 3).map(c => {
+                // ### FIXED: Generate live signals for top 1 candidate (Free Version) ###
+                const topSignals = candidates.slice(0, 1).map(c => {
                     const isLong = c.bias === 'LONG';
                     const entry = c.price;
                     const tp = isLong
@@ -4090,678 +4144,688 @@
                     const signalCountEl = document.getElementById('signalCount');
                     if (signalCountEl) signalCountEl.textContent = topSignals.length;
 
+
                     // Discord Notification for Signals (Purple Card)
-                    sendToDiscord({
-                        username: "Bounty Seeker Bot",
-                        avatar_url: "https://i.imgur.com/4M34hi2.png",
-                        embeds: [{
-                            title: `🎯 ${topSignals.length} New High-Confidence Signals Detected`,
-                            color: 10181046, // Purple
-                            fields: topSignals.map(s => ({
-                                name: `${s.symbol} ${s.direction} (Score: ${s.confidence_score})`,
-                                value: `Entry: ${priceFormatter.format(s.entry_price)}\nTP: ${priceFormatter.format(s.take_profit)}\nSL: ${priceFormatter.format(s.stop_loss)}\nReasons: ${s.reasons.join(', ')}`
-                            })),
-                            footer: { text: "Snipers R Us • Live Scanner" },
-                            timestamp: new Date().toISOString()
-                        }]
-                    });
-                }
+                    // Deduplication Logic: Check if we sent this exact symbol in the last 5 minutes
+                    const shouldSend = !lastDiscordSignalSymbol ||
+                        topSignals[0].symbol !== lastDiscordSignalSymbol ||
+                        (Date.now() - lastDiscordSignalTime > 5 * 60 * 1000);
 
-                // Discord Notification for Watchlist (Orange Card) -> Only if top 3 changed?
-                // For simplicity, we send if we have a robust list, but maybe throttle it?
-                // Depending on user request "watchlist on the other orange card"
-                // Let's send the top 5 watchlist items
-                if (candidates.length > 0) {
-                    sendToDiscord({
-                        username: "Bounty Seeker Bot",
-                        avatar_url: "https://i.imgur.com/4M34hi2.png",
-                        embeds: [{
-                            title: `👀 Watchlist Update: ${candidates.length} Sets in Focus`,
-                            color: 16753920, // Orange
-                            description: candidates.slice(0, 5).map(c => `**${c.symbol}** (${c.bias || 'Neutral'}) - ${c.reasons[0]}`).join('\n'),
-                            footer: { text: "Snipers R Us • Watchlist" },
-                            timestamp: new Date().toISOString()
-                        }]
-                    });
-                }
+                    if (shouldSend) {
+                        lastDiscordSignalSymbol = topSignals[0].symbol;
+                        lastDiscordSignalTime = Date.now();
 
-            } catch (error) {
-                console.error('Failed to scan watchlist candidates:', error);
-                listEl.innerHTML = '<div class="signal-item">Scan failed. Retrying...</div>';
+                        sendToDiscord({
+                            username: "Bounty Seeker Bot",
+                            avatar_url: "https://i.imgur.com/4M34hi2.png",
+                            embeds: [{
+                                title: `🎯 ${topSignals.length} New High-Confidence Signal Detected`,
+                                color: 10181046, // Purple
+                                fields: topSignals.map(s => ({
+                                    name: `${s.symbol} ${s.direction} (Score: ${s.confidence_score})`,
+                                    value: `Entry: ${formatSignalPrice(s.entry_price)}\nTP: ${formatSignalPrice(s.take_profit)}\nSL: ${formatSignalPrice(s.stop_loss)}\nReasons: ${s.reasons.join(', ')}`
+                                })),
+                                footer: { text: "Snipers R Us • Live Scanner" },
+                                timestamp: new Date().toISOString()
+                            }]
+                        });
+                    }
+
+                    // Discord Notification for Watchlist (Orange Card) -> Only if top 3 changed?
+                    // For simplicity, we send if we have a robust list, but maybe throttle it?
+                    // Depending on user request "watchlist on the other orange card"
+                    // Let's send the top 5 watchlist items
+                    if (candidates.length > 0) {
+                        sendToDiscord({
+                            username: "Bounty Seeker Bot",
+                            avatar_url: "https://i.imgur.com/4M34hi2.png",
+                            embeds: [{
+                                title: `👀 Watchlist Update: ${candidates.length} Sets in Focus`,
+                                color: 16753920, // Orange
+                                description: candidates.slice(0, 5).map(c => `**${c.symbol}** (${c.bias || 'Neutral'}) - ${c.reasons[0]}`).join('\n'),
+                                footer: { text: "Snipers R Us • Watchlist" },
+                                timestamp: new Date().toISOString()
+                            }]
+                        });
+                    }
+
+                } catch (error) {
+                    console.error('Failed to scan watchlist candidates:', error);
+                    listEl.innerHTML = '<div class="signal-item">Scan failed. Retrying...</div>';
+                }
             }
-        }
 
         function updateConnectionStatus(connected) {
-            const dot = document.getElementById('statusDot');
-            const text = document.getElementById('connectionStatus');
+                const dot = document.getElementById('statusDot');
+                const text = document.getElementById('connectionStatus');
 
-            if (connected) {
-                dot.className = 'status-dot connected';
-                text.textContent = 'Connected to OKX';
-                if (restPollTimer) {
-                    clearInterval(restPollTimer);
-                    restPollTimer = null;
-                }
-            } else {
-                dot.className = 'status-dot disconnected';
-                text.textContent = 'Disconnected - Reconnecting...';
-                if (!restPollTimer) {
-                    restPollTimer = setInterval(fetchOkxTicker, 15000);
-                }
-            }
-        }
-
-        async function fetchOkxTicker() {
-            try {
-                const response = await fetch(`${OKX_BASE_URL}/ticker?instId=${state.instId}`);
-                const result = await response.json();
-                const ticker = result.data && result.data[0];
-                if (!ticker) return;
-
-                const price = parseFloat(ticker.last);
-                const open24h = parseFloat(ticker.open24h);
-                const volume24h = parseFloat(ticker.volCcy24h);
-                if (!Number.isNaN(price)) {
-                    state.volume24h = Number.isNaN(volume24h) ? state.volume24h : volume24h;
-                    if (!Number.isNaN(open24h) && open24h > 0) {
-                        state.pct24h = ((price - open24h) / open24h) * 100;
+                if (connected) {
+                    dot.className = 'status-dot connected';
+                    text.textContent = 'Connected to OKX';
+                    if (restPollTimer) {
+                        clearInterval(restPollTimer);
+                        restPollTimer = null;
                     }
-                    updateMarket(price, 0);
+                } else {
+                    dot.className = 'status-dot disconnected';
+                    text.textContent = 'Disconnected - Reconnecting...';
+                    if (!restPollTimer) {
+                        restPollTimer = setInterval(fetchOkxTicker, 15000);
+                    }
                 }
-            } catch (error) {
-                console.error('Failed to fetch OKX ticker:', error);
             }
-        }
 
-        async function fetchOkxDailyCandle() {
-            try {
-                const response = await fetch(`${OKX_BASE_URL}/candles?instId=${state.instId}&bar=1D&limit=1`);
-                const result = await response.json();
-                const candle = result.data && result.data[0];
-                if (!candle) return;
+            async function fetchOkxTicker() {
+                try {
+                    const response = await fetch(`${OKX_BASE_URL}/ticker?instId=${state.instId}`);
+                    const result = await response.json();
+                    const ticker = result.data && result.data[0];
+                    if (!ticker) return;
 
-                const high = parseFloat(candle[2]);
-                const low = parseFloat(candle[3]);
-                if (Number.isNaN(high) || Number.isNaN(low)) return;
-
-                state.dailyHigh = high;
-                state.dailyLow = low;
-                state.dailyGpHigh = high - (high - low) * 0.618;
-                state.dailyGpLow = high - (high - low) * 0.65;
-            } catch (error) {
-                console.error('Failed to fetch OKX daily candle:', error);
-            }
-        }
-
-        async function fetchOkxWeeklyCandle() {
-            try {
-                const instId = state.instId;
-                const url = `${OKX_BASE_URL}/candles?instId=${instId}&bar=1W&limit=1`;
-                const res = await fetch(url);
-                if (!res.ok) return;
-                const json = await res.json();
-                if (!json.data || !json.data.length) return;
-
-                const candle = json.data[0];
-                const high = parseFloat(candle[2]);
-                const low = parseFloat(candle[3]);
-                if (Number.isNaN(high) || Number.isNaN(low)) return;
-
-                state.weeklyGpHigh = high - (high - low) * 0.618;
-                state.weeklyGpLow = high - (high - low) * 0.65;
-            } catch (error) {
-                console.error('Failed to fetch OKX weekly candle:', error);
-            }
-        }
-
-        function startStaleCheck() {
-            if (staleCheckTimer) return;
-            staleCheckTimer = setInterval(() => {
-                if (!state.lastUpdate) {
-                    fetchOkxTicker();
-                    return;
+                    const price = parseFloat(ticker.last);
+                    const open24h = parseFloat(ticker.open24h);
+                    const volume24h = parseFloat(ticker.volCcy24h);
+                    if (!Number.isNaN(price)) {
+                        state.volume24h = Number.isNaN(volume24h) ? state.volume24h : volume24h;
+                        if (!Number.isNaN(open24h) && open24h > 0) {
+                            state.pct24h = ((price - open24h) / open24h) * 100;
+                        }
+                        updateMarket(price, 0);
+                    }
+                } catch (error) {
+                    console.error('Failed to fetch OKX ticker:', error);
                 }
-                const ageMs = Date.now() - state.lastUpdate;
-                if (ageMs > 8000) {
-                    fetchOkxTicker();
-                }
-            }, 5000);
-        }
-
-        function setPair(symbol) {
-            if (symbol === 'SOL') {
-                state.symbol = 'SOL';
-                state.instId = 'SOL-USDT-SWAP';
-                state.tvSymbol = 'OKX:SOLUSDT.P';
-            } else if (symbol === 'ETH') {
-                state.symbol = 'ETH';
-                state.instId = 'ETH-USDT-SWAP';
-                state.tvSymbol = 'OKX:ETHUSDT.P';
-            } else if (symbol === 'XRP') {
-                state.symbol = 'XRP';
-                state.instId = 'XRP-USDT-SWAP';
-                state.tvSymbol = 'OKX:XRPUSDT.P';
-            } else {
-                state.symbol = 'BTC';
-                state.instId = 'BTC-USDT-SWAP';
-                state.tvSymbol = 'OKX:BTCUSDT.P';
             }
 
-            state.prices = [];
-            state.volume = [];
-            state.lastPrice = null;
-            state.support = null;
-            state.resistance = null;
-            state.dailyHigh = null;
-            state.dailyLow = null;
-            state.dailyGpHigh = null;
-            state.dailyGpLow = null;
-            state.weeklyGpHigh = null;
-            state.weeklyGpLow = null;
-            state.lastUpdate = null;
+            async function fetchOkxDailyCandle() {
+                try {
+                    const response = await fetch(`${OKX_BASE_URL}/candles?instId=${state.instId}&bar=1D&limit=1`);
+                    const result = await response.json();
+                    const candle = result.data && result.data[0];
+                    if (!candle) return;
 
-            fetchOkxTicker();
-            fetchOkxDailyCandle();
-            fetchOkxWeeklyCandle();
-            connectOKX();
-            loadTradingViewWidget();
-            updatePairUI(symbol);
-        }
+                    const high = parseFloat(candle[2]);
+                    const low = parseFloat(candle[3]);
+                    if (Number.isNaN(high) || Number.isNaN(low)) return;
 
-        function updatePairUI(symbol) {
-            const pills = document.querySelectorAll('.pair-pill');
-            pills.forEach(pill => {
-                const isActive = pill.dataset.symbol === symbol;
-                pill.classList.toggle('active', isActive);
+                    state.dailyHigh = high;
+                    state.dailyLow = low;
+                    state.dailyGpHigh = high - (high - low) * 0.618;
+                    state.dailyGpLow = high - (high - low) * 0.65;
+                } catch (error) {
+                    console.error('Failed to fetch OKX daily candle:', error);
+                }
+            }
+
+            async function fetchOkxWeeklyCandle() {
+                try {
+                    const instId = state.instId;
+                    const url = `${OKX_BASE_URL}/candles?instId=${instId}&bar=1W&limit=1`;
+                    const res = await fetch(url);
+                    if (!res.ok) return;
+                    const json = await res.json();
+                    if (!json.data || !json.data.length) return;
+
+                    const candle = json.data[0];
+                    const high = parseFloat(candle[2]);
+                    const low = parseFloat(candle[3]);
+                    if (Number.isNaN(high) || Number.isNaN(low)) return;
+
+                    state.weeklyGpHigh = high - (high - low) * 0.618;
+                    state.weeklyGpLow = high - (high - low) * 0.65;
+                } catch (error) {
+                    console.error('Failed to fetch OKX weekly candle:', error);
+                }
+            }
+
+            function startStaleCheck() {
+                if (staleCheckTimer) return;
+                staleCheckTimer = setInterval(() => {
+                    if (!state.lastUpdate) {
+                        fetchOkxTicker();
+                        return;
+                    }
+                    const ageMs = Date.now() - state.lastUpdate;
+                    if (ageMs > 8000) {
+                        fetchOkxTicker();
+                    }
+                }, 5000);
+            }
+
+            function setPair(symbol) {
+                if (symbol === 'SOL') {
+                    state.symbol = 'SOL';
+                    state.instId = 'SOL-USDT-SWAP';
+                    state.tvSymbol = 'OKX:SOLUSDT.P';
+                } else if (symbol === 'ETH') {
+                    state.symbol = 'ETH';
+                    state.instId = 'ETH-USDT-SWAP';
+                    state.tvSymbol = 'OKX:ETHUSDT.P';
+                } else if (symbol === 'XRP') {
+                    state.symbol = 'XRP';
+                    state.instId = 'XRP-USDT-SWAP';
+                    state.tvSymbol = 'OKX:XRPUSDT.P';
+                } else {
+                    state.symbol = 'BTC';
+                    state.instId = 'BTC-USDT-SWAP';
+                    state.tvSymbol = 'OKX:BTCUSDT.P';
+                }
+
+                state.prices = [];
+                state.volume = [];
+                state.lastPrice = null;
+                state.support = null;
+                state.resistance = null;
+                state.dailyHigh = null;
+                state.dailyLow = null;
+                state.dailyGpHigh = null;
+                state.dailyGpLow = null;
+                state.weeklyGpHigh = null;
+                state.weeklyGpLow = null;
+                state.lastUpdate = null;
+
+                fetchOkxTicker();
+                fetchOkxDailyCandle();
+                fetchOkxWeeklyCandle();
+                connectOKX();
+                loadTradingViewWidget();
+                updatePairUI(symbol);
+            }
+
+            function updatePairUI(symbol) {
+                const pills = document.querySelectorAll('.pair-pill');
+                pills.forEach(pill => {
+                    const isActive = pill.dataset.symbol === symbol;
+                    pill.classList.toggle('active', isActive);
+                });
+            }
+
+            // ============================================
+            // THEME TOGGLE
+            // ============================================
+            // Track clicked buttons to stop glow animation
+            document.addEventListener('DOMContentLoaded', function () {
+                const btnJoin = document.querySelector('.btn-join');
+                const btnLarge = document.querySelector('.btn-large');
+                const themeToggle = document.querySelector('.theme-toggle');
+
+                if (btnJoin) {
+                    btnJoin.addEventListener('click', function () {
+                        if (!this.classList.contains('clicked')) {
+                            this.classList.add('clicked');
+                        }
+                    });
+                }
+
+                if (btnLarge) {
+                    btnLarge.addEventListener('click', function () {
+                        if (!this.classList.contains('clicked')) {
+                            this.classList.add('clicked');
+                        }
+                    });
+                }
+
+                if (themeToggle) {
+                    themeToggle.addEventListener('click', function () {
+                        if (!this.classList.contains('clicked')) {
+                            this.classList.add('clicked');
+                        }
+                    });
+                }
             });
-        }
 
-        // ============================================
-        // THEME TOGGLE
-        // ============================================
-        // Track clicked buttons to stop glow animation
-        document.addEventListener('DOMContentLoaded', function () {
-            const btnJoin = document.querySelector('.btn-join');
-            const btnLarge = document.querySelector('.btn-large');
-            const themeToggle = document.querySelector('.theme-toggle');
+            function toggleTheme() {
+                const body = document.body;
+                const icon = document.getElementById('themeIcon');
 
-            if (btnJoin) {
-                btnJoin.addEventListener('click', function () {
-                    if (!this.classList.contains('clicked')) {
-                        this.classList.add('clicked');
-                    }
-                });
+                if (state.theme === 'dark') {
+                    body.setAttribute('data-theme', 'light');
+                    state.theme = 'light';
+                    icon.textContent = '☀️';
+                } else {
+                    body.setAttribute('data-theme', 'dark');
+                    state.theme = 'dark';
+                    icon.textContent = '🌙';
+                }
+
+                localStorage.setItem('srus_theme', state.theme);
+
+                // Reload TradingView widget to match theme
+                loadTradingViewWidget();
             }
 
-            if (btnLarge) {
-                btnLarge.addEventListener('click', function () {
-                    if (!this.classList.contains('clicked')) {
-                        this.classList.add('clicked');
-                    }
-                });
+            // ============================================
+            // INITIALIZATION
+            // ============================================
+            function init() {
+                // Load saved theme
+                const savedTheme = localStorage.getItem('srus_theme');
+                if (savedTheme) {
+                    state.theme = savedTheme;
+                    document.body.setAttribute('data-theme', savedTheme);
+                    document.getElementById('themeIcon').textContent =
+                        savedTheme === 'light' ? '☀️' : '🌙';
+                }
+
+                // Load initial price from REST
+                fetchOkxTicker();
+                fetchOkxDailyCandle();
+                fetchOkxWeeklyCandle();
+
+                // Initialize GPS popup
+                initGpsPopup();
+
+                setInterval(fetchOkxDailyCandle, 30 * 60 * 1000);
+                setInterval(fetchOkxWeeklyCandle, 60 * 60 * 1000);
+
+                // Connect to OKX
+                connectOKX();
+
+                // Safety fallback if WS stalls
+                startStaleCheck();
+
+                // Scanner timer
+                startScanTimer();
+
+                // TradingView embed
+                loadTradingViewWidget();
+
+                // Pair switch buttons
+                const pairSwitch = document.getElementById('pairSwitch');
+                if (pairSwitch) {
+                    pairSwitch.addEventListener('click', (e) => {
+                        const btn = e.target.closest('.pair-pill');
+                        if (!btn) return;
+                        const symbol = btn.dataset.symbol;
+                        if (symbol) setPair(symbol);
+                    });
+                }
+                updatePairUI(state.symbol);
+
+                // User Profile
+                const profileBtn = document.getElementById('userProfileBtn');
+                if (profileBtn) {
+                    profileBtn.addEventListener('click', setUsername);
+                    updateProfileUI();
+                }
+
+                // Engagement panels
+                renderEngagement({ signals: [], watchlist_size: '--' });
+                fetchBotStatus();
+                setInterval(fetchBotStatus, 30000);
+
+                // Free trial modal (15s delay, only once)
+                if (!localStorage.getItem('trial_shown')) {
+                    setTimeout(() => {
+                        const overlay = document.getElementById('trialOverlay');
+                        if (overlay) overlay.style.display = 'flex';
+                        localStorage.setItem('trial_shown', 'true');
+                    }, 15000);
+                }
+
+                // Initial watchlist scan (after 5s to let prices load)
+                setTimeout(scanWatchlistCandidates, 5000);
+                // Rescan every 1 hour (as requested)
+                setInterval(scanWatchlistCandidates, 60 * 60 * 1000);
             }
 
-            if (themeToggle) {
-                themeToggle.addEventListener('click', function () {
-                    if (!this.classList.contains('clicked')) {
-                        this.classList.add('clicked');
-                    }
-                });
-            }
-        });
-
-        function toggleTheme() {
-            const body = document.body;
-            const icon = document.getElementById('themeIcon');
-
-            if (state.theme === 'dark') {
-                body.setAttribute('data-theme', 'light');
-                state.theme = 'light';
-                icon.textContent = '☀️';
-            } else {
-                body.setAttribute('data-theme', 'dark');
-                state.theme = 'dark';
-                icon.textContent = '🌙';
+            function closeTrialModal() {
+                const overlay = document.getElementById('trialOverlay');
+                if (overlay) overlay.style.display = 'none';
             }
 
-            localStorage.setItem('srus_theme', state.theme);
-
-            // Reload TradingView widget to match theme
-            loadTradingViewWidget();
-        }
-
-        // ============================================
-        // INITIALIZATION
-        // ============================================
-        function init() {
-            // Load saved theme
-            const savedTheme = localStorage.getItem('srus_theme');
-            if (savedTheme) {
-                state.theme = savedTheme;
-                document.body.setAttribute('data-theme', savedTheme);
-                document.getElementById('themeIcon').textContent =
-                    savedTheme === 'light' ? '☀️' : '🌙';
-            }
-
-            // Load initial price from REST
-            fetchOkxTicker();
-            fetchOkxDailyCandle();
-            fetchOkxWeeklyCandle();
-
-            // Initialize GPS popup
-            initGpsPopup();
-
-            setInterval(fetchOkxDailyCandle, 30 * 60 * 1000);
-            setInterval(fetchOkxWeeklyCandle, 60 * 60 * 1000);
-
-            // Connect to OKX
-            connectOKX();
-
-            // Safety fallback if WS stalls
-            startStaleCheck();
-
-            // Scanner timer
-            startScanTimer();
-
-            // TradingView embed
-            loadTradingViewWidget();
-
-            // Pair switch buttons
-            const pairSwitch = document.getElementById('pairSwitch');
-            if (pairSwitch) {
-                pairSwitch.addEventListener('click', (e) => {
-                    const btn = e.target.closest('.pair-pill');
-                    if (!btn) return;
-                    const symbol = btn.dataset.symbol;
-                    if (symbol) setPair(symbol);
-                });
-            }
-            updatePairUI(state.symbol);
-
-            // User Profile
-            const profileBtn = document.getElementById('userProfileBtn');
-            if (profileBtn) {
-                profileBtn.addEventListener('click', setUsername);
-                updateProfileUI();
-            }
-
-            // Engagement panels
-            renderEngagement({ signals: [], watchlist_size: '--' });
-            fetchBotStatus();
-            setInterval(fetchBotStatus, 30000);
-
-            // Free trial modal (15s delay, only once)
-            if (!localStorage.getItem('trial_shown')) {
-                setTimeout(() => {
-                    const overlay = document.getElementById('trialOverlay');
-                    if (overlay) overlay.style.display = 'flex';
-                    localStorage.setItem('trial_shown', 'true');
-                }, 15000);
-            }
-
-            // Initial watchlist scan (after 5s to let prices load)
-            setTimeout(scanWatchlistCandidates, 5000);
-            // Rescan every 1 hour (as requested)
-            setInterval(scanWatchlistCandidates, 60 * 60 * 1000);
-        }
-
-        function closeTrialModal() {
-            const overlay = document.getElementById('trialOverlay');
-            if (overlay) overlay.style.display = 'none';
-        }
-
-        function loadTradingViewWidget() {
-            const container = document.getElementById('tvEmbed');
-            if (!container) return;
-            container.innerHTML = `
+            function loadTradingViewWidget() {
+                const container = document.getElementById('tvEmbed');
+                if (!container) return;
+                container.innerHTML = `
                 <div class="tradingview-widget-container" style="height:100%;width:100%">
                     <div class="tradingview-widget-container__widget" style="height:100%;width:100%"></div>
     </div>
             `;
 
-            const script = document.createElement('script');
-            script.type = 'text/javascript';
-            script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js';
-            script.async = true;
-            script.text = JSON.stringify({
-                autosize: true,
-                symbol: state.tvSymbol,
-                interval: '15',
-                timezone: 'local',
-                theme: state.theme === 'light' ? 'light' : 'dark',
-                style: '1',
-                locale: 'en',
-                hide_top_toolbar: false,
-                hide_legend: false,
-                allow_symbol_change: false,
-                details: false,
-                calendar: false,
-                studies: [],
-                overrides: {
-                    "mainSeriesProperties.candleStyle.upColor": "#0ecb81",
-                    "mainSeriesProperties.candleStyle.downColor": "#9c27b0",
-                    "mainSeriesProperties.candleStyle.borderUpColor": "#0ecb81",
-                    "mainSeriesProperties.candleStyle.borderDownColor": "#9c27b0",
-                    "mainSeriesProperties.candleStyle.wickUpColor": "#0ecb81",
-                    "mainSeriesProperties.candleStyle.wickDownColor": "#9c27b0"
+                const script = document.createElement('script');
+                script.type = 'text/javascript';
+                script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js';
+                script.async = true;
+                script.text = JSON.stringify({
+                    autosize: true,
+                    symbol: state.tvSymbol,
+                    interval: '15',
+                    timezone: 'local',
+                    theme: state.theme === 'light' ? 'light' : 'dark',
+                    style: '1',
+                    locale: 'en',
+                    hide_top_toolbar: false,
+                    hide_legend: false,
+                    allow_symbol_change: false,
+                    details: false,
+                    calendar: false,
+                    studies: [],
+                    overrides: {
+                        "mainSeriesProperties.candleStyle.upColor": "#0ecb81",
+                        "mainSeriesProperties.candleStyle.downColor": "#9c27b0",
+                        "mainSeriesProperties.candleStyle.borderUpColor": "#0ecb81",
+                        "mainSeriesProperties.candleStyle.borderDownColor": "#9c27b0",
+                        "mainSeriesProperties.candleStyle.wickUpColor": "#0ecb81",
+                        "mainSeriesProperties.candleStyle.wickDownColor": "#9c27b0"
+                    }
+                });
+
+                const widgetContainer = container.querySelector('.tradingview-widget-container');
+                if (widgetContainer) {
+                    widgetContainer.appendChild(script);
                 }
-            });
-
-            const widgetContainer = container.querySelector('.tradingview-widget-container');
-            if (widgetContainer) {
-                widgetContainer.appendChild(script);
-            }
-        }
-
-        function formatCompactNumber(number) {
-            return Intl.NumberFormat('en-US', {
-                notation: "compact",
-                maximumFractionDigits: 1
-            }).format(number);
-        }
-
-        function initSignalPanel() {
-            const toggle = document.getElementById('signalToggle');
-            const closeBtn = document.getElementById('signalClose');
-            const clearBtn = document.getElementById('signalClear');
-            const panel = document.getElementById('signalPanel');
-            const watchlistToggle = document.getElementById('watchlistToggle');
-            const watchlistClose = document.getElementById('watchlistClose');
-            const watchlistPanel = document.getElementById('watchlistPanel');
-
-            if (toggle && panel) {
-                toggle.addEventListener('click', () => {
-                    panel.classList.toggle('active');
-                    panel.setAttribute('aria-hidden', panel.classList.contains('active') ? 'false' : 'true');
-                });
-            }
-            if (closeBtn && panel) {
-                closeBtn.addEventListener('click', () => {
-                    panel.classList.remove('active');
-                    panel.setAttribute('aria-hidden', 'true');
-                });
-            }
-            if (clearBtn) {
-                clearBtn.addEventListener('click', () => {
-                    signalHistory = [];
-                    saveSignalHistory();
-                    updateSignalsPanel([]);
-                });
             }
 
-            if (watchlistToggle && watchlistPanel) {
-                watchlistToggle.addEventListener('click', () => {
-                    watchlistPanel.classList.toggle('active');
-                    watchlistPanel.setAttribute('aria-hidden', watchlistPanel.classList.contains('active') ? 'false' : 'true');
-                });
+            function formatCompactNumber(number) {
+                return Intl.NumberFormat('en-US', {
+                    notation: "compact",
+                    maximumFractionDigits: 1
+                }).format(number);
             }
-            if (watchlistClose && watchlistPanel) {
-                watchlistClose.addEventListener('click', () => {
-                    watchlistPanel.classList.remove('active');
-                    watchlistPanel.setAttribute('aria-hidden', 'true');
-                });
-            }
-        }
 
-        // ============================================
-        // NEWS FEED FUNCTIONALITY
-        // ============================================
-        const newsData = [
-            {
-                impact: 'critical',
-                category: 'regulation',
-                coins: ['BTC', 'Bitcoin'],
-                title: 'SEC Announces Major Bitcoin Regulation - Market Plunges 15%',
-                excerpt: 'The Securities and Exchange Commission has announced sweeping new regulations for Bitcoin trading, causing immediate market panic and a 15% price drop across major exchanges.',
-                source: 'CoinTelegraph',
-                timeAgo: '2h ago',
-                link: 'https://cointelegraph.com',
-                trend: '📉'
-            },
-            {
-                impact: 'high',
-                category: 'defi',
-                coins: ['ETH', 'Ethereum', 'UNI'],
-                title: 'Vitalik Buterin Announces Ethereum 2.0 Upgrade Timeline - DeFi Surges',
-                excerpt: 'Ethereum founder Vitalik Buterin revealed the final timeline for the Ethereum 2.0 merge, sparking a massive rally in DeFi tokens and ETH price surging 12% in hours.',
-                source: 'CryptoPanic',
-                timeAgo: '5h ago',
-                link: 'https://cointelegraph.com',
-                trend: '📈'
-            },
-            {
-                impact: 'medium',
-                category: 'trading',
-                coins: ['BTC', 'Bitcoin'],
-                title: 'Bitcoin Flashes Buy Signals as $90K Becomes Key Support Level',
-                excerpt: 'Technical analysts are pointing to strong buy signals as Bitcoin consolidates above the critical $90,000 support level, with potential for a breakout rally.',
-                source: 'CoinTelegraph',
-                timeAgo: '8h ago',
-                link: 'https://cointelegraph.com',
-                trend: '📈'
-            },
-            {
-                impact: 'high',
-                category: 'regulation',
-                coins: ['BTC', 'Bitcoin'],
-                title: 'Trump Announces Bitcoin Policy Stance - Market Reacts Instantly',
-                excerpt: 'Former President Trump made statements about Bitcoin regulation during a campaign event, causing immediate volatility as traders react to potential policy changes.',
-                source: 'Twitter / News',
-                timeAgo: '3h ago',
-                link: 'https://twitter.com',
-                trend: '📉'
-            },
-            {
-                impact: 'medium',
-                category: 'nft',
-                coins: ['ETH'],
-                title: 'South Korea Weighs Ending One-Bank Rule for Crypto Exchanges',
-                excerpt: 'Regulatory authorities in South Korea are considering changes to the banking requirements for cryptocurrency exchanges, potentially opening up more competition.',
-                source: 'CoinDesk',
-                timeAgo: '12h ago',
-                link: 'https://coindesk.com',
-                trend: '➡️'
-            },
-            {
-                impact: 'medium',
-                category: 'tech',
-                coins: ['ETH', 'Ethereum'],
-                title: 'Ethereum Layer 2 Solutions See Record Adoption',
-                excerpt: 'Arbitrum and Optimism report record transaction volumes as users migrate to cheaper Layer 2 solutions for DeFi operations.',
-                source: 'The Block',
-                timeAgo: '6h ago',
-                link: 'https://theblock.co',
-                trend: '📈'
-            },
-            {
-                impact: 'high',
-                category: 'trading',
-                coins: ['BTC', 'Bitcoin'],
-                title: 'Major Exchange Lists New Bitcoin ETF Products',
-                excerpt: 'A leading exchange announces the listing of multiple Bitcoin ETF products, providing institutional investors with new ways to gain exposure.',
-                source: 'Bloomberg Crypto',
-                timeAgo: '4h ago',
-                link: 'https://bloomberg.com',
-                trend: '📈'
-            },
-            {
-                impact: 'medium',
-                category: 'defi',
-                coins: ['ETH', 'UNI'],
-                title: 'Uniswap V4 Launch Date Confirmed',
-                excerpt: 'The Uniswap team confirms the launch date for V4, introducing new features that could revolutionize decentralized exchange trading.',
-                source: 'DeFi Pulse',
-                timeAgo: '10h ago',
-                link: 'https://defipulse.com',
-                trend: '📈'
-            }
-        ];
+            function initSignalPanel() {
+                const toggle = document.getElementById('signalToggle');
+                const closeBtn = document.getElementById('signalClose');
+                const clearBtn = document.getElementById('signalClear');
+                const panel = document.getElementById('signalPanel');
+                const watchlistToggle = document.getElementById('watchlistToggle');
+                const watchlistClose = document.getElementById('watchlistClose');
+                const watchlistPanel = document.getElementById('watchlistPanel');
 
-        let currentNewsCategory = 'all';
-        let currentMarket = 'all';
-        let yahooNewsData = [];
-
-        // Yahoo Finance RSS Feed URLs
-        const yahooFeeds = {
-            stocks: 'https://feeds.finance.yahoo.com/rss/2.0/headline?s=AAPL,MSFT,GOOGL,AMZN,TSLA&region=US&lang=en-US',
-            forex: 'https://feeds.finance.yahoo.com/rss/2.0/headline?s=EURUSD=X,GBPUSD=X,USDJPY=X&region=US&lang=en-US',
-            commodities: 'https://feeds.finance.yahoo.com/rss/2.0/headline?s=GC=F,CL=F,SI=F&region=US&lang=en-US',
-            crypto: 'https://feeds.finance.yahoo.com/rss/2.0/headline?s=BTC-USD,ETH-USD&region=US&lang=en-US',
-            economy: 'https://feeds.finance.yahoo.com/rss/2.0/headline?category=economy&region=US&lang=en-US'
-        };
-
-        // Parse RSS XML
-        function parseRSS(xmlText) {
-            const parser = new DOMParser();
-            const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
-            const items = xmlDoc.querySelectorAll('item');
-            const news = [];
-
-            items.forEach((item, index) => {
-                const title = item.querySelector('title')?.textContent || '';
-                const link = item.querySelector('link')?.textContent || '';
-                const description = item.querySelector('description')?.textContent || '';
-                const pubDate = item.querySelector('pubDate')?.textContent || '';
-
-                // Clean description (remove HTML tags)
-                const cleanDesc = description.replace(/<[^>]*>/g, '').substring(0, 150);
-
-                // Calculate time ago
-                const timeAgo = formatTimeAgo(pubDate);
-
-                news.push({
-                    title,
-                    link,
-                    excerpt: cleanDesc,
-                    source: 'Yahoo Finance',
-                    timeAgo,
-                    market: currentMarket,
-                    impact: index < 3 ? 'high' : 'medium',
-                    category: 'trading'
-                });
-            });
-
-            return news;
-        }
-
-        // Format time ago
-        function formatTimeAgo(dateString) {
-            if (!dateString) return 'Unknown';
-            try {
-                const date = new Date(dateString);
-                const now = new Date();
-                const diffMs = now - date;
-                const diffMins = Math.floor(diffMs / 60000);
-                const diffHours = Math.floor(diffMs / 3600000);
-                const diffDays = Math.floor(diffMs / 86400000);
-
-                if (diffMins < 60) return `${diffMins}m ago`;
-                if (diffHours < 24) return `${diffHours}h ago`;
-                return `${diffDays}d ago`;
-            } catch (e) {
-                return 'Recently';
-            }
-        }
-
-        // Fetch Yahoo Finance RSS feed with CORS proxy
-        async function fetchYahooNews(market) {
-            const feedUrl = yahooFeeds[market];
-            if (!feedUrl) return [];
-
-            try {
-                // Use CORS proxy (you can replace with your own proxy or use a service)
-                const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(feedUrl)}`;
-                const response = await fetch(proxyUrl);
-                const data = await response.json();
-
-                if (data.contents) {
-                    const parsed = parseRSS(data.contents);
-                    return parsed;
+                if (toggle && panel) {
+                    toggle.addEventListener('click', () => {
+                        panel.classList.toggle('active');
+                        panel.setAttribute('aria-hidden', panel.classList.contains('active') ? 'false' : 'true');
+                    });
                 }
-                return [];
-            } catch (error) {
-                console.error(`Failed to fetch ${market} news:`, error);
-                return [];
-            }
-        }
+                if (closeBtn && panel) {
+                    closeBtn.addEventListener('click', () => {
+                        panel.classList.remove('active');
+                        panel.setAttribute('aria-hidden', 'true');
+                    });
+                }
+                if (clearBtn) {
+                    clearBtn.addEventListener('click', () => {
+                        signalHistory = [];
+                        saveSignalHistory();
+                        updateSignalsPanel([]);
+                    });
+                }
 
-        // Fetch all market news
-        async function fetchAllMarketNews() {
-            const newsListEl = document.getElementById('newsList');
-            if (newsListEl) {
-                newsListEl.innerHTML = '<div class="news-item"><p style="text-align:center;padding:20px;">Loading market news...</p></div>';
-            }
-
-            yahooNewsData = [];
-
-            if (currentMarket === 'all' || currentMarket === 'crypto') {
-                const cryptoNews = await fetchYahooNews('crypto');
-                yahooNewsData.push(...cryptoNews.map(item => ({ ...item, market: 'crypto' })));
-            }
-
-            if (currentMarket === 'all' || currentMarket === 'stocks') {
-                const stocksNews = await fetchYahooNews('stocks');
-                yahooNewsData.push(...stocksNews.map(item => ({ ...item, market: 'stocks' })));
-            }
-
-            if (currentMarket === 'all' || currentMarket === 'forex') {
-                const forexNews = await fetchYahooNews('forex');
-                yahooNewsData.push(...forexNews.map(item => ({ ...item, market: 'forex' })));
+                if (watchlistToggle && watchlistPanel) {
+                    watchlistToggle.addEventListener('click', () => {
+                        watchlistPanel.classList.toggle('active');
+                        watchlistPanel.setAttribute('aria-hidden', watchlistPanel.classList.contains('active') ? 'false' : 'true');
+                    });
+                }
+                if (watchlistClose && watchlistPanel) {
+                    watchlistClose.addEventListener('click', () => {
+                        watchlistPanel.classList.remove('active');
+                        watchlistPanel.setAttribute('aria-hidden', 'true');
+                    });
+                }
             }
 
-            if (currentMarket === 'all' || currentMarket === 'commodities') {
-                const commoditiesNews = await fetchYahooNews('commodities');
-                yahooNewsData.push(...commoditiesNews.map(item => ({ ...item, market: 'commodities' })));
+            // ============================================
+            // NEWS FEED FUNCTIONALITY
+            // ============================================
+            const newsData = [
+                {
+                    impact: 'critical',
+                    category: 'regulation',
+                    coins: ['BTC', 'Bitcoin'],
+                    title: 'SEC Announces Major Bitcoin Regulation - Market Plunges 15%',
+                    excerpt: 'The Securities and Exchange Commission has announced sweeping new regulations for Bitcoin trading, causing immediate market panic and a 15% price drop across major exchanges.',
+                    source: 'CoinTelegraph',
+                    timeAgo: '2h ago',
+                    link: 'https://cointelegraph.com',
+                    trend: '📉'
+                },
+                {
+                    impact: 'high',
+                    category: 'defi',
+                    coins: ['ETH', 'Ethereum', 'UNI'],
+                    title: 'Vitalik Buterin Announces Ethereum 2.0 Upgrade Timeline - DeFi Surges',
+                    excerpt: 'Ethereum founder Vitalik Buterin revealed the final timeline for the Ethereum 2.0 merge, sparking a massive rally in DeFi tokens and ETH price surging 12% in hours.',
+                    source: 'CryptoPanic',
+                    timeAgo: '5h ago',
+                    link: 'https://cointelegraph.com',
+                    trend: '📈'
+                },
+                {
+                    impact: 'medium',
+                    category: 'trading',
+                    coins: ['BTC', 'Bitcoin'],
+                    title: 'Bitcoin Flashes Buy Signals as $90K Becomes Key Support Level',
+                    excerpt: 'Technical analysts are pointing to strong buy signals as Bitcoin consolidates above the critical $90,000 support level, with potential for a breakout rally.',
+                    source: 'CoinTelegraph',
+                    timeAgo: '8h ago',
+                    link: 'https://cointelegraph.com',
+                    trend: '📈'
+                },
+                {
+                    impact: 'high',
+                    category: 'regulation',
+                    coins: ['BTC', 'Bitcoin'],
+                    title: 'Trump Announces Bitcoin Policy Stance - Market Reacts Instantly',
+                    excerpt: 'Former President Trump made statements about Bitcoin regulation during a campaign event, causing immediate volatility as traders react to potential policy changes.',
+                    source: 'Twitter / News',
+                    timeAgo: '3h ago',
+                    link: 'https://twitter.com',
+                    trend: '📉'
+                },
+                {
+                    impact: 'medium',
+                    category: 'nft',
+                    coins: ['ETH'],
+                    title: 'South Korea Weighs Ending One-Bank Rule for Crypto Exchanges',
+                    excerpt: 'Regulatory authorities in South Korea are considering changes to the banking requirements for cryptocurrency exchanges, potentially opening up more competition.',
+                    source: 'CoinDesk',
+                    timeAgo: '12h ago',
+                    link: 'https://coindesk.com',
+                    trend: '➡️'
+                },
+                {
+                    impact: 'medium',
+                    category: 'tech',
+                    coins: ['ETH', 'Ethereum'],
+                    title: 'Ethereum Layer 2 Solutions See Record Adoption',
+                    excerpt: 'Arbitrum and Optimism report record transaction volumes as users migrate to cheaper Layer 2 solutions for DeFi operations.',
+                    source: 'The Block',
+                    timeAgo: '6h ago',
+                    link: 'https://theblock.co',
+                    trend: '📈'
+                },
+                {
+                    impact: 'high',
+                    category: 'trading',
+                    coins: ['BTC', 'Bitcoin'],
+                    title: 'Major Exchange Lists New Bitcoin ETF Products',
+                    excerpt: 'A leading exchange announces the listing of multiple Bitcoin ETF products, providing institutional investors with new ways to gain exposure.',
+                    source: 'Bloomberg Crypto',
+                    timeAgo: '4h ago',
+                    link: 'https://bloomberg.com',
+                    trend: '📈'
+                },
+                {
+                    impact: 'medium',
+                    category: 'defi',
+                    coins: ['ETH', 'UNI'],
+                    title: 'Uniswap V4 Launch Date Confirmed',
+                    excerpt: 'The Uniswap team confirms the launch date for V4, introducing new features that could revolutionize decentralized exchange trading.',
+                    source: 'DeFi Pulse',
+                    timeAgo: '10h ago',
+                    link: 'https://defipulse.com',
+                    trend: '📈'
+                }
+            ];
+
+            let currentNewsCategory = 'all';
+            let currentMarket = 'all';
+            let yahooNewsData = [];
+
+            // Yahoo Finance RSS Feed URLs
+            const yahooFeeds = {
+                stocks: 'https://feeds.finance.yahoo.com/rss/2.0/headline?s=AAPL,MSFT,GOOGL,AMZN,TSLA&region=US&lang=en-US',
+                forex: 'https://feeds.finance.yahoo.com/rss/2.0/headline?s=EURUSD=X,GBPUSD=X,USDJPY=X&region=US&lang=en-US',
+                commodities: 'https://feeds.finance.yahoo.com/rss/2.0/headline?s=GC=F,CL=F,SI=F&region=US&lang=en-US',
+                crypto: 'https://feeds.finance.yahoo.com/rss/2.0/headline?s=BTC-USD,ETH-USD&region=US&lang=en-US',
+                economy: 'https://feeds.finance.yahoo.com/rss/2.0/headline?category=economy&region=US&lang=en-US'
+            };
+
+            // Parse RSS XML
+            function parseRSS(xmlText) {
+                const parser = new DOMParser();
+                const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
+                const items = xmlDoc.querySelectorAll('item');
+                const news = [];
+
+                items.forEach((item, index) => {
+                    const title = item.querySelector('title')?.textContent || '';
+                    const link = item.querySelector('link')?.textContent || '';
+                    const description = item.querySelector('description')?.textContent || '';
+                    const pubDate = item.querySelector('pubDate')?.textContent || '';
+
+                    // Clean description (remove HTML tags)
+                    const cleanDesc = description.replace(/<[^>]*>/g, '').substring(0, 150);
+
+                    // Calculate time ago
+                    const timeAgo = formatTimeAgo(pubDate);
+
+                    news.push({
+                        title,
+                        link,
+                        excerpt: cleanDesc,
+                        source: 'Yahoo Finance',
+                        timeAgo,
+                        market: currentMarket,
+                        impact: index < 3 ? 'high' : 'medium',
+                        category: 'trading'
+                    });
+                });
+
+                return news;
             }
 
-            if (currentMarket === 'all' || currentMarket === 'economy') {
-                const economyNews = await fetchYahooNews('economy');
-                yahooNewsData.push(...economyNews.map(item => ({ ...item, market: 'economy' })));
+            // Format time ago
+            function formatTimeAgo(dateString) {
+                if (!dateString) return 'Unknown';
+                try {
+                    const date = new Date(dateString);
+                    const now = new Date();
+                    const diffMs = now - date;
+                    const diffMins = Math.floor(diffMs / 60000);
+                    const diffHours = Math.floor(diffMs / 3600000);
+                    const diffDays = Math.floor(diffMs / 86400000);
+
+                    if (diffMins < 60) return `${diffMins}m ago`;
+                    if (diffHours < 24) return `${diffHours}h ago`;
+                    return `${diffDays}d ago`;
+                } catch (e) {
+                    return 'Recently';
+                }
             }
 
-            // Combine with crypto news data
-            const allNews = currentMarket === 'crypto' || currentMarket === 'all'
-                ? [...newsData, ...yahooNewsData]
-                : yahooNewsData;
+            // Fetch Yahoo Finance RSS feed with CORS proxy
+            async function fetchYahooNews(market) {
+                const feedUrl = yahooFeeds[market];
+                if (!feedUrl) return [];
 
-            renderNews(allNews);
-        }
+                try {
+                    // Use CORS proxy (you can replace with your own proxy or use a service)
+                    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(feedUrl)}`;
+                    const response = await fetch(proxyUrl);
+                    const data = await response.json();
 
-        function renderNews(newsArray = null) {
-            const newsListEl = document.getElementById('newsList');
-            const alertsListEl = document.getElementById('alertsList');
-            const hotTakesListEl = document.getElementById('hotTakesList');
+                    if (data.contents) {
+                        const parsed = parseRSS(data.contents);
+                        return parsed;
+                    }
+                    return [];
+                } catch (error) {
+                    console.error(`Failed to fetch ${market} news:`, error);
+                    return [];
+                }
+            }
 
-            if (!newsListEl) return;
+            // Fetch all market news
+            async function fetchAllMarketNews() {
+                const newsListEl = document.getElementById('newsList');
+                if (newsListEl) {
+                    newsListEl.innerHTML = '<div class="news-item"><p style="text-align:center;padding:20px;">Loading market news...</p></div>';
+                }
 
-            // Use provided array or combine newsData with yahooNewsData
-            const allNews = newsArray || (currentMarket === 'crypto' || currentMarket === 'all'
-                ? [...newsData, ...yahooNewsData]
-                : yahooNewsData);
+                yahooNewsData = [];
 
-            // Filter by market
-            let marketFiltered = currentMarket === 'all'
-                ? allNews
-                : allNews.filter(item => item.market === currentMarket || (currentMarket === 'crypto' && newsData.includes(item)));
+                if (currentMarket === 'all' || currentMarket === 'crypto') {
+                    const cryptoNews = await fetchYahooNews('crypto');
+                    yahooNewsData.push(...cryptoNews.map(item => ({ ...item, market: 'crypto' })));
+                }
 
-            // Filter news by category
-            const filteredNews = currentNewsCategory === 'all'
-                ? marketFiltered
-                : marketFiltered.filter(item => item.category === currentNewsCategory);
+                if (currentMarket === 'all' || currentMarket === 'stocks') {
+                    const stocksNews = await fetchYahooNews('stocks');
+                    yahooNewsData.push(...stocksNews.map(item => ({ ...item, market: 'stocks' })));
+                }
 
-            // Render main news list
-            if (filteredNews.length === 0) {
-                newsListEl.innerHTML = '<div class="news-item"><p style="text-align:center;padding:20px;color:var(--text-secondary);">No news available. Try refreshing or selecting a different market.</p></div>';
-            } else {
-                newsListEl.innerHTML = filteredNews.slice(0, 20).map(item => {
-                    const impactClass = item.impact === 'critical' ? 'critical' : item.impact === 'high' ? 'high' : '';
-                    const impactBadge = item.impact === 'critical' ? 'CRITICAL' : item.impact === 'high' ? 'HIGH' : 'MEDIUM';
-                    const badgeClass = item.impact === 'critical' ? 'critical' : item.impact === 'high' ? 'high' : 'medium';
-                    const marketBadge = item.market ? `<span class="news-badge category">${item.market.charAt(0).toUpperCase() + item.market.slice(1)}</span>` : '';
-                    const coinsBadges = item.coins ? item.coins.map(coin => `<span class="news-badge coin">${coin}</span>`).join('') : '';
-                    const trendIcon = item.trend ? `<span style="font-size:0.8rem; color:var(--text-secondary);">${item.trend}</span>` : '';
+                if (currentMarket === 'all' || currentMarket === 'forex') {
+                    const forexNews = await fetchYahooNews('forex');
+                    yahooNewsData.push(...forexNews.map(item => ({ ...item, market: 'forex' })));
+                }
 
-                    return `
+                if (currentMarket === 'all' || currentMarket === 'commodities') {
+                    const commoditiesNews = await fetchYahooNews('commodities');
+                    yahooNewsData.push(...commoditiesNews.map(item => ({ ...item, market: 'commodities' })));
+                }
+
+                if (currentMarket === 'all' || currentMarket === 'economy') {
+                    const economyNews = await fetchYahooNews('economy');
+                    yahooNewsData.push(...economyNews.map(item => ({ ...item, market: 'economy' })));
+                }
+
+                // Combine with crypto news data
+                const allNews = currentMarket === 'crypto' || currentMarket === 'all'
+                    ? [...newsData, ...yahooNewsData]
+                    : yahooNewsData;
+
+                renderNews(allNews);
+            }
+
+            function renderNews(newsArray = null) {
+                const newsListEl = document.getElementById('newsList');
+                const alertsListEl = document.getElementById('alertsList');
+                const hotTakesListEl = document.getElementById('hotTakesList');
+
+                if (!newsListEl) return;
+
+                // Use provided array or combine newsData with yahooNewsData
+                const allNews = newsArray || (currentMarket === 'crypto' || currentMarket === 'all'
+                    ? [...newsData, ...yahooNewsData]
+                    : yahooNewsData);
+
+                // Filter by market
+                let marketFiltered = currentMarket === 'all'
+                    ? allNews
+                    : allNews.filter(item => item.market === currentMarket || (currentMarket === 'crypto' && newsData.includes(item)));
+
+                // Filter news by category
+                const filteredNews = currentNewsCategory === 'all'
+                    ? marketFiltered
+                    : marketFiltered.filter(item => item.category === currentNewsCategory);
+
+                // Render main news list
+                if (filteredNews.length === 0) {
+                    newsListEl.innerHTML = '<div class="news-item"><p style="text-align:center;padding:20px;color:var(--text-secondary);">No news available. Try refreshing or selecting a different market.</p></div>';
+                } else {
+                    newsListEl.innerHTML = filteredNews.slice(0, 20).map(item => {
+                        const impactClass = item.impact === 'critical' ? 'critical' : item.impact === 'high' ? 'high' : '';
+                        const impactBadge = item.impact === 'critical' ? 'CRITICAL' : item.impact === 'high' ? 'HIGH' : 'MEDIUM';
+                        const badgeClass = item.impact === 'critical' ? 'critical' : item.impact === 'high' ? 'high' : 'medium';
+                        const marketBadge = item.market ? `<span class="news-badge category">${item.market.charAt(0).toUpperCase() + item.market.slice(1)}</span>` : '';
+                        const coinsBadges = item.coins ? item.coins.map(coin => `<span class="news-badge coin">${coin}</span>`).join('') : '';
+                        const trendIcon = item.trend ? `<span style="font-size:0.8rem; color:var(--text-secondary);">${item.trend}</span>` : '';
+
+                        return `
                         <div class="news-item ${impactClass}">
                             <div class="news-item-header">
                                 <div class="news-badges">
@@ -4784,15 +4848,15 @@
                             </div>
                         </div>
                     `;
-                }).join('');
-            }
+                    }).join('');
+                }
 
-            // Render critical alerts
-            if (alertsListEl) {
-                const criticalNews = allNews.filter(item => item.impact === 'critical' || item.impact === 'high').slice(0, 3);
-                alertsListEl.innerHTML = criticalNews.map(item => {
-                    const alertClass = item.impact === 'critical' ? '' : 'high';
-                    return `
+                // Render critical alerts
+                if (alertsListEl) {
+                    const criticalNews = allNews.filter(item => item.impact === 'critical' || item.impact === 'high').slice(0, 3);
+                    alertsListEl.innerHTML = criticalNews.map(item => {
+                        const alertClass = item.impact === 'critical' ? '' : 'high';
+                        return `
                         <div class="news-alert-item ${alertClass}">
                             <div class="news-alert-title">${item.impact.toUpperCase()}: ${item.title}</div>
                             <div class="news-alert-desc">${item.excerpt}</div>
@@ -4802,15 +4866,15 @@
                             </div>
                         </div>
                     `;
-                }).join('');
-            }
+                    }).join('');
+                }
 
-            // Render hot takes
-            if (hotTakesListEl) {
-                const hotTakes = allNews.filter(item => item.impact === 'critical' || item.impact === 'high').slice(0, 3);
-                hotTakesListEl.innerHTML = hotTakes.map(item => {
-                    const coinsBadges = item.coins ? item.coins.map(coin => `<span class="news-badge coin" style="font-size:0.7rem;">${coin}</span>`).join('') : '';
-                    return `
+                // Render hot takes
+                if (hotTakesListEl) {
+                    const hotTakes = allNews.filter(item => item.impact === 'critical' || item.impact === 'high').slice(0, 3);
+                    hotTakesListEl.innerHTML = hotTakes.map(item => {
+                        const coinsBadges = item.coins ? item.coins.map(coin => `<span class="news-badge coin" style="font-size:0.7rem;">${coin}</span>`).join('') : '';
+                        return `
                         <div class="news-hot-take-item">
                             <div class="news-hot-take-title">${item.title}</div>
                             <div class="news-hot-take-desc">${item.excerpt}</div>
@@ -4820,582 +4884,551 @@
                             </div>
                         </div>
                     `;
-                }).join('');
-            }
-
-            // Update stats
-            const hotNewsCount = allNews.filter(item => item.impact === 'critical' || item.impact === 'high').length;
-            const alertCount = allNews.filter(item => item.impact === 'critical').length;
-            const hotNewsCountEl = document.getElementById('hotNewsCount');
-            const alertCountEl = document.getElementById('alertCount');
-            const totalNewsCountEl = document.getElementById('totalNewsCount');
-
-            if (hotNewsCountEl) hotNewsCountEl.textContent = hotNewsCount;
-            if (alertCountEl) alertCountEl.textContent = alertCount;
-            if (totalNewsCountEl) totalNewsCountEl.textContent = allNews.length;
-        }
-
-        function initNewsFilters() {
-            const filterBtns = document.querySelectorAll('.news-filter-btn');
-            filterBtns.forEach(btn => {
-                btn.addEventListener('click', () => {
-                    filterBtns.forEach(b => b.classList.remove('active'));
-                    btn.classList.add('active');
-                    currentNewsCategory = btn.dataset.category;
-                    renderNews();
-                });
-            });
-        }
-
-        // ============================================
-        // VIEW COUNTER
-        // ============================================
-        function initViewCounter() {
-            const viewCountEl = document.getElementById('viewCount');
-            if (!viewCountEl) return;
-
-            // Get current count from localStorage
-            let totalViews = parseInt(localStorage.getItem('srus_total_views') || '0', 10);
-
-            // Check if this is a new session (not just a refresh)
-            const lastVisit = localStorage.getItem('srus_last_visit');
-            const now = Date.now();
-            const sessionTimeout = 30 * 60 * 1000; // 30 minutes
-
-            // Increment if it's a new visit or session expired
-            if (!lastVisit || (now - parseInt(lastVisit, 10)) > sessionTimeout) {
-                totalViews += 1;
-                localStorage.setItem('srus_total_views', totalViews.toString());
-                localStorage.setItem('srus_last_visit', now.toString());
-            }
-
-            // Animate the number
-            animateViewCount(viewCountEl, totalViews);
-        }
-
-        function animateViewCount(element, targetValue) {
-            const duration = 1000; // 1 second
-            const startValue = 0;
-            const startTime = performance.now();
-
-            function update(currentTime) {
-                const elapsed = currentTime - startTime;
-                const progress = Math.min(elapsed / duration, 1);
-
-                // Easing function (ease-out)
-                const easeOut = 1 - Math.pow(1 - progress, 3);
-                const currentValue = Math.floor(startValue + (targetValue - startValue) * easeOut);
-
-                element.textContent = currentValue.toLocaleString();
-
-                if (progress < 1) {
-                    requestAnimationFrame(update);
-                } else {
-                    element.textContent = targetValue.toLocaleString();
+                    }).join('');
                 }
+
+                // Update stats
+                const hotNewsCount = allNews.filter(item => item.impact === 'critical' || item.impact === 'high').length;
+                const alertCount = allNews.filter(item => item.impact === 'critical').length;
+                const hotNewsCountEl = document.getElementById('hotNewsCount');
+                const alertCountEl = document.getElementById('alertCount');
+                const totalNewsCountEl = document.getElementById('totalNewsCount');
+
+                if (hotNewsCountEl) hotNewsCountEl.textContent = hotNewsCount;
+                if (alertCountEl) alertCountEl.textContent = alertCount;
+                if (totalNewsCountEl) totalNewsCountEl.textContent = allNews.length;
             }
 
-            requestAnimationFrame(update);
-        }
+            function initNewsFilters() {
+                const filterBtns = document.querySelectorAll('.news-filter-btn');
+                filterBtns.forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        filterBtns.forEach(b => b.classList.remove('active'));
+                        btn.classList.add('active');
+                        currentNewsCategory = btn.dataset.category;
+                        renderNews();
+                    });
+                });
+            }
 
-        // Start
-        init();
-        loadSignalHistory();
-        initSignalPanel();
-        initNewsFilters();
-        renderNews();
-        fetchAllMarketNews(); // Load Yahoo Finance news on page load
-        initViewCounter();
+            // ============================================
+            // VIEW COUNTER
+            // ============================================
+            function initViewCounter() {
+                const viewCountEl = document.getElementById('viewCount');
+                if (!viewCountEl) return;
 
-        // Refresh Yahoo Finance news every 5 minutes
-        setInterval(fetchAllMarketNews, 5 * 60 * 1000);
+                // Get current count from localStorage
+                let totalViews = parseInt(localStorage.getItem('srus_total_views') || '0', 10);
 
-        // ============================================
-        // PAPER TRADING FUNCTIONALITY
-        // ============================================
-        (function initPaperTrading() {
-            // Paper Trading State
-            let paperPortfolio = {
-                balance: 10000,
-                totalPnl: 0,
-                trades: []
-            };
+                // Check if this is a new session (not just a refresh)
+                const lastVisit = localStorage.getItem('srus_last_visit');
+                const now = Date.now();
+                const sessionTimeout = 30 * 60 * 1000; // 30 minutes
 
-            let paperCurrentTradeType = 'buy';
-            let paperCurrentOrderType = 'market';
-            let paperCurrentTab = 'open';
+                // Increment if it's a new visit or session expired
+                if (!lastVisit || (now - parseInt(lastVisit, 10)) > sessionTimeout) {
+                    totalViews += 1;
+                    localStorage.setItem('srus_total_views', totalViews.toString());
+                    localStorage.setItem('srus_last_visit', now.toString());
+                }
 
-            // Load portfolio from localStorage
-            function loadPaperPortfolio() {
-                try {
-                    const saved = localStorage.getItem('srus_paper_portfolio');
-                    if (saved) {
-                        const parsed = JSON.parse(saved);
-                        // Validation / Migration
-                        paperPortfolio = {
-                            balance: typeof parsed.balance === 'number' ? parsed.balance : 10000,
-                            totalPnl: typeof parsed.totalPnl === 'number' ? parsed.totalPnl : 0,
-                            trades: Array.isArray(parsed.trades) ? parsed.trades : []
-                        };
+                // Animate the number
+                animateViewCount(viewCountEl, totalViews);
+            }
+
+            function animateViewCount(element, targetValue) {
+                const duration = 1000; // 1 second
+                const startValue = 0;
+                const startTime = performance.now();
+
+                function update(currentTime) {
+                    const elapsed = currentTime - startTime;
+                    const progress = Math.min(elapsed / duration, 1);
+
+                    // Easing function (ease-out)
+                    const easeOut = 1 - Math.pow(1 - progress, 3);
+                    const currentValue = Math.floor(startValue + (targetValue - startValue) * easeOut);
+
+                    element.textContent = currentValue.toLocaleString();
+
+                    if (progress < 1) {
+                        requestAnimationFrame(update);
+                    } else {
+                        element.textContent = targetValue.toLocaleString();
                     }
-                } catch (e) {
-                    console.error('Failed to load paper portfolio:', e);
-                    // Reset to default on error
-                    paperPortfolio = {
-                        balance: 10000,
-                        totalPnl: 0,
-                        trades: []
-                    };
                 }
+
+                requestAnimationFrame(update);
             }
 
-            // Save portfolio to localStorage
-            function savePaperPortfolio() {
-                try {
-                    localStorage.setItem('srus_paper_portfolio', JSON.stringify(paperPortfolio));
-                } catch (e) {
-                    console.error('Failed to save paper portfolio:', e);
-                }
-            }
+            // Start
+            init();
+            loadSignalHistory();
+            initSignalPanel();
+            initNewsFilters();
+            renderNews();
+            fetchAllMarketNews(); // Load Yahoo Finance news on page load
+            initViewCounter();
 
-            // Initialize
-            loadPaperPortfolio();
+            // Refresh Yahoo Finance news every 5 minutes
+            setInterval(fetchAllMarketNews, 5 * 60 * 1000);
 
-            // Hoist DOM elements to top scope to avoid Temporal Dead Zone (ReferenceError)
-            const amountInput = document.getElementById('paperAmount');
-            const limitPriceInput = document.getElementById('paperLimitPrice');
-            const submitBtn = document.getElementById('paperSubmitBtn');
+            // ============================================
+            // PAPER TRADING FUNCTIONALITY
+            // ============================================
+            (function initPaperTrading() {
+                // Paper Trading State
+                let paperPortfolio = {
+                    balance: 10000,
+                    totalPnl: 0,
+                    trades: []
+                };
 
-            // Force initial balance display
-            const balanceEl = document.getElementById('paperBalance');
-            if (balanceEl && paperPortfolio.balance) {
-                balanceEl.textContent = `$${paperPortfolio.balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-            }
+                let paperCurrentTradeType = 'buy';
+                let paperCurrentOrderType = 'market';
+                let paperCurrentTab = 'open';
 
-            updatePaperUI();
-
-            // Global functions for inline onclick handlers (most reliable)
-            window.paperSetOrderType = function (type, clickedBtn) {
-                console.log('Setting order type to:', type);
-                document.querySelectorAll('.paper-order-tab').forEach(t => t.classList.remove('active'));
-                clickedBtn.classList.add('active');
-                paperCurrentOrderType = type;
-                const limitGroup = document.getElementById('paperLimitPriceGroup');
-                if (limitGroup) {
-                    limitGroup.style.display = type === 'limit' ? 'block' : 'none';
-                }
-                updatePaperSubmitButton();
-                updatePaperOrderSummary();
-            };
-
-            window.paperSetTradeType = function (type, clickedBtn) {
-                console.log('Setting trade type to:', type);
-                document.querySelectorAll('.paper-trade-btn').forEach(b => b.classList.remove('active'));
-                clickedBtn.classList.add('active');
-                paperCurrentTradeType = type;
-                updatePaperSubmitButton();
-                updatePaperOrderSummary();
-            };
-
-            // Event Delegation for other buttons (percent buttons, etc.)
-            document.addEventListener('click', function (e) {
-
-                // 3. Position Tabs (Open/Pending/Closed)
-                const posTab = e.target.closest('.paper-positions-tab');
-                if (posTab) {
-                    document.querySelectorAll('.paper-positions-tab').forEach(t => t.classList.remove('active'));
-                    posTab.classList.add('active');
-                    paperCurrentTab = posTab.dataset.tab;
-                    renderPaperPositions();
-                    return;
-                }
-
-                // 4. Submit Button
-                if (e.target.id === 'paperSubmitBtn') {
-                    e.preventDefault();
-                    executePaperTrade();
-                    return;
-                }
-            });
-
-            // Position tabs
-            document.querySelectorAll('.paper-positions-tab').forEach(tab => {
-                tab.addEventListener('click', () => {
-                    document.querySelectorAll('.paper-positions-tab').forEach(t => t.classList.remove('active'));
-                    tab.classList.add('active');
-                    paperCurrentTab = tab.dataset.tab;
-                    renderPaperPositions();
-                });
-            });
-
-            // Amount input
-            if (amountInput) {
-                amountInput.addEventListener('input', () => {
-                    updatePaperOrderSummary();
-                    updatePaperSubmitButton();
-                });
-            }
-
-            // Limit price input
-            if (limitPriceInput) {
-                limitPriceInput.addEventListener('input', () => {
-                    updatePaperOrderSummary();
-                    updatePaperSubmitButton();
-                });
-            }
-
-            // Global functions for percent and price offset buttons
-            window.paperSetPercent = function (percent) {
-                const amountInput = document.getElementById('paperAmount');
-                if (state.price && amountInput) {
-                    const availableBalance = paperPortfolio.balance;
-                    // Now setting amount in USD, so directly use percentage of balance
-                    const usdAmount = availableBalance * (percent / 100);
-                    amountInput.value = usdAmount.toFixed(2); // Display USD amount
-                    updatePaperOrderSummary();
-                    updatePaperSubmitButton();
-                }
-            };
-
-            window.paperSetPriceOffset = function (offset) {
-                const limitPriceInput = document.getElementById('paperLimitPrice');
-                if (state.price && limitPriceInput) {
-                    const newPrice = state.price * (1 + offset / 100);
-                    limitPriceInput.value = newPrice.toFixed(2);
-                    updatePaperOrderSummary();
-                    updatePaperSubmitButton();
-                }
-            };
-
-            // Reset button
-            const resetBtn = document.getElementById('paperResetBtn');
-            if (resetBtn) {
-                resetBtn.addEventListener('click', () => {
-                    if (confirm('Reset your paper trading portfolio? This will clear all trades and reset balance to $10,000.')) {
+                // Load portfolio from localStorage
+                function loadPaperPortfolio() {
+                    try {
+                        const saved = localStorage.getItem('srus_paper_portfolio');
+                        if (saved) {
+                            const parsed = JSON.parse(saved);
+                            // Validation / Migration
+                            paperPortfolio = {
+                                balance: typeof parsed.balance === 'number' ? parsed.balance : 10000,
+                                totalPnl: typeof parsed.totalPnl === 'number' ? parsed.totalPnl : 0,
+                                trades: Array.isArray(parsed.trades) ? parsed.trades : []
+                            };
+                        }
+                    } catch (e) {
+                        console.error('Failed to load paper portfolio:', e);
+                        // Reset to default on error
                         paperPortfolio = {
                             balance: 10000,
                             totalPnl: 0,
                             trades: []
                         };
-                        savePaperPortfolio();
-                        updatePaperUI();
-                        renderPaperPositions();
                     }
-                });
-            }
+                }
 
-            // Execute trade function (global)
-            window.executePaperTrade = function () {
+                // Save portfolio to localStorage
+                function savePaperPortfolio() {
+                    try {
+                        localStorage.setItem('srus_paper_portfolio', JSON.stringify(paperPortfolio));
+                    } catch (e) {
+                        console.error('Failed to save paper portfolio:', e);
+                    }
+                }
+
+                // Initialize
+                loadPaperPortfolio();
+
+                // Hoist DOM elements to top scope to avoid Temporal Dead Zone (ReferenceError)
                 const amountInput = document.getElementById('paperAmount');
                 const limitPriceInput = document.getElementById('paperLimitPrice');
-
-                if (!state.price) {
-                    alert('Waiting for price data...');
-                    return;
-                }
-
-                const usdValue = parseFloat(amountInput.value);
-                if (!usdValue || usdValue <= 0) {
-                    alert('Please enter a valid USD amount');
-                    return;
-                }
-
-                // Calculate BTC amount from USD
-                const executionPrice = paperCurrentOrderType === 'limit'
-                    ? parseFloat(limitPriceInput.value)
-                    : state.price;
-
-                if (!executionPrice) {
-                    alert('Invalid price');
-                    return;
-                }
-
-                const amount = usdValue / executionPrice;
-
-                // Check balance
-                // Simple check: do we have enough cash?
-                // (Ignoring leverage for safety check, or assume 1x)
-                if (usdValue > paperPortfolio.balance) {
-                    alert(`Insufficient balance. Available: ${priceFormatter.format(paperPortfolio.balance)}`);
-                    return;
-                }
-
-                const trade = {
-                    id: Date.now(),
-                    symbol: state.symbol,
-                    type: paperCurrentTradeType, // 'buy' or 'sell'
-                    orderType: paperCurrentOrderType, // 'market' or 'limit'
-                    price: executionPrice,
-                    amount: amount, // Stored in BTC
-                    entryValueUsd: usdValue,
-                    status: paperCurrentOrderType === 'market' ? 'open' : 'pending',
-                    limitPrice: paperCurrentOrderType === 'limit' ? executionPrice : null,
-                    timestamp: new Date().toISOString()
-                };
-
-
-                paperPortfolio.trades.push(trade);
-                savePaperPortfolio();
-
-                // Clear inputs
-                if (amountInput) amountInput.value = '';
-                if (limitPriceInput) limitPriceInput.value = '';
-
-                updatePaperUI();
-                renderPaperPositions();
-                updatePaperOrderSummary();
-
-                // Show success feedback
                 const submitBtn = document.getElementById('paperSubmitBtn');
-                if (submitBtn) {
-                    const btnOriginalText = submitBtn.textContent;
-                    submitBtn.textContent = "Order Placed!";
-                    setTimeout(() => {
-                        submitBtn.textContent = btnOriginalText;
-                        updatePaperSubmitButton();
-                    }, 1500);
-                }
 
-                // Send to Discord Leaderboard
-                const user = getUsername();
-                sendToDiscord({
-                    username: "Snipers Leaderboard",
-                    embeds: [{
-                        title: `🔔 New Trade Opened`,
-                        color: 3447003, // Blue
-                        description: `**${user}** opened a **${trade.type.toUpperCase()}** on **${trade.symbol}**`,
-                        fields: [
-                            { name: "Entry Price", value: `$${trade.price.toLocaleString()}`, inline: true },
-                            { name: "Size", value: `${trade.amount} ${trade.symbol}`, inline: true },
-                            { name: "Order Type", value: trade.orderType.toUpperCase(), inline: true }
-                        ],
-                        footer: { text: "Paper Trading Competition" },
-                        timestamp: new Date().toISOString()
-                    }]
-                });
-            }
-
-            // Make executePaperTrade globally accessible for onclick
-            window.executePaperTrade = executePaperTrade;
-
-            // Update order summary
-            function updatePaperOrderSummary() {
-                const amountInput = document.getElementById('paperAmount');
-                const limitPriceInput = document.getElementById('paperLimitPrice');
-                const amount = parseFloat(amountInput?.value || '0');
-                const summaryEl = document.getElementById('paperOrderSummary');
-                const priceEl = document.getElementById('paperOrderPrice');
-                const amountEl = document.getElementById('paperOrderAmount');
-                const totalEl = document.getElementById('paperOrderTotal');
-
-                if (!amount || amount <= 0) {
-                    if (summaryEl) summaryEl.style.display = 'none';
-                    return;
-                }
-
-                const price = paperCurrentOrderType === 'market'
-                    ? state.price
-                    : parseFloat(limitPriceInput?.value || state.price || 0);
-
-                if (summaryEl) summaryEl.style.display = 'block';
-                if (priceEl) priceEl.textContent = `$${price.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
-                if (amountEl) amountEl.textContent = `${amount.toFixed(8)} ${state.symbol}`;
-                if (totalEl) totalEl.textContent = `$${(amount * price).toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
-            }
-
-            // Update submit button
-            function updatePaperSubmitButton() {
-                const amount = parseFloat(amountInput?.value || '0');
-                const currentPrice = state && state.price ? state.price : 0;
-                const price = paperCurrentOrderType === 'market'
-                    ? currentPrice
-                    : parseFloat(limitPriceInput?.value || '0');
-                const totalCost = amount * price;
-
-                const isValid = amount > 0 &&
-                    (paperCurrentOrderType === 'market' || (price > 0 && price !== currentPrice)) &&
-                    (paperCurrentTradeType === 'sell' || totalCost <= paperPortfolio.balance) &&
-                    price > 0;
-
-                if (submitBtn) {
-                    submitBtn.disabled = !isValid;
-                    submitBtn.textContent = paperCurrentOrderType === 'market'
-                        ? (paperCurrentTradeType === 'buy' ? 'Buy Market' : 'Sell Market')
-                        : (paperCurrentTradeType === 'buy' ? 'Place Buy Limit' : 'Place Sell Limit');
-                    submitBtn.className = `paper-submit-btn ${paperCurrentTradeType}`;
-                }
-            }
-
-            // Update UI
-            function updatePaperUI() {
-                // Safety check for state
-                if (!state || !state.symbol) {
-                    // Update at least the balance if possible
-                    const balanceEl = document.getElementById('paperBalance');
-                    if (balanceEl && paperPortfolio && paperPortfolio.balance) {
-                        balanceEl.textContent = `$${paperPortfolio.balance.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
-                    }
-                    return;
-                }
-
-                // Safety check for portfolio
-                if (!paperPortfolio || !Array.isArray(paperPortfolio.trades)) {
-                    return;
-                }
-
-                const currentPrice = state.price || 0;
-
-                const openPositions = paperPortfolio.trades.filter(t => t.status === 'open' && t.symbol === state.symbol);
-                const pendingOrders = paperPortfolio.trades.filter(t => t.status === 'pending' && t.symbol === state.symbol);
-                const closedTrades = paperPortfolio.trades.filter(t => t.status === 'closed' && t.symbol === state.symbol);
-
-                // Calculate unrealized P&L
-                let unrealizedPnL = 0;
-                openPositions.forEach(trade => {
-                    if (currentPrice > 0) {
-                        if (trade.type === 'buy') {
-                            unrealizedPnL += (currentPrice - trade.price) * trade.amount;
-                        } else {
-                            unrealizedPnL += (trade.price - currentPrice) * trade.amount;
-                        }
-                    }
-                });
-
-                // Calculate realized P&L
-                const realizedPnL = closedTrades.reduce((sum, t) => sum + (t.pnl || 0), 0);
-
-                // Calculate equity
-                const equity = paperPortfolio.balance + unrealizedPnL;
-
-                // Update portfolio display
+                // Force initial balance display
                 const balanceEl = document.getElementById('paperBalance');
-                const equityEl = document.getElementById('paperEquity');
-                const realizedEl = document.getElementById('paperRealizedPnL');
-                const unrealizedEl = document.getElementById('paperUnrealizedPnL');
-
-                if (balanceEl) {
+                if (balanceEl && paperPortfolio.balance) {
                     balanceEl.textContent = `$${paperPortfolio.balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
                 }
-                if (equityEl) {
-                    equityEl.textContent = `$${equity.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-                }
-                if (realizedEl) {
-                    realizedEl.textContent = `${realizedPnL >= 0 ? '+' : ''}$${realizedPnL.toFixed(2)}`;
-                    realizedEl.style.color = realizedPnL >= 0 ? 'var(--accent-green)' : 'var(--accent-purple)';
-                }
-                if (unrealizedEl) {
-                    unrealizedEl.textContent = `${unrealizedPnL >= 0 ? '+' : ''}$${unrealizedPnL.toFixed(2)}`;
-                    unrealizedEl.style.color = unrealizedPnL >= 0 ? 'var(--accent-green)' : 'var(--accent-purple)';
-                }
 
-                // Update counts
-                const openCountEl = document.getElementById('openPosCount');
-                const pendingCountEl = document.getElementById('pendingCount');
-                const closedCountEl = document.getElementById('closedCount');
+                updatePaperUI();
 
-                if (openCountEl) openCountEl.textContent = openPositions.length;
-                if (pendingCountEl) pendingCountEl.textContent = pendingOrders.length;
-                if (closedCountEl) closedCountEl.textContent = closedTrades.length;
-
-                // Update available amount
-                const availableEl = document.getElementById('paperAvailableAmount');
-                if (availableEl) {
-                    if (state.price && state.price > 0) {
-                        const symbolDisplay = state.symbol ? state.symbol.replace('USDT', '').replace('/', '').replace(':USDT', '') : 'BTC';
-                        const availableQty = paperPortfolio.balance / state.price;
-                        availableEl.textContent = `Available: ${availableQty.toFixed(8)} ${symbolDisplay}`;
-                    } else {
-                        availableEl.textContent = `Available: Loading...`;
+                // Global functions for inline onclick handlers (most reliable)
+                window.paperSetOrderType = function (type, clickedBtn) {
+                    console.log('Setting order type to:', type);
+                    document.querySelectorAll('.paper-order-tab').forEach(t => t.classList.remove('active'));
+                    clickedBtn.classList.add('active');
+                    paperCurrentOrderType = type;
+                    const limitGroup = document.getElementById('paperLimitPriceGroup');
+                    if (limitGroup) {
+                        limitGroup.style.display = type === 'limit' ? 'block' : 'none';
                     }
-                }
+                    updatePaperSubmitButton();
+                    updatePaperOrderSummary();
+                };
 
-                // Balance updated above
+                window.paperSetTradeType = function (type, clickedBtn) {
+                    console.log('Setting trade type to:', type);
+                    document.querySelectorAll('.paper-trade-btn').forEach(b => b.classList.remove('active'));
+                    clickedBtn.classList.add('active');
+                    paperCurrentTradeType = type;
+                    updatePaperSubmitButton();
+                    updatePaperOrderSummary();
+                };
 
-                // Update submit button state
-                updatePaperSubmitButton();
+                // Event Delegation for other buttons (percent buttons, etc.)
+                document.addEventListener('click', function (e) {
 
-                // Check pending orders
-                checkPendingOrders();
-            }
+                    // 3. Position Tabs (Open/Pending/Closed)
+                    const posTab = e.target.closest('.paper-positions-tab');
+                    if (posTab) {
+                        document.querySelectorAll('.paper-positions-tab').forEach(t => t.classList.remove('active'));
+                        posTab.classList.add('active');
+                        paperCurrentTab = posTab.dataset.tab;
+                        renderPaperPositions();
+                        return;
+                    }
 
-            // Check pending orders
-            function checkPendingOrders() {
-                const pendingOrders = paperPortfolio.trades.filter(t => t.status === 'pending' && t.symbol === state.symbol);
-                if (pendingOrders.length === 0) return;
-
-                let stateChanged = false;
-                pendingOrders.forEach(trade => {
-                    if (!trade.limitPrice || !state.price) return;
-
-                    // Improved logic:
-                    // Buy Limit: execute if current price <= limit price
-                    // Sell Limit: execute if current price >= limit price
-                    const shouldExecute = trade.type === 'buy'
-                        ? state.price <= trade.limitPrice
-                        : state.price >= trade.limitPrice;
-
-                    if (shouldExecute) {
-                        trade.status = 'open';
-                        trade.price = trade.limitPrice; // Execute at limit price (or better)
-                        trade.entryTime = new Date().toISOString();
-
-                        // Deduct balance now if we haven't already (depending on margin model)
-                        // In executePaperTrade we didn't deduct for pending. So do it now.
-                        const totalCost = trade.amount * trade.price;
-                        // For simplicity in this demo, just deduct cost for both long and short to simulate margin usage
-                        if (paperPortfolio.balance >= totalCost) {
-                            paperPortfolio.balance -= totalCost;
-                        } else {
-                            // Failed to fill due to balance? Cancel it?
-                            // For now let's just allow it or set negative balance (margin call sim)
-                            paperPortfolio.balance -= totalCost;
-                        }
-
-                        stateChanged = true;
-
-                        // Notify user (simple toast or console for now)
-                        console.log(`Order Filled: ${trade.type.toUpperCase()} ${trade.symbol} at ${trade.price}`);
+                    // 4. Submit Button
+                    if (e.target.id === 'paperSubmitBtn') {
+                        e.preventDefault();
+                        executePaperTrade();
+                        return;
                     }
                 });
 
-                if (stateChanged) {
+                // Position tabs
+                document.querySelectorAll('.paper-positions-tab').forEach(tab => {
+                    tab.addEventListener('click', () => {
+                        document.querySelectorAll('.paper-positions-tab').forEach(t => t.classList.remove('active'));
+                        tab.classList.add('active');
+                        paperCurrentTab = tab.dataset.tab;
+                        renderPaperPositions();
+                    });
+                });
+
+                // Amount input
+                if (amountInput) {
+                    amountInput.addEventListener('input', () => {
+                        updatePaperOrderSummary();
+                        updatePaperSubmitButton();
+                    });
+                }
+
+                // Limit price input
+                if (limitPriceInput) {
+                    limitPriceInput.addEventListener('input', () => {
+                        updatePaperOrderSummary();
+                        updatePaperSubmitButton();
+                    });
+                }
+
+                // Global functions for percent and price offset buttons
+                window.paperSetPercent = function (percent) {
+                    const amountInput = document.getElementById('paperAmount');
+                    if (state.price && amountInput) {
+                        const availableBalance = paperPortfolio.balance;
+                        // Now setting amount in USD, so directly use percentage of balance
+                        const usdAmount = availableBalance * (percent / 100);
+                        amountInput.value = usdAmount.toFixed(2); // Display USD amount
+                        updatePaperOrderSummary();
+                        updatePaperSubmitButton();
+                    }
+                };
+
+                window.paperSetPriceOffset = function (offset) {
+                    const limitPriceInput = document.getElementById('paperLimitPrice');
+                    if (state.price && limitPriceInput) {
+                        const newPrice = state.price * (1 + offset / 100);
+                        limitPriceInput.value = newPrice.toFixed(2);
+                        updatePaperOrderSummary();
+                        updatePaperSubmitButton();
+                    }
+                };
+
+                // Reset button
+                const resetBtn = document.getElementById('paperResetBtn');
+                if (resetBtn) {
+                    resetBtn.addEventListener('click', () => {
+                        if (confirm('Reset your paper trading portfolio? This will clear all trades and reset balance to $10,000.')) {
+                            paperPortfolio = {
+                                balance: 10000,
+                                totalPnl: 0,
+                                trades: []
+                            };
+                            savePaperPortfolio();
+                            updatePaperUI();
+                            renderPaperPositions();
+                        }
+                    });
+                }
+
+                // Execute trade function (global)
+                window.executePaperTrade = function () {
+                    const amountInput = document.getElementById('paperAmount');
+                    const limitPriceInput = document.getElementById('paperLimitPrice');
+
+                    if (!state.price) {
+                        alert('Waiting for price data...');
+                        return;
+                    }
+
+                    const usdValue = parseFloat(amountInput.value);
+                    if (!usdValue || usdValue <= 0) {
+                        alert('Please enter a valid USD amount');
+                        return;
+                    }
+
+                    // Calculate BTC amount from USD
+                    const executionPrice = paperCurrentOrderType === 'limit'
+                        ? parseFloat(limitPriceInput.value)
+                        : state.price;
+
+                    if (!executionPrice) {
+                        alert('Invalid price');
+                        return;
+                    }
+
+                    const amount = usdValue / executionPrice;
+
+                    // Check balance
+                    // Simple check: do we have enough cash?
+                    // (Ignoring leverage for safety check, or assume 1x)
+                    if (usdValue > paperPortfolio.balance) {
+                        alert(`Insufficient balance. Available: ${priceFormatter.format(paperPortfolio.balance)}`);
+                        return;
+                    }
+
+                    const trade = {
+                        id: Date.now(),
+                        symbol: state.symbol,
+                        type: paperCurrentTradeType, // 'buy' or 'sell'
+                        orderType: paperCurrentOrderType, // 'market' or 'limit'
+                        price: executionPrice,
+                        amount: amount, // Stored in BTC
+                        entryValueUsd: usdValue,
+                        status: paperCurrentOrderType === 'market' ? 'open' : 'pending',
+                        limitPrice: paperCurrentOrderType === 'limit' ? executionPrice : null,
+                        timestamp: new Date().toISOString()
+                    };
+
+
+                    paperPortfolio.trades.push(trade);
                     savePaperPortfolio();
-                    renderPaperPositions(); // Re-render to show moved trades
+
+                    // Clear inputs
+                    if (amountInput) amountInput.value = '';
+                    if (limitPriceInput) limitPriceInput.value = '';
+
                     updatePaperUI();
+                    renderPaperPositions();
+                    updatePaperOrderSummary();
+
+                    // Show success feedback
+                    const submitBtn = document.getElementById('paperSubmitBtn');
+                    if (submitBtn) {
+                        const btnOriginalText = submitBtn.textContent;
+                        submitBtn.textContent = "Order Placed!";
+                        setTimeout(() => {
+                            submitBtn.textContent = btnOriginalText;
+                            updatePaperSubmitButton();
+                        }, 1500);
+                    }
+
+                    // Send to Discord Leaderboard
+                    const user = getUsername();
+                    sendToDiscord({
+                        username: "Snipers Leaderboard",
+                        embeds: [{
+                            title: `🔔 New Trade Opened`,
+                            color: 3447003, // Blue
+                            description: `**${user}** opened a **${trade.type.toUpperCase()}** on **${trade.symbol}**`,
+                            fields: [
+                                { name: "Entry Price", value: `$${trade.price.toLocaleString()}`, inline: true },
+                                { name: "Size", value: `${trade.amount} ${trade.symbol}`, inline: true },
+                                { name: "Order Type", value: trade.orderType.toUpperCase(), inline: true }
+                            ],
+                            footer: { text: "Paper Trading Competition" },
+                            timestamp: new Date().toISOString()
+                        }]
+                    });
                 }
-            }
 
-            // Render positions
-            function renderPaperPositions() {
-                const contentEl = document.getElementById('paperPositionsContent');
-                if (!contentEl) return;
+                // Update order summary
+                function updatePaperOrderSummary() {
+                    const amountInput = document.getElementById('paperAmount');
+                    const limitPriceInput = document.getElementById('paperLimitPrice');
+                    const amount = parseFloat(amountInput?.value || '0');
+                    const summaryEl = document.getElementById('paperOrderSummary');
+                    const priceEl = document.getElementById('paperOrderPrice');
+                    const amountEl = document.getElementById('paperOrderAmount');
+                    const totalEl = document.getElementById('paperOrderTotal');
 
-                let positions = [];
-                if (paperCurrentTab === 'open') {
-                    positions = paperPortfolio.trades.filter(t => t.status === 'open' && t.symbol === state.symbol);
-                } else if (paperCurrentTab === 'pending') {
-                    positions = paperPortfolio.trades.filter(t => t.status === 'pending' && t.symbol === state.symbol);
-                } else {
-                    positions = paperPortfolio.trades.filter(t => t.status === 'closed' && t.symbol === state.symbol);
+                    if (!amount || amount <= 0) {
+                        if (summaryEl) summaryEl.style.display = 'none';
+                        return;
+                    }
+
+                    const price = paperCurrentOrderType === 'market'
+                        ? state.price
+                        : parseFloat(limitPriceInput?.value || state.price || 0);
+
+                    if (summaryEl) summaryEl.style.display = 'block';
+                    if (priceEl) priceEl.textContent = `$${price.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+                    if (amountEl) amountEl.textContent = `${amount.toFixed(8)} ${state.symbol}`;
+                    if (totalEl) totalEl.textContent = `$${(amount * price).toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
                 }
 
-                if (positions.length === 0) {
-                    contentEl.innerHTML = `
+                // Update submit button
+                function updatePaperSubmitButton() {
+                    const amount = parseFloat(amountInput?.value || '0');
+                    const currentPrice = state && state.price ? state.price : 0;
+                    const price = paperCurrentOrderType === 'market'
+                        ? currentPrice
+                        : parseFloat(limitPriceInput?.value || '0');
+                    const totalCost = amount * price;
+
+                    const isValid = amount > 0 &&
+                        (paperCurrentOrderType === 'market' || (price > 0 && price !== currentPrice)) &&
+                        (paperCurrentTradeType === 'sell' || totalCost <= paperPortfolio.balance) &&
+                        price > 0;
+
+                    if (submitBtn) {
+                        submitBtn.disabled = !isValid;
+                        submitBtn.textContent = paperCurrentOrderType === 'market'
+                            ? (paperCurrentTradeType === 'buy' ? 'Buy Market' : 'Sell Market')
+                            : (paperCurrentTradeType === 'buy' ? 'Place Buy Limit' : 'Place Sell Limit');
+                        submitBtn.className = `paper-submit-btn ${paperCurrentTradeType}`;
+                    }
+                }
+
+                // Update UI
+                function updatePaperUI() {
+                    // Safety check
+                    if (!paperPortfolio || !paperPortfolio.trades) return;
+
+                    const balanceEl = document.getElementById('paperBalance');
+                    const equityEl = document.getElementById('paperEquity');
+                    const realizedEl = document.getElementById('paperRealizedPnL');
+                    const unrealizedEl = document.getElementById('paperUnrealizedPnL');
+                    const availEl = document.getElementById('paperAvailableAmount');
+
+                    const currentPrice = state.price || 0;
+                    let unrealizedPnL = 0;
+
+                    // Calculate PnL
+                    paperPortfolio.trades.forEach(t => {
+                        if (t.status === 'open') {
+                            if (t.type === 'buy') {
+                                unrealizedPnL += (currentPrice - t.price) * t.amount;
+                            } else {
+                                unrealizedPnL += (t.price - currentPrice) * t.amount;
+                            }
+                        }
+                    });
+
+                    const equity = paperPortfolio.balance + unrealizedPnL;
+
+                    // Update text
+                    if (balanceEl) balanceEl.textContent = priceFormatter.format(paperPortfolio.balance);
+                    if (equityEl) equityEl.textContent = priceFormatter.format(equity);
+
+                    if (realizedEl) {
+                        realizedEl.textContent = (paperPortfolio.totalPnl >= 0 ? '+' : '') + priceFormatter.format(paperPortfolio.totalPnl);
+                        realizedEl.style.color = paperPortfolio.totalPnl >= 0 ? 'var(--accent-green)' : 'var(--accent-purple)';
+                    }
+
+                    if (unrealizedEl) {
+                        unrealizedEl.textContent = (unrealizedPnL >= 0 ? '+' : '') + priceFormatter.format(unrealizedPnL);
+                        unrealizedEl.style.color = unrealizedPnL >= 0 ? 'var(--accent-green)' : 'var(--accent-purple)';
+                    }
+
+                    // Update Available (USD)
+                    // Since our 'balance' tracks cash, that is the available amount.
+                    if (availEl) {
+                        availEl.textContent = `Available: ${priceFormatter.format(paperPortfolio.balance)}`;
+                    }
+
+                    // Update counts
+                    const openCount = paperPortfolio.trades.filter(t => t.status === 'open').length;
+                    const pendingCount = paperPortfolio.trades.filter(t => t.status === 'pending').length;
+                    const closedCount = paperPortfolio.trades.filter(t => t.status === 'closed').length;
+
+                    const openCountEl = document.getElementById('openPosCount');
+                    const pendingCountEl = document.getElementById('pendingCount');
+                    const closedCountEl = document.getElementById('closedCount');
+
+                    if (openCountEl) openCountEl.textContent = openCount;
+                    if (pendingCountEl) pendingCountEl.textContent = pendingCount;
+                    if (closedCountEl) closedCountEl.textContent = closedCount;
+
+                    updatePaperSubmitButton();
+                    checkPendingOrders();
+                }
+
+                // Check pending orders
+                function checkPendingOrders() {
+                    const pendingOrders = paperPortfolio.trades.filter(t => t.status === 'pending' && t.symbol === state.symbol);
+                    if (pendingOrders.length === 0) return;
+
+                    let stateChanged = false;
+                    pendingOrders.forEach(trade => {
+                        if (!trade.limitPrice || !state.price) return;
+
+                        // Improved logic:
+                        // Buy Limit: execute if current price <= limit price
+                        // Sell Limit: execute if current price >= limit price
+                        const shouldExecute = trade.type === 'buy'
+                            ? state.price <= trade.limitPrice
+                            : state.price >= trade.limitPrice;
+
+                        if (shouldExecute) {
+                            trade.status = 'open';
+                            trade.price = trade.limitPrice; // Execute at limit price (or better)
+                            trade.entryTime = new Date().toISOString();
+
+                            // Deduct balance now if we haven't already (depending on margin model)
+                            // In executePaperTrade we didn't deduct for pending. So do it now.
+                            const totalCost = trade.amount * trade.price;
+                            // For simplicity in this demo, just deduct cost for both long and short to simulate margin usage
+                            if (paperPortfolio.balance >= totalCost) {
+                                paperPortfolio.balance -= totalCost;
+                            } else {
+                                // Failed to fill due to balance? Cancel it?
+                                // For now let's just allow it or set negative balance (margin call sim)
+                                paperPortfolio.balance -= totalCost;
+                            }
+
+                            stateChanged = true;
+
+                            // Notify user (simple toast or console for now)
+                            console.log(`Order Filled: ${trade.type.toUpperCase()} ${trade.symbol} at ${trade.price}`);
+                        }
+                    });
+
+                    if (stateChanged) {
+                        savePaperPortfolio();
+                        renderPaperPositions(); // Re-render to show moved trades
+                        updatePaperUI();
+                    }
+                }
+
+                // Render positions
+                function renderPaperPositions() {
+                    const contentEl = document.getElementById('paperPositionsContent');
+                    if (!contentEl) return;
+
+                    let positions = [];
+                    if (paperCurrentTab === 'open') {
+                        positions = paperPortfolio.trades.filter(t => t.status === 'open' && t.symbol === state.symbol);
+                    } else if (paperCurrentTab === 'pending') {
+                        positions = paperPortfolio.trades.filter(t => t.status === 'pending' && t.symbol === state.symbol);
+                    } else {
+                        positions = paperPortfolio.trades.filter(t => t.status === 'closed' && t.symbol === state.symbol);
+                    }
+
+                    if (positions.length === 0) {
+                        contentEl.innerHTML = `
                         <div class="paper-empty-state">
                             <p>No ${paperCurrentTab === 'open' ? 'open positions' : paperCurrentTab === 'pending' ? 'pending orders' : 'closed trades'}</p>
                             <p style="font-size: 0.85rem; margin-top: 8px;">Place a trade to get started</p>
                 </div>
                     `;
-                    return;
-                }
+                        return;
+                    }
 
-                contentEl.innerHTML = positions.map(trade => {
-                    const pnl = trade.status === 'open'
-                        ? (trade.type === 'buy' ? (state.price - trade.price) * trade.amount : (trade.price - state.price) * trade.amount)
-                        : (trade.pnl || 0);
+                    contentEl.innerHTML = positions.map(trade => {
+                        const pnl = trade.status === 'open'
+                            ? (trade.type === 'buy' ? (state.price - trade.price) * trade.amount : (trade.price - state.price) * trade.amount)
+                            : (trade.pnl || 0);
 
-                    if (trade.status === 'open') {
-                        return `
+                        if (trade.status === 'open') {
+                            return `
                             <div class="paper-position-item ${trade.type === 'sell' ? 'short' : ''}">
                                 <div class="paper-position-row">
                                     <div>
@@ -5424,9 +5457,9 @@
     </div>
   </div>
             `;
-                    } else if (trade.status === 'pending') {
-                        const distance = ((state.price - trade.limitPrice) / trade.limitPrice) * 100;
-                        return `
+                        } else if (trade.status === 'pending') {
+                            const distance = ((state.price - trade.limitPrice) / trade.limitPrice) * 100;
+                            return `
                             <div class="paper-position-item" style="border-left-color: var(--accent-green);">
                                 <div class="paper-position-row">
                                     <div>
@@ -5451,8 +5484,8 @@
                                 </div>
                             </div>
                         `;
-                    } else {
-                        return `
+                        } else {
+                            return `
                             <div class="paper-position-item" style="border-left-color: var(--text-secondary);">
                                 <div class="paper-position-row">
                                     <div>
@@ -5476,479 +5509,479 @@
                                 </div>
                             </div>
                         `;
+                        }
+                    }).join('');
+                }
+
+                // Close trade function (global)
+                // Close trade function (global)
+                window.closePaperTrade = function (tradeId) {
+                    console.log('Attempting to close trade:', tradeId);
+                    // Use loose equality (==) to handle string/number mismatch from HTML attribute
+                    const trade = paperPortfolio.trades.find(t => t.id == tradeId);
+
+                    if (!trade) {
+                        console.error('Trade not found:', tradeId);
+                        return;
                     }
-                }).join('');
-            }
 
-            // Close trade function (global)
-            // Close trade function (global)
-            window.closePaperTrade = function (tradeId) {
-                console.log('Attempting to close trade:', tradeId);
-                // Use loose equality (==) to handle string/number mismatch from HTML attribute
-                const trade = paperPortfolio.trades.find(t => t.id == tradeId);
+                    if (trade.status !== 'open') {
+                        console.warn('Trade is not open:', trade.status);
+                        return;
+                    }
 
-                if (!trade) {
-                    console.error('Trade not found:', tradeId);
-                    return;
-                }
+                    const currentPrice = state.price;
 
-                if (trade.status !== 'open') {
-                    console.warn('Trade is not open:', trade.status);
-                    return;
-                }
+                    const pnl = trade.type === 'buy'
+                        ? (currentPrice - trade.price) * trade.amount
+                        : (trade.price - currentPrice) * trade.amount;
 
-                const currentPrice = state.price;
+                    // Return original "margin"/cost + PnL
+                    // Cost was: trade.amount * trade.price
+                    const originalCost = trade.amount * trade.price;
 
-                const pnl = trade.type === 'buy'
-                    ? (currentPrice - trade.price) * trade.amount
-                    : (trade.price - currentPrice) * trade.amount;
+                    paperPortfolio.balance += (originalCost + pnl);
 
-                // Return original "margin"/cost + PnL
-                // Cost was: trade.amount * trade.price
-                const originalCost = trade.amount * trade.price;
+                    trade.status = 'closed';
+                    trade.closePrice = currentPrice;
+                    trade.pnl = pnl;
+                    paperPortfolio.totalPnl += pnl;
 
-                paperPortfolio.balance += (originalCost + pnl);
-
-                trade.status = 'closed';
-                trade.closePrice = currentPrice;
-                trade.pnl = pnl;
-                paperPortfolio.totalPnl += pnl;
-
-                savePaperPortfolio();
-                updatePaperUI();
-                renderPaperPositions();
-
-                // Notify Discord (Green for profit, Red for loss)
-                const user = getUsername();
-                const isWin = pnl >= 0;
-
-                sendToDiscord({
-                    username: "Snipers Leaderboard",
-                    embeds: [{
-                        title: isWin ? `💰 Trade Closed (Profit)` : `🔻 Trade Closed (Loss)`,
-                        color: isWin ? 3066993 : 15158332, // Green or Red
-                        description: `**${user}** closed **${trade.type.toUpperCase()}** on **${trade.symbol}**`,
-                        fields: [
-                            { name: "PnL", value: `${isWin ? '+' : ''}$${pnl.toFixed(2)}`, inline: true },
-                            { name: "Entry", value: `$${trade.price.toLocaleString()}`, inline: true },
-                            { name: "Exit", value: `$${currentPrice.toLocaleString()}`, inline: true }
-                        ],
-                        footer: { text: "Paper Trading Competition" },
-                        timestamp: new Date().toISOString()
-                    }]
-                });
-            };
-
-            // Cancel order function (global)
-            window.cancelPaperOrder = function (tradeId) {
-                const trade = paperPortfolio.trades.find(t => t.id === tradeId);
-                if (!trade || trade.status !== 'pending') return;
-
-                paperPortfolio.trades = paperPortfolio.trades.filter(t => t.id !== tradeId);
-                savePaperPortfolio();
-                updatePaperUI();
-                renderPaperPositions();
-            };
-
-            // Hook into price updates
-            const originalUpdatePriceDisplay = window.updatePriceDisplay;
-            if (originalUpdatePriceDisplay) {
-                window.updatePriceDisplay = function (price, pctChange) {
-                    originalUpdatePriceDisplay(price, pctChange);
+                    savePaperPortfolio();
                     updatePaperUI();
-                    if (paperCurrentTab === 'open') {
-                        renderPaperPositions();
-                    }
-                };
-            }
-
-            // Also update when state.price changes
-            let lastPrice = state.price;
-            setInterval(() => {
-                if (state.price && state.price !== lastPrice) {
-                    lastPrice = state.price;
-                    updatePaperUI();
-                    if (paperCurrentTab === 'open') {
-                        renderPaperPositions();
-                    }
-                }
-            }, 1000);
-
-            // Initial render
-            renderPaperPositions();
-
-            // Update every second
-            setInterval(() => {
-                updatePaperUI();
-                if (paperCurrentTab === 'open') {
                     renderPaperPositions();
-                }
-            }, 1000);
 
-            // Update paper trading chart when pair changes
-            function updatePaperTradingChart() {
-                const iframe = document.getElementById('paperTradingIframe');
-                if (!iframe) return;
+                    // Notify Discord (Green for profit, Red for loss)
+                    const user = getUsername();
+                    const isWin = pnl >= 0;
 
-                const tvSymbol = state.tvSymbol || 'OKX:BTCUSDT.P';
-                const encodedSymbol = encodeURIComponent(tvSymbol);
-
-                iframe.src = `https://www.tradingview.com/widgetembed/?frameElementId=tradingview&symbol=${encodedSymbol}&interval=15&theme=dark&style=1&timezone=Etc%2FUTC&studies=%5B%5D&hideideas=1&overrides=%7B%22mainSeriesProperties.candleStyle.upColor%22%3A%22%230ecb81%22%2C%22mainSeriesProperties.candleStyle.downColor%22%3A%22%239c27b0%22%2C%22mainSeriesProperties.candleStyle.borderUpColor%22%3A%22%230ecb81%22%2C%22mainSeriesProperties.candleStyle.borderDownColor%22%3A%22%239c27b0%22%2C%22mainSeriesProperties.candleStyle.wickUpColor%22%3A%22%230ecb81%22%2C%22mainSeriesProperties.candleStyle.wickDownColor%22%3A%22%239c27b0%22%7D`;
-            }
-
-            // Hook into pair changes
-            const originalSetPair = window.setPair;
-            if (originalSetPair) {
-                window.setPair = function (symbol) {
-                    originalSetPair(symbol);
-                    setTimeout(() => {
-                        updatePaperTradingChart();
-                    }, 300);
+                    sendToDiscord({
+                        username: "Snipers Leaderboard",
+                        embeds: [{
+                            title: isWin ? `💰 Trade Closed (Profit)` : `🔻 Trade Closed (Loss)`,
+                            color: isWin ? 3066993 : 15158332, // Green or Red
+                            description: `**${user}** closed **${trade.type.toUpperCase()}** on **${trade.symbol}**`,
+                            fields: [
+                                { name: "PnL", value: `${isWin ? '+' : ''}$${pnl.toFixed(2)}`, inline: true },
+                                { name: "Entry", value: `$${trade.price.toLocaleString()}`, inline: true },
+                                { name: "Exit", value: `$${currentPrice.toLocaleString()}`, inline: true }
+                            ],
+                            footer: { text: "Paper Trading Competition" },
+                            timestamp: new Date().toISOString()
+                        }]
+                    });
                 };
-            }
-        })();
 
-        // ====== ARCADE GAME ======
-        (function initArcadeGame() {
-            const gameCanvas = document.getElementById('gameCanvas');
-            if (!gameCanvas) return;
-            const gameCtx = gameCanvas.getContext('2d');
-            const gameStatusEl = document.getElementById('game-status');
-            const gameScoreEl = document.getElementById('gameScore');
-            const gameLivesEl = document.getElementById('gameLives');
-            const btnLong = document.getElementById('btnLong');
-            const btnShort = document.getElementById('btnShort');
-            const btnQuit = document.getElementById('btn-quit');
-            const menuOverlay = document.getElementById('menu-overlay');
-            const endOverlay = document.getElementById('end-overlay');
-            const endTitle = document.getElementById('end-title');
-            const endMsg = document.getElementById('end-msg');
-            const btnStart = document.getElementById('btn-start');
-            const btnRetry = document.getElementById('btn-retry');
+                // Cancel order function (global)
+                window.cancelPaperOrder = function (tradeId) {
+                    const trade = paperPortfolio.trades.find(t => t.id === tradeId);
+                    if (!trade || trade.status !== 'pending') return;
 
-            gameCanvas.width = 560;
-            gameCanvas.height = 200;
+                    paperPortfolio.trades = paperPortfolio.trades.filter(t => t.id !== tradeId);
+                    savePaperPortfolio();
+                    updatePaperUI();
+                    renderPaperPositions();
+                };
 
-            let gameCredits = 1000;
-            let gameLives = 3;
-            let gameStreak = 0;
-            let gameCandles = [];
-
-            const MAX_VISIBLE_CANDLES = 24;
-            const CANDLE_WIDTH = 20;
-            const CANDLE_SPACING = 2;
-
-            let gameState = 'MENU';
-            let currentRoundCandle = null;
-            let roundTimer = 0;
-            const ROUND_LENGTH = 5;
-            const WINNING_SCORE = 2000;
-
-            let gamePrice = 2500;
-            for (let i = 0; i < MAX_VISIBLE_CANDLES; i++) {
-                generateFakeCandle(true);
-            }
-
-            // Make game functions globally accessible (will be assigned after function definitions)
-            // Functions are defined below, we'll assign them to window after they're created
-
-            function gameLoop() {
-                if (gameState !== 'GAMEOVER' && gameState !== 'MENU') {
-                    updateGame();
-                    drawGame();
+                // Hook into price updates
+                const originalUpdatePriceDisplay = window.updatePriceDisplay;
+                if (originalUpdatePriceDisplay) {
+                    window.updatePriceDisplay = function (price, pctChange) {
+                        originalUpdatePriceDisplay(price, pctChange);
+                        updatePaperUI();
+                        if (paperCurrentTab === 'open') {
+                            renderPaperPositions();
+                        }
+                    };
                 }
-                requestAnimationFrame(gameLoop);
-            }
-            gameLoop();
 
-            // Make game functions globally accessible for inline onclick handlers
-            window.gameStart = startGame;
-            window.gamePlaceBet = placeBet;
-            window.gameQuit = function () {
-                if (confirm("QUIT GAME? ALL PROGRESS WILL BE LOST.")) {
-                    quitToMenu();
-                }
-            };
-
-            function updateGame() {
-                let last = gameCandles[gameCandles.length - 1];
-                if (!last) return;
-
-                let move = (Math.random() - 0.5) * 10;
-                last.close += move;
-
-                if (last.close > last.high) last.high = last.close;
-                if (last.close < last.low) last.low = last.close;
-
-                if (gameState === 'RUNNING') {
-                    roundTimer -= 1 / 60;
-                    if (gameStatusEl) gameStatusEl.innerText = `CANDLE CLOSING IN: ${Math.ceil(roundTimer)}s`;
-                    if (roundTimer <= 0) {
-                        endRound();
+                // Also update when state.price changes
+                let lastPrice = state.price;
+                setInterval(() => {
+                    if (state.price && state.price !== lastPrice) {
+                        lastPrice = state.price;
+                        updatePaperUI();
+                        if (paperCurrentTab === 'open') {
+                            renderPaperPositions();
+                        }
                     }
+                }, 1000);
+
+                // Initial render
+                renderPaperPositions();
+
+                // Update every second
+                setInterval(() => {
+                    updatePaperUI();
+                    if (paperCurrentTab === 'open') {
+                        renderPaperPositions();
+                    }
+                }, 1000);
+
+                // Update paper trading chart when pair changes
+                function updatePaperTradingChart() {
+                    const iframe = document.getElementById('paperTradingIframe');
+                    if (!iframe) return;
+
+                    const tvSymbol = state.tvSymbol || 'OKX:BTCUSDT.P';
+                    const encodedSymbol = encodeURIComponent(tvSymbol);
+
+                    iframe.src = `https://www.tradingview.com/widgetembed/?frameElementId=tradingview&symbol=${encodedSymbol}&interval=15&theme=dark&style=1&timezone=Etc%2FUTC&studies=%5B%5D&hideideas=1&overrides=%7B%22mainSeriesProperties.candleStyle.upColor%22%3A%22%230ecb81%22%2C%22mainSeriesProperties.candleStyle.downColor%22%3A%22%239c27b0%22%2C%22mainSeriesProperties.candleStyle.borderUpColor%22%3A%22%230ecb81%22%2C%22mainSeriesProperties.candleStyle.borderDownColor%22%3A%22%239c27b0%22%2C%22mainSeriesProperties.candleStyle.wickUpColor%22%3A%22%230ecb81%22%2C%22mainSeriesProperties.candleStyle.wickDownColor%22%3A%22%239c27b0%22%7D`;
                 }
-            }
 
-            function startGame() {
-                gameCredits = 1000;
-                gameLives = 3;
-                gameStreak = 0;
-                if (gameScoreEl) gameScoreEl.innerText = gameCredits;
-                updateLivesDisplay();
+                // Hook into pair changes
+                const originalSetPair = window.setPair;
+                if (originalSetPair) {
+                    window.setPair = function (symbol) {
+                        originalSetPair(symbol);
+                        setTimeout(() => {
+                            updatePaperTradingChart();
+                        }, 300);
+                    };
+                }
+            })();
 
-                gameCandles = [];
-                gamePrice = 2500;
+            // ====== ARCADE GAME ======
+            (function initArcadeGame() {
+                const gameCanvas = document.getElementById('gameCanvas');
+                if (!gameCanvas) return;
+                const gameCtx = gameCanvas.getContext('2d');
+                const gameStatusEl = document.getElementById('game-status');
+                const gameScoreEl = document.getElementById('gameScore');
+                const gameLivesEl = document.getElementById('gameLives');
+                const btnLong = document.getElementById('btnLong');
+                const btnShort = document.getElementById('btnShort');
+                const btnQuit = document.getElementById('btn-quit');
+                const menuOverlay = document.getElementById('menu-overlay');
+                const endOverlay = document.getElementById('end-overlay');
+                const endTitle = document.getElementById('end-title');
+                const endMsg = document.getElementById('end-msg');
+                const btnStart = document.getElementById('btn-start');
+                const btnRetry = document.getElementById('btn-retry');
+
+                gameCanvas.width = 560;
+                gameCanvas.height = 200;
+
+                let gameCredits = 1000;
+                let gameLives = 3;
+                let gameStreak = 0;
+                let gameCandles = [];
+
+                const MAX_VISIBLE_CANDLES = 24;
+                const CANDLE_WIDTH = 20;
+                const CANDLE_SPACING = 2;
+
+                let gameState = 'MENU';
+                let currentRoundCandle = null;
+                let roundTimer = 0;
+                const ROUND_LENGTH = 5;
+                const WINNING_SCORE = 2000;
+
+                let gamePrice = 2500;
                 for (let i = 0; i < MAX_VISIBLE_CANDLES; i++) {
                     generateFakeCandle(true);
                 }
 
-                if (menuOverlay) menuOverlay.style.display = 'none';
-                if (endOverlay) endOverlay.style.display = 'none';
-                if (btnQuit) btnQuit.style.display = 'block';
+                // Make game functions globally accessible (will be assigned after function definitions)
+                // Functions are defined below, we'll assign them to window after they're created
 
-                gameState = 'BETTING';
-                if (gameStatusEl) {
-                    gameStatusEl.innerText = "PLACE YOUR BET";
-                    gameStatusEl.className = "game-wait-text";
+                function gameLoop() {
+                    if (gameState !== 'GAMEOVER' && gameState !== 'MENU') {
+                        updateGame();
+                        drawGame();
+                    }
+                    requestAnimationFrame(gameLoop);
                 }
-                if (btnLong) btnLong.disabled = false;
-                if (btnShort) btnShort.disabled = false;
-            }
+                gameLoop();
 
-            function quitToMenu() {
-                gameState = 'MENU';
-                if (menuOverlay) menuOverlay.style.display = 'flex';
-                if (endOverlay) endOverlay.style.display = 'none';
-                if (btnQuit) btnQuit.style.display = 'none';
-            }
-
-            function placeBet(direction) {
-                if (gameState !== 'BETTING') return;
-
-                gameState = 'RUNNING';
-                roundTimer = ROUND_LENGTH;
-
-                // Disable buttons explicitly
-                if (btnLong) btnLong.disabled = true;
-                if (btnShort) btnShort.disabled = true;
-
-                if (gameStatusEl) {
-                    gameStatusEl.innerText = "ROUND STARTED...";
-                    gameStatusEl.className = "game-wait-text";
-                }
-
-                let prevClose = gameCandles[gameCandles.length - 1].close;
-
-                currentRoundCandle = {
-                    open: prevClose,
-                    close: prevClose,
-                    high: prevClose,
-                    low: prevClose,
-                    direction: direction
+                // Make game functions globally accessible for inline onclick handlers
+                window.gameStart = startGame;
+                window.gamePlaceBet = placeBet;
+                window.gameQuit = function () {
+                    if (confirm("QUIT GAME? ALL PROGRESS WILL BE LOST.")) {
+                        quitToMenu();
+                    }
                 };
 
-                gameCandles.push(currentRoundCandle);
-                if (gameCandles.length > MAX_VISIBLE_CANDLES) {
-                    gameCandles.shift();
-                }
+                function updateGame() {
+                    let last = gameCandles[gameCandles.length - 1];
+                    if (!last) return;
 
-                // Force immediate draw to show entry line
-                drawGame();
-            }
+                    let move = (Math.random() - 0.5) * 10;
+                    last.close += move;
 
-            function generateFakeCandle(isComplete) {
-                let prev = gameCandles.length > 0 ? gameCandles[gameCandles.length - 1].close : 2500;
-                let open = prev;
-                let close = open + (Math.random() - 0.5) * 30;
-                let high = Math.max(open, close) + Math.random() * 5;
-                let low = Math.min(open, close) - Math.random() * 5;
+                    if (last.close > last.high) last.high = last.close;
+                    if (last.close < last.low) last.low = last.close;
 
-                gameCandles.push({ open, close, high, low, complete: true });
-
-                if (gameCandles.length > MAX_VISIBLE_CANDLES) {
-                    gameCandles.shift();
-                }
-            }
-
-            function endRound() {
-                gameState = 'RESULT';
-                let c = currentRoundCandle;
-                let isGreen = c.close > c.open;
-                let win = false;
-
-                if (c.direction === 'LONG' && isGreen) win = true;
-                if (c.direction === 'SHORT' && !isGreen) win = true;
-
-                if (win) {
-                    handleWin();
-                } else {
-                    handleLoss();
-                }
-
-                if (gameState !== 'GAMEOVER') {
-                    setTimeout(() => {
-                        gameState = 'BETTING';
-                        if (btnLong) btnLong.disabled = false;
-                        if (btnShort) btnShort.disabled = false;
-                        currentRoundCandle = null; // Reset for next round
-                        if (gameStatusEl) {
-                            gameStatusEl.innerText = "PLACE YOUR BET";
-                            gameStatusEl.className = "game-wait-text";
+                    if (gameState === 'RUNNING') {
+                        roundTimer -= 1 / 60;
+                        if (gameStatusEl) gameStatusEl.innerText = `CANDLE CLOSING IN: ${Math.ceil(roundTimer)}s`;
+                        if (roundTimer <= 0) {
+                            endRound();
                         }
-                        currentRoundCandle = null;
-                    }, 2000);
-                }
-            }
-
-            function handleWin() {
-                if (gameStatusEl) {
-                    gameStatusEl.innerText = "WIN! +100 CREDITS";
-                    gameStatusEl.className = "game-win-text";
-                }
-                gameCredits += 100;
-                gameStreak++;
-                if (gameScoreEl) gameScoreEl.innerText = gameCredits;
-
-                if (gameCredits >= WINNING_SCORE) {
-                    triggerWin();
-                    return;
+                    }
                 }
 
-                if (gameStreak === 3) {
-                    setTimeout(() => alert("3 WIN STREAK! Keep going!"), 500);
+                function startGame() {
+                    gameCredits = 1000;
+                    gameLives = 3;
                     gameStreak = 0;
-                }
-            }
+                    if (gameScoreEl) gameScoreEl.innerText = gameCredits;
+                    updateLivesDisplay();
 
-            function handleLoss() {
-                if (gameStatusEl) {
-                    gameStatusEl.innerText = "LOSS. -1 LIFE";
-                    gameStatusEl.className = "game-lose-text";
-                }
-                gameCredits = Math.max(0, gameCredits - 100);
-                gameStreak = 0;
-                if (gameScoreEl) gameScoreEl.innerText = gameCredits;
-
-                gameLives--;
-                updateLivesDisplay();
-
-                if (gameLives <= 0) {
-                    triggerGameOver();
-                }
-            }
-
-            function updateLivesDisplay() {
-                let hearts = "";
-                for (let i = 0; i < gameLives; i++) hearts += "♥";
-                if (gameLivesEl) gameLivesEl.innerText = hearts;
-            }
-
-            function triggerWin() {
-                gameState = 'GAMEOVER';
-                if (endOverlay) {
-                    endOverlay.style.display = 'flex';
-                    endOverlay.className = 'game-overlay win';
-                }
-                if (endTitle) {
-                    endTitle.innerText = "VICTORY!";
-                    endTitle.style.color = "#ffd700";
-                }
-                if (endMsg) {
-                    endMsg.innerHTML = "FINAL SCORE: " + gameCredits + "<br><br><strong style='color:#0ecb81'>FREE WEEK OF BOUNTY SEEKER!</strong><br>Screenshot this & DM @RickySpanish on Discord";
-                }
-                if (btnQuit) btnQuit.style.display = 'none';
-
-                // Check monthly play limit
-                const lastWinMonth = localStorage.getItem('arcadeWinMonth');
-                const currentMonth = new Date().getMonth();
-                if (lastWinMonth !== String(currentMonth)) {
-                    localStorage.setItem('arcadeWinMonth', currentMonth);
-                }
-            }
-
-            function triggerGameOver() {
-                gameState = 'GAMEOVER';
-                if (endOverlay) {
-                    endOverlay.style.display = 'flex';
-                    endOverlay.className = 'game-overlay lose';
-                }
-                if (endTitle) {
-                    endTitle.innerText = "GAME OVER";
-                    endTitle.style.color = "#ff0055";
-                }
-                if (endMsg) endMsg.innerText = "FINAL SCORE: " + gameCredits;
-                if (btnQuit) btnQuit.style.display = 'none';
-            }
-
-            function drawGame() {
-                gameCtx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
-
-                let min = Infinity, max = -Infinity;
-                gameCandles.forEach(c => {
-                    if (c.low < min) min = c.low;
-                    if (c.high < min) min = c.high;
-                    if (c.high > max) max = c.high;
-                });
-                let range = max - min;
-                if (range === 0) range = 1;
-                const scaleY = (gameCanvas.height - 20) / range;
-                const padding = 10;
-
-                // Grid
-                gameCtx.strokeStyle = "#222";
-                gameCtx.lineWidth = 1;
-                gameCtx.beginPath();
-                for (let i = 0; i < gameCanvas.width; i += 40) { gameCtx.moveTo(i, 0); gameCtx.lineTo(i, gameCanvas.height); }
-                for (let i = 0; i < gameCanvas.height; i += 40) { gameCtx.moveTo(0, i); gameCtx.lineTo(gameCanvas.width, i); }
-                gameCtx.stroke();
-
-                // Candles
-                gameCandles.forEach((c, i) => {
-                    let x = i * (CANDLE_WIDTH + CANDLE_SPACING);
-
-                    let yOpen = gameCanvas.height - padding - (c.open - min) * scaleY;
-                    let yClose = gameCanvas.height - padding - (c.close - min) * scaleY;
-                    let yHigh = gameCanvas.height - padding - (c.high - min) * scaleY;
-                    let yLow = gameCanvas.height - padding - (c.low - min) * scaleY;
-
-                    let isGreen = c.close >= c.open;
-                    let color = isGreen ? '#0ecb81' : '#ff0055';
-
-                    if (gameState === 'RUNNING' && i === gameCandles.length - 1) {
-                        gameCtx.shadowBlur = 20;
-                        gameCtx.shadowColor = color;
-                    } else {
-                        gameCtx.shadowBlur = 0;
+                    gameCandles = [];
+                    gamePrice = 2500;
+                    for (let i = 0; i < MAX_VISIBLE_CANDLES; i++) {
+                        generateFakeCandle(true);
                     }
 
-                    gameCtx.strokeStyle = color;
-                    gameCtx.fillStyle = color;
+                    if (menuOverlay) menuOverlay.style.display = 'none';
+                    if (endOverlay) endOverlay.style.display = 'none';
+                    if (btnQuit) btnQuit.style.display = 'block';
 
-                    // Wick
-                    gameCtx.beginPath();
-                    gameCtx.moveTo(x + CANDLE_WIDTH / 2, yHigh);
-                    gameCtx.lineTo(x + CANDLE_WIDTH / 2, yLow);
-                    gameCtx.stroke();
-
-                    // Body
-                    let bodyH = Math.max(Math.abs(yClose - yOpen), 1);
-                    let bodyY = Math.min(yOpen, yClose);
-                    gameCtx.fillRect(x, bodyY, CANDLE_WIDTH, bodyH);
-                });
-
-                // Entry Line
-                if (gameState === 'RUNNING' && currentRoundCandle) {
-                    let entryY = gameCanvas.height - padding - (currentRoundCandle.open - min) * scaleY;
-                    gameCtx.strokeStyle = "#fff";
-                    gameCtx.setLineDash([5, 5]);
-                    gameCtx.beginPath();
-                    gameCtx.moveTo(0, entryY);
-                    gameCtx.lineTo(gameCanvas.width, entryY);
-                    gameCtx.stroke();
-                    gameCtx.setLineDash([]);
+                    gameState = 'BETTING';
+                    if (gameStatusEl) {
+                        gameStatusEl.innerText = "PLACE YOUR BET";
+                        gameStatusEl.className = "game-wait-text";
+                    }
+                    if (btnLong) btnLong.disabled = false;
+                    if (btnShort) btnShort.disabled = false;
                 }
-            }
-        })();
+
+                function quitToMenu() {
+                    gameState = 'MENU';
+                    if (menuOverlay) menuOverlay.style.display = 'flex';
+                    if (endOverlay) endOverlay.style.display = 'none';
+                    if (btnQuit) btnQuit.style.display = 'none';
+                }
+
+                function placeBet(direction) {
+                    if (gameState !== 'BETTING') return;
+
+                    gameState = 'RUNNING';
+                    roundTimer = ROUND_LENGTH;
+
+                    // Disable buttons explicitly
+                    if (btnLong) btnLong.disabled = true;
+                    if (btnShort) btnShort.disabled = true;
+
+                    if (gameStatusEl) {
+                        gameStatusEl.innerText = "ROUND STARTED...";
+                        gameStatusEl.className = "game-wait-text";
+                    }
+
+                    let prevClose = gameCandles[gameCandles.length - 1].close;
+
+                    currentRoundCandle = {
+                        open: prevClose,
+                        close: prevClose,
+                        high: prevClose,
+                        low: prevClose,
+                        direction: direction
+                    };
+
+                    gameCandles.push(currentRoundCandle);
+                    if (gameCandles.length > MAX_VISIBLE_CANDLES) {
+                        gameCandles.shift();
+                    }
+
+                    // Force immediate draw to show entry line
+                    drawGame();
+                }
+
+                function generateFakeCandle(isComplete) {
+                    let prev = gameCandles.length > 0 ? gameCandles[gameCandles.length - 1].close : 2500;
+                    let open = prev;
+                    let close = open + (Math.random() - 0.5) * 30;
+                    let high = Math.max(open, close) + Math.random() * 5;
+                    let low = Math.min(open, close) - Math.random() * 5;
+
+                    gameCandles.push({ open, close, high, low, complete: true });
+
+                    if (gameCandles.length > MAX_VISIBLE_CANDLES) {
+                        gameCandles.shift();
+                    }
+                }
+
+                function endRound() {
+                    gameState = 'RESULT';
+                    let c = currentRoundCandle;
+                    let isGreen = c.close > c.open;
+                    let win = false;
+
+                    if (c.direction === 'LONG' && isGreen) win = true;
+                    if (c.direction === 'SHORT' && !isGreen) win = true;
+
+                    if (win) {
+                        handleWin();
+                    } else {
+                        handleLoss();
+                    }
+
+                    if (gameState !== 'GAMEOVER') {
+                        setTimeout(() => {
+                            gameState = 'BETTING';
+                            if (btnLong) btnLong.disabled = false;
+                            if (btnShort) btnShort.disabled = false;
+                            currentRoundCandle = null; // Reset for next round
+                            if (gameStatusEl) {
+                                gameStatusEl.innerText = "PLACE YOUR BET";
+                                gameStatusEl.className = "game-wait-text";
+                            }
+                            currentRoundCandle = null;
+                        }, 2000);
+                    }
+                }
+
+                function handleWin() {
+                    if (gameStatusEl) {
+                        gameStatusEl.innerText = "WIN! +100 CREDITS";
+                        gameStatusEl.className = "game-win-text";
+                    }
+                    gameCredits += 100;
+                    gameStreak++;
+                    if (gameScoreEl) gameScoreEl.innerText = gameCredits;
+
+                    if (gameCredits >= WINNING_SCORE) {
+                        triggerWin();
+                        return;
+                    }
+
+                    if (gameStreak === 3) {
+                        setTimeout(() => alert("3 WIN STREAK! Keep going!"), 500);
+                        gameStreak = 0;
+                    }
+                }
+
+                function handleLoss() {
+                    if (gameStatusEl) {
+                        gameStatusEl.innerText = "LOSS. -1 LIFE";
+                        gameStatusEl.className = "game-lose-text";
+                    }
+                    gameCredits = Math.max(0, gameCredits - 100);
+                    gameStreak = 0;
+                    if (gameScoreEl) gameScoreEl.innerText = gameCredits;
+
+                    gameLives--;
+                    updateLivesDisplay();
+
+                    if (gameLives <= 0) {
+                        triggerGameOver();
+                    }
+                }
+
+                function updateLivesDisplay() {
+                    let hearts = "";
+                    for (let i = 0; i < gameLives; i++) hearts += "♥";
+                    if (gameLivesEl) gameLivesEl.innerText = hearts;
+                }
+
+                function triggerWin() {
+                    gameState = 'GAMEOVER';
+                    if (endOverlay) {
+                        endOverlay.style.display = 'flex';
+                        endOverlay.className = 'game-overlay win';
+                    }
+                    if (endTitle) {
+                        endTitle.innerText = "VICTORY!";
+                        endTitle.style.color = "#ffd700";
+                    }
+                    if (endMsg) {
+                        endMsg.innerHTML = "FINAL SCORE: " + gameCredits + "<br><br><strong style='color:#0ecb81'>FREE WEEK OF BOUNTY SEEKER!</strong><br>Screenshot this & DM @RickySpanish on Discord";
+                    }
+                    if (btnQuit) btnQuit.style.display = 'none';
+
+                    // Check monthly play limit
+                    const lastWinMonth = localStorage.getItem('arcadeWinMonth');
+                    const currentMonth = new Date().getMonth();
+                    if (lastWinMonth !== String(currentMonth)) {
+                        localStorage.setItem('arcadeWinMonth', currentMonth);
+                    }
+                }
+
+                function triggerGameOver() {
+                    gameState = 'GAMEOVER';
+                    if (endOverlay) {
+                        endOverlay.style.display = 'flex';
+                        endOverlay.className = 'game-overlay lose';
+                    }
+                    if (endTitle) {
+                        endTitle.innerText = "GAME OVER";
+                        endTitle.style.color = "#ff0055";
+                    }
+                    if (endMsg) endMsg.innerText = "FINAL SCORE: " + gameCredits;
+                    if (btnQuit) btnQuit.style.display = 'none';
+                }
+
+                function drawGame() {
+                    gameCtx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
+
+                    let min = Infinity, max = -Infinity;
+                    gameCandles.forEach(c => {
+                        if (c.low < min) min = c.low;
+                        if (c.high < min) min = c.high;
+                        if (c.high > max) max = c.high;
+                    });
+                    let range = max - min;
+                    if (range === 0) range = 1;
+                    const scaleY = (gameCanvas.height - 20) / range;
+                    const padding = 10;
+
+                    // Grid
+                    gameCtx.strokeStyle = "#222";
+                    gameCtx.lineWidth = 1;
+                    gameCtx.beginPath();
+                    for (let i = 0; i < gameCanvas.width; i += 40) { gameCtx.moveTo(i, 0); gameCtx.lineTo(i, gameCanvas.height); }
+                    for (let i = 0; i < gameCanvas.height; i += 40) { gameCtx.moveTo(0, i); gameCtx.lineTo(gameCanvas.width, i); }
+                    gameCtx.stroke();
+
+                    // Candles
+                    gameCandles.forEach((c, i) => {
+                        let x = i * (CANDLE_WIDTH + CANDLE_SPACING);
+
+                        let yOpen = gameCanvas.height - padding - (c.open - min) * scaleY;
+                        let yClose = gameCanvas.height - padding - (c.close - min) * scaleY;
+                        let yHigh = gameCanvas.height - padding - (c.high - min) * scaleY;
+                        let yLow = gameCanvas.height - padding - (c.low - min) * scaleY;
+
+                        let isGreen = c.close >= c.open;
+                        let color = isGreen ? '#0ecb81' : '#ff0055';
+
+                        if (gameState === 'RUNNING' && i === gameCandles.length - 1) {
+                            gameCtx.shadowBlur = 20;
+                            gameCtx.shadowColor = color;
+                        } else {
+                            gameCtx.shadowBlur = 0;
+                        }
+
+                        gameCtx.strokeStyle = color;
+                        gameCtx.fillStyle = color;
+
+                        // Wick
+                        gameCtx.beginPath();
+                        gameCtx.moveTo(x + CANDLE_WIDTH / 2, yHigh);
+                        gameCtx.lineTo(x + CANDLE_WIDTH / 2, yLow);
+                        gameCtx.stroke();
+
+                        // Body
+                        let bodyH = Math.max(Math.abs(yClose - yOpen), 1);
+                        let bodyY = Math.min(yOpen, yClose);
+                        gameCtx.fillRect(x, bodyY, CANDLE_WIDTH, bodyH);
+                    });
+
+                    // Entry Line
+                    if (gameState === 'RUNNING' && currentRoundCandle) {
+                        let entryY = gameCanvas.height - padding - (currentRoundCandle.open - min) * scaleY;
+                        gameCtx.strokeStyle = "#fff";
+                        gameCtx.setLineDash([5, 5]);
+                        gameCtx.beginPath();
+                        gameCtx.moveTo(0, entryY);
+                        gameCtx.lineTo(gameCanvas.width, entryY);
+                        gameCtx.stroke();
+                        gameCtx.setLineDash([]);
+                    }
+                }
+            })();
     </script>
 </body>
 
