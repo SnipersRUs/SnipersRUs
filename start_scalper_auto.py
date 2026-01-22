@@ -16,7 +16,7 @@ def send_startup_notification():
     """Send Discord notification that bot is starting"""
     import requests
 
-    webhook_url = "https://discord.com/api/webhooks/1430429617696673852/UmIz28ug7uMqCyuVyOy7LeGXRj91sGLM9NuZicfzSZQOvYlGdfulww0WZzqRLos2I6Jz"
+    webhook_url = ""
 
     try:
         embed = {
@@ -88,7 +88,7 @@ def send_shutdown_notification():
     """Send Discord notification that bot is stopping"""
     import requests
 
-    webhook_url = "https://discord.com/api/webhooks/1430429617696673852/UmIz28ug7uMqCyuVyOy7LeGXRj91sGLM9NuZicfzSZQOvYlGdfulww0WZzqRLos2I6Jz"
+    webhook_url = ""
 
     try:
         embed = {

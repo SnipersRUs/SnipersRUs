@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 
 def post_summary_card():
     """Post the summary card to Discord"""
-    webhook_url = "https://discord.com/api/webhooks/1417096846978842634/__rOUU6qOz_mRIRO2MUG8PpR4BMyTpmONQ9PDIpB21z47k5pKDbBbSjj3AKciiHsOCq8"
+    webhook_url = ""
     
     print("📤 Posting Enhanced MM Trading Bot summary card to Discord...")
     
@@ -117,7 +117,7 @@ def post_summary_card():
 
 def post_feature_highlights():
     """Post additional feature highlights"""
-    webhook_url = "https://discord.com/api/webhooks/1417096846978842634/__rOUU6qOz_mRIRO2MUG8PpR4BMyTpmONQ9PDIpB21z47k5pKDbBbSjj3AKciiHsOCq8"
+    webhook_url = ""
     
     print("\n📤 Posting feature highlights...")
     
@@ -204,7 +204,7 @@ def post_feature_highlights():
 
 def post_risk_warnings():
     """Post important risk warnings"""
-    webhook_url = "https://discord.com/api/webhooks/1417096846978842634/__rOUU6qOz_mRIRO2MUG8PpR4BMyTpmONQ9PDIpB21z47k5pKDbBbSjj3AKciiHsOCq8"
+    webhook_url = ""
     
     print("\n📤 Posting risk warnings...")
     

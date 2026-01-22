@@ -11,7 +11,7 @@ import hashlib
 # ========= CONFIG =========
 WEBHOOK_URL = os.environ.get(
     "WEBHOOK_URL",
-    "https://discord.com/api/webhooks/1427057480470626375/LsSUOBgc_HKdV7l7WheinXXuSwWyzapoHLXZIkztuZkfWFcL_5kK6FWT4NyF6DvpNc50"
+    ""
 )
 TZ = ZoneInfo("America/New_York")
 MORNING_TIME = (5, 0)   # 5:00 AM ET

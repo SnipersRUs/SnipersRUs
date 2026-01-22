@@ -7,7 +7,7 @@ import requests
 import json
 
 def send_discord_webhook():
-    webhook_url = "https://discord.com/api/webhooks/1430064036581478473/dCUsyeEzXXHkfWpbC6d5-OhYCYCCmuA_ihilQ9O8MceCOUfKhOtA-VmX3GASRhED-6oX"
+    webhook_url = ""
 
     message = """🎯 **WELCOME TO INVERSE CORE** — our "Independent-Move" Crypto Scanner
 

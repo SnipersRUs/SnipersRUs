@@ -6,7 +6,7 @@ Send BTC Rejection Update to Discord webhook (split into multiple messages)
 import requests
 import time
 
-WEBHOOK_URL = "https://discord.com/api/webhooks/1417680286921134251/qP3_kjOWd3UvXSyv27UXjO7HTzqLx9AhfVlLalkyE3DQrmmKtR99UwE-NGvEu9KIHClO"
+WEBHOOK_URL = ""
 
 MESSAGES = [
     """@everyone. 🚨 BTC REJECTION UPDATE - DEC 5, 2025 🚨

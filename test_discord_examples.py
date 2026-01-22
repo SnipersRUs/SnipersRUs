@@ -12,10 +12,10 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-WEBHOOK = os.getenv("WEBHOOK", "https://discord.com/api/webhooks/1429350060952391731/CncW1npyHocyY_6pu6csEQXKuVEYDfuchCefjNZT5uDLw4TCN9WDSOtKnBQ-ApXz5-wp").strip()
+WEBHOOK = os.getenv("WEBHOOK", "").strip()
 if not WEBHOOK:
     print("⚠️ No WEBHOOK found in .env file")
-    print("Add: WEBHOOK=https://discord.com/api/webhooks/YOUR_WEBHOOK")
+    print("Add: WEBHOOK=")
     exit(1)
 
 # Colors

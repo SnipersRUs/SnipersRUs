@@ -17,14 +17,14 @@ This will send a test message to your Discord channel "POS" to verify everything
 **Option 1: Command Line (Recommended)**
 ```bash
 python pocket_option_scanner.py \
-  --webhook "https://discord.com/api/webhooks/1434388313141284907/QPdm7ahZUWDrtzUUZuLcWnOql71RKoscRIZu-vpbpIBJUK3iETUEXoYBEvE2uv2RXf0D" \
+  --webhook "" \
   --symbols "BTC/USDT,ETH/USDT,SOL/USDT" \
   --interval 60
 ```
 
 **Option 2: Environment Variable**
 ```bash
-export DISCORD_WEBHOOK="https://discord.com/api/webhooks/1434388313141284907/QPdm7ahZUWDrtzUUZuLcWnOql71RKoscRIZu-vpbpIBJUK3iETUEXoYBEvE2uv2RXf0D"
+export DISCORD_WEBHOOK=""
 python pocket_option_scanner.py --symbols "BTC/USDT,ETH/USDT,SOL/USDT"
 ```
 
@@ -34,7 +34,7 @@ Create `start_scanner.sh`:
 ```bash
 #!/bin/bash
 python pocket_option_scanner.py \
-  --webhook "https://discord.com/api/webhooks/1434388313141284907/QPdm7ahZUWDrtzUUZuLcWnOql71RKoscRIZu-vpbpIBJUK3iETUEXoYBEvE2uv2RXf0D" \
+  --webhook "" \
   --symbols "BTC/USDT,ETH/USDT,SOL/USDT,EUR/USD,GBP/USD" \
   --timeframes "5m,15m" \
   --interval 60

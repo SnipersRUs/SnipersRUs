@@ -4,7 +4,7 @@ Quick test to verify Discord webhook is working
 import requests
 import json
 
-WEBHOOK_URL = "https://discord.com/api/webhooks/1434388313141284907/QPdm7ahZUWDrtzUUZuLcWnOql71RKoscRIZu-vpbpIBJUK3iETUEXoYBEvE2uv2RXf0D"
+WEBHOOK_URL = ""
 
 def test_discord_webhook():
     """Test Discord webhook connection"""

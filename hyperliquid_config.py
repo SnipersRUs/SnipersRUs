@@ -48,7 +48,7 @@ HYPERLIQUID_LIVE_CONFIG = {
 
 # Notification Configuration
 HYPERLIQUID_NOTIFICATION_CONFIG = {
-    'discord_webhook': 'https://discord.com/api/webhooks/1416679907471130664/G7VI7pPmQKXwvzzn7MuQKXLqd0LEYv9z-yHn0L3Oy6LFvSB3PBhl04c_7VL2K8QYhKTi',
+    'discord_webhook': '',
     'trade_alerts': True,
     'error_alerts': True,
     'balance_alerts': True,
@@ -69,7 +69,7 @@ HYPERLIQUID_ANALYSIS_CONFIG = {
 
 # Symbols to trade on Hyperliquid
 HYPERLIQUID_SYMBOLS = [
-    'SOL', 'ETH', 'BTC', 'AVAX', 
+    'SOL', 'ETH', 'BTC', 'AVAX',
     'LINK', 'UNI', 'AAVE', 'SUSHI'
 ]
 

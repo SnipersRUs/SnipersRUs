@@ -28,7 +28,7 @@ pip install flask requests
 
 The webhook URL is already configured in `cloudflare_discord_bot.py`:
 ```
-https://discord.com/api/webhooks/1451743020188963060/d1jtofalj83RbUQVUOAPhws7rQfTJUzV8tf1AjXiAIWU6BoVoucV-UYfO2tDb7M_fzSS
+
 ```
 
 ### 3. Run the Bot

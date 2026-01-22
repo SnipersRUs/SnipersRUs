@@ -78,7 +78,7 @@ SnipersRUs/
 ### Discord Webhook
 Your webhook is already configured in `src/mm_config.py`:
 ```python
-discord_webhook = "https://discord.com/api/webhooks/1414775093829046272/..."
+discord_webhook = "..."
 ```
 
 ### Trading Parameters

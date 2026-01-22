@@ -12,7 +12,7 @@ from datetime import datetime, timezone, timedelta
 ZOOMEX_REF_LINK = "https://www.zoomex.com/en-US/feediscount?params=ref=0VL4Z8G%7CID=1c2e380a-836b-415c-ade1-cdbfb7b2c674%7CactUserId=524534287%7CactUserName=rickytspanish%E2%80%8B@gmail.com"
 
 # Discord webhook (default from bounty_seeker_kcex.py)
-default_webhook = "https://discord.com/api/webhooks/1433390367369072652/4hSOGIkaE8Zj9AQWHekaBcy_2wbzHdp3IvBCxYyD5-oCrRhV9UGgP0AF-lpi0Zn_NAWI"
+default_webhook = ""
 webhook = os.getenv("DISCORD_WEBHOOK", default_webhook).strip()
 if not webhook or webhook == " ":
     webhook = default_webhook

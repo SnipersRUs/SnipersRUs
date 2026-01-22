@@ -31,7 +31,7 @@ logging.basicConfig(
 logger = logging.getLogger("PivotXScanner")
 
 # Discord webhook
-DISCORD_WEBHOOK = "https://discord.com/api/webhooks/1450009873734434867/2-sSMgoMU0mwWoZfe-RVX6Vamp7NNjPK74lSOwYi2nOqP9N_6YLFJe6bGOttz1Eydjie"
+DISCORD_WEBHOOK = ""
 
 # Configuration
 SCAN_INTERVAL_SEC = 30 * 60  # 30 minutes

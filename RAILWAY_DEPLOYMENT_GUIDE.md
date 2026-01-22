@@ -71,7 +71,7 @@ BYBIT_PAPER_TRADING=true
 BYBIT_LIVE_TRADING=false
 
 # Optional: Discord Notifications
-DISCORD_WEBHOOK=https://discord.com/api/webhooks/your_webhook_url
+DISCORD_WEBHOOK=
 
 # Optional: Telegram (if you want Telegram notifications)
 TELEGRAM_BOT_TOKEN=your_telegram_bot_token

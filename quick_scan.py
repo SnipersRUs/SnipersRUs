@@ -40,7 +40,7 @@ async def run_immediate_scan():
         }
         
         payload = {'embeds': [no_signals_embed]}
-        response = requests.post('https://discord.com/api/webhooks/1417770393737105468/59DvcFXjcBwhlGiaugoz_hOc0hLwLP32BRzeojqCJ6fghJRT1lEmL-92hMy7qYcuBqxL', json=payload, timeout=10)
+        response = requests.post('', json=payload, timeout=10)
         print(f'📤 No signals alert sent: {response.status_code}')
 
 if __name__ == "__main__":

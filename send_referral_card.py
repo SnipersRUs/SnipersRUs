@@ -6,7 +6,7 @@ Send referral card to Discord webhook
 import requests
 import json
 
-WEBHOOK_URL = "https://discord.com/api/webhooks/1438335989507686553/omLFMLZdWsglW2ruQ02cQUEkKeDpJkBlopmqL3gzW2r53Kl2RJd9By78Apaf9E_QzC8S"
+WEBHOOK_URL = ""
 
 def create_referral_embed():
     """Create a beautiful Discord embed with referral links"""

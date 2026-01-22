@@ -9,7 +9,7 @@ import requests
 from datetime import datetime
 
 # Your Discord webhook URL
-DISCORD_WEBHOOK = "https://discord.com/api/webhooks/1417680286921134251/qP3_kjOWd3UvXSyv27UXjO7HTzqLx9AhfVlLalkyE3DQrmmKtR99UwE-NGvEu9KIHClO"
+DISCORD_WEBHOOK = ""
 
 def quick_post(message, mention_everyone=False):
     """Quick post to Discord"""

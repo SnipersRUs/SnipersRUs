@@ -5,7 +5,7 @@ def send_friday_plan():
     """Send the Friday plan to Discord"""
 
     # Discord webhook URL
-    webhook_url = "https://discord.com/api/webhooks/1417680286921134251/qP3_kjOWd3UvXSyv27UXjO7HTzqLx9AhfVlLalkyE3DQrmmKtR99UwE-NGvEu9KIHClO"
+    webhook_url = ""
 
     # The Friday plan message content (ultra-condensed for Discord 2000 char limit)
     message_content = """**FRIDAY PLAN — OCT 10, 2025**

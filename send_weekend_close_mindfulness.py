@@ -5,7 +5,7 @@ def send_weekend_close_mindfulness():
     """Send the weekend close mindfulness post to Discord"""
 
     # Discord webhook URL
-    webhook_url = "https://discord.com/api/webhooks/1417721618028957696/2V-0LHWY8-irDO8JYKZenfN9xtAB0gIMbLLZwEL6zQWVM4juGaLfaKnQCaxIzJ-YKeNk"
+    webhook_url = ""
 
     # The message content
     message_content = """🔮 **Third Eye | Weekend Close Mindfulness**

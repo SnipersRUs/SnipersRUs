@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 
 def test_discord_webhook():
     """Test Discord webhook with requests library"""
-    webhook_url = "https://discord.com/api/webhooks/1417096846978842634/__rOUU6qOz_mRIRO2MUG8PpR4BMyTpmONQ9PDIpB21z47k5pKDbBbSjj3AKciiHsOCq8"
+    webhook_url = ""
     
     print("🧪 Testing Discord webhook...")
     print(f"📡 Webhook URL: {webhook_url[:50]}...")
@@ -64,7 +64,7 @@ def test_discord_webhook():
 
 def test_trade_alert():
     """Test a trade alert"""
-    webhook_url = "https://discord.com/api/webhooks/1417096846978842634/__rOUU6qOz_mRIRO2MUG8PpR4BMyTpmONQ9PDIpB21z47k5pKDbBbSjj3AKciiHsOCq8"
+    webhook_url = ""
     
     print("\n📊 Testing trade alert...")
     

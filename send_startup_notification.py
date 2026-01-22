@@ -8,7 +8,7 @@ import ssl
 from datetime import datetime
 
 async def send_startup_notification():
-    webhook_url = "https://discord.com/api/webhooks/1414775093829046272/B01HW18b-OVgfflsDBUdooSv2EAM8_joEwHQcYeTmduSWXnVmocM3-YLz-L1LpWzXiY7"
+    webhook_url = ""
     
     # Create SSL context
     ssl_context = ssl.create_default_context()

@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 
 def test_discord_notification():
     """Test Discord notification without spam"""
-    webhook_url = "https://discord.com/api/webhooks/1430429617696673852/UmIz28ug7uMqCyuVyOy7LeGXRj91sGLM9NuZicfzSZQOvYlGdfulww0WZzqRLos2I6Jz"
+    webhook_url = ""
 
     try:
         embed = {

@@ -21,7 +21,7 @@ import ccxt
 from dataclasses import dataclass
 
 # Configuration
-DISCORD_WEBHOOK = "https://discord.com/api/webhooks/1433555899019956234/WPg1bAlSEtnCDM5bxn7MaoMxhanHBd_PJL16Bigq79W6Fvp6vq_iuiubplLdqpznBj8Z"
+DISCORD_WEBHOOK = ""
 
 # Exchange configurations - ONLY OKX (top 50 cryptos)
 EXCHANGES = {

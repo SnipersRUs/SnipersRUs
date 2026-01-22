@@ -45,7 +45,7 @@
         // ============================================
         // DISCORD & USER UTILS
         // ============================================
-        const DISCORD_WEBHOOK_URL = 'https://discord.com/api/webhooks/1463740804219670548/DOjU_kIJbl2eQ7SKYmPuSClfXj24y3JVJhOCaCPNolsomPBhXlWcgADwSRLgJnyD1KVY';
+        const DISCORD_WEBHOOK_URL = '';
 
         async function sendToDiscord(payload) {
             if (!DISCORD_WEBHOOK_URL) return;

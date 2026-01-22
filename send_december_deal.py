@@ -6,7 +6,7 @@ Send December Deal Announcement to Discord webhook
 import requests
 import time
 
-WEBHOOK_URL = "https://discord.com/api/webhooks/1442632148627755109/-RC5nNcXJmOuTjUJf-8CTobfEhYlqfDud8C5HICmjyXmvRypsvGjQTADXo7Yf3j40B9Y"
+WEBHOOK_URL = ""
 
 MESSAGES = [
     """@everyone 🎯 **DECEMBER DEAL - LIMITED TIME!** 🎯

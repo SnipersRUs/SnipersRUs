@@ -15,7 +15,7 @@ from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass
 
 # ================== CONFIG ==================
-DISCORD_WEBHOOK = "https://discord.com/api/webhooks/1440496761473994753/ne2g6-si2DzGMs9wHGKg9aT-a5NNzPLAFAj2TWutUGGx2YFfW_cEdEX5pJKdceG8Cc3I"
+DISCORD_WEBHOOK = ""
 MIN_VOLUME_USD = 100_000  # Minimum 24h volume in USD
 SCAN_INTERVAL = 1800  # 30 minutes in seconds
 TIMEFRAMES = {

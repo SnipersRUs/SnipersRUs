@@ -4141,11 +4141,6 @@
                 });
 
                 if (topSignals.length > 0) {
-                    updateSignalsPanel(topSignals);
-                    // Update header counts
-                    const signalCountEl = document.getElementById('signalCount');
-                    if (signalCountEl) signalCountEl.textContent = topSignals.length;
-
                     // Discord Notification for Signals (Purple Card)
                     // Deduplication Logic: Check if we sent this exact symbol in the last 60 minutes
                     const currentSymbol = topSignals[0].symbol;
@@ -4158,6 +4153,11 @@
                     if (isNewSymbol || isTimeExpired) {
                         lastDiscordSignalSymbol = currentSymbol;
                         lastDiscordSignalTime = currentTime;
+
+                        updateSignalsPanel(topSignals);
+                        // Update header counts
+                        const signalCountEl = document.getElementById('signalCount');
+                        if (signalCountEl) signalCountEl.textContent = topSignals.length;
 
                         sendToDiscord({
                             username: "Bounty Seeker Bot",

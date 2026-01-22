@@ -87,7 +87,7 @@ class AlertConfig:
     risk_management_alerts: bool = True
     
     # Discord webhook
-    discord_webhook: str = "https://discord.com/api/webhooks/1417096846978842634/__rOUU6qOz_mRIRO2MUG8PpR4BMyTpmONQ9PDIpB21z47k5pKDbBbSjj3AKciiHsOCq8"
+    discord_webhook: str = ""
     alert_frequency_limit: int = 300  # 5 minutes between similar alerts
 
 @dataclass

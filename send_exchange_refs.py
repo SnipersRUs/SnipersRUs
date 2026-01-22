@@ -11,7 +11,7 @@ def send_exchange_refs():
     """Send exchange referral links to Discord as a purple embed card"""
 
     # Discord webhook URL
-    webhook_url = "https://discord.com/api/webhooks/1438335989507686553/omLFMLZdWsglW2ruQ02cQUEkKeDpJkBlopmqL3gzW2r53Kl2RJd9By78Apaf9E_QzC8S"
+    webhook_url = ""
 
     # Referral links
     bitunix_ref = "https://www.bitunix.com/register?inviteCode=3vm3p7"

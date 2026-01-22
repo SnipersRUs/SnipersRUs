@@ -7,7 +7,7 @@ import requests
 import time
 from datetime import datetime, timezone
 
-WEBHOOK_URL = "https://discord.com/api/webhooks/1417680286921134251/qP3_kjOWd3UvXSyv27UXjO7HTzqLx9AhfVlLalkyE3DQrmmKtR99UwE-NGvEu9KIHClO"
+WEBHOOK_URL = ""
 
 # Purple color for Discord embed (0x9B59B6)
 PURPLE_COLOR = 0x9B59B6

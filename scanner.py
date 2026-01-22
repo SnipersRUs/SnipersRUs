@@ -23,7 +23,7 @@ from zoneinfo import ZoneInfo
 DB_PATH = "scanner.db"
 
 # Discord
-DISCORD_WEBHOOK = os.getenv("DISCORD_WEBHOOK", "https://discord.com/api/webhooks/1418463511490596894/IMmM_B4uw9BcHR8jGDngm66ariSOZVojs1yQuRKX8xJP0Nsg2DAPhSVOcY0Rl1Ru9YBQ")
+DISCORD_WEBHOOK = os.getenv("DISCORD_WEBHOOK", "")
 WEBULL_REF_LINK = os.getenv("WEBULL_REF_LINK", "")
 
 # Twitter

@@ -71,7 +71,7 @@ VECTOR_PARAMS = {
 - **Symbol Limits**: 50 symbols per exchange
 
 ### Discord Notifications
-- **Webhook**: `https://discord.com/api/webhooks/1418463511490596894/IMmM_B4uw9BcHR8jGDngm66ariSOZVojs1yQuRKX8xJP0Nsg2DAPhSVOcY0Rl1Ru9YBQ`
+- **Webhook**: ``
 - **Rich Embeds**: Color-coded by signal type
 - **TradingView Links**: Direct chart access
 - **Scan Summaries**: Complete results

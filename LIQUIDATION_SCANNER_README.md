@@ -34,7 +34,7 @@ The bot implements the Liquidation Reversal Hunter indicator logic from Pine Scr
 ### Discord Webhook
 The bot sends alerts to:
 ```
-https://discord.com/api/webhooks/1433555899019956234/WPg1bAlSEtnCDM5bxn7MaoMxhanHBd_PJL16Bigq79W6Fvp6vq_iuiubplLdqpznBj8Z
+
 ```
 
 ### Liquidation Parameters

@@ -12,7 +12,7 @@ def send_discord_message():
     """Send the BTC weekend game plan to Discord with @everyone ping"""
     
     # Discord webhook URL
-    webhook_url = "https://discord.com/api/webhooks/1417680286921134251/qP3_kjOWd3UvXSyv27UXjO7HTzqLx9AhfVlLalkyE3DQrmmKtR99UwE-NGvEu9KIHClO"
+    webhook_url = ""
     
     # The message content with @everyone ping (ultra-short for Discord 2000 char limit)
     message_content = """@everyone

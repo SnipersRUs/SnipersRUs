@@ -18,7 +18,7 @@ import ccxt
 from dataclasses import dataclass
 
 # Configuration
-DISCORD_WEBHOOK = "https://discord.com/api/webhooks/1418463511490596894/IMmM_B4uw9BcHR8jGDngm66ariSOZVojs1yQuRKX8xJP0Nsg2DAPhSVOcY0Rl1Ru9YBQ"
+DISCORD_WEBHOOK = ""
 
 # Exchange configurations
 EXCHANGES = {

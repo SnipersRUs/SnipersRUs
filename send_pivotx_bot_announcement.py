@@ -6,7 +6,7 @@ Send one-time announcement about PivotX Scanner Bot
 import requests
 from datetime import datetime, timezone
 
-WEBHOOK_URL = "https://discord.com/api/webhooks/1450009873734434867/2-sSMgoMU0mwWoZfe-RVX6Vamp7NNjPK74lSOwYi2nOqP9N_6YLFJe6bGOttz1Eydjie"
+WEBHOOK_URL = ""
 PIVOTX_INDICATOR_LINK = "https://www.tradingview.com/script/BQXcICYn-PivotX/"
 
 def send_bot_announcement():

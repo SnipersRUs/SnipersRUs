@@ -205,7 +205,7 @@ class CFG:
     TP1_FR, TP2_FR = 0.4, 0.4
     COOLDOWN = 3600
     LOOP_SECS = 9000           # 2.5 hours (2 hours 30 minutes)
-    WEBHOOK = os.environ.get("DISCORD_WEBHOOK_URL", "https://discord.com/api/webhooks/1433390367369072652/4hSOGIkaE8Zj9AQWHekaBcy_2wbzHdp3IvBCxYyD5-oCrRhV9UGgP0AF-lpi0Zn_NAWI")
+    WEBHOOK = os.environ.get("DISCORD_WEBHOOK_URL", "")
     COLORS = {"HEADER":0xFF1493,"BOTTOM":0x00FF00,"ACC":0xFFA500,"WATCH":0xF39C12,"WHITE":0xFFFFFF,"GREEN":0x2ECC71,"BLUE":0x3498DB}
 
 def now_utc(): return datetime.now(timezone.utc)

@@ -1,7 +1,7 @@
 import requests
 import json
 
-webhook_url = "https://discord.com/api/webhooks/1363315528831340787/KfoIJA6G1eEYjegzgrkgZ2qtDaaHL1hrs-ocU00wajpAdNsejWOm5HTvsmCYyrF9jOgr"
+webhook_url = ""
 
 embed = {
     "title": "🎯 Sniper Mini VWAP - Major Update: ORB Strategy Added!",

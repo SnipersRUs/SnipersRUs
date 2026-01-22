@@ -32,7 +32,7 @@ def split_message_with_prefix(content: str, prefix_builder, max_len: int = 2000)
 def send_monday_outlook():
     """Send MONDAY NY SESSION OUTLOOK to the specified Discord webhook, splitting if needed."""
 
-    webhook_url = "https://discord.com/api/webhooks/1417680286921134251/qP3_kjOWd3UvXSyv27UXjO7HTzqLx9AhfVlLalkyE3DQrmmKtR99UwE-NGvEu9KIHClO"
+    webhook_url = ""
 
     base_message = (
         "MONDAY NY SESSION OUTLOOK — OCT 20, 2025\n"

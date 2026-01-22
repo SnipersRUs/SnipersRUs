@@ -7,7 +7,7 @@ import requests
 import sys
 
 # Mindfulness channel webhook
-MINDFULNESS_WEBHOOK = "https://discord.com/api/webhooks/1417721618028957696/2V-0LHWY8-irDO8JYKZenfN9xtAB0gIMbLLZwEL6zQWVM4juGaLfaKnQCaxIzJ-YKeNk"
+MINDFULNESS_WEBHOOK = ""
 
 def post_mindfulness(message, mention_everyone=False):
     """Post to mindfulness channel"""

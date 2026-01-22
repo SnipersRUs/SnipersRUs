@@ -6,7 +6,7 @@ Send RAY Short Trade in card format to Discord webhook
 import requests
 import time
 
-WEBHOOK_URL = "https://discord.com/api/webhooks/1417680286921134251/qP3_kjOWd3UvXSyv27UXjO7HTzqLx9AhfVlLalkyE3DQrmmKtR99UwE-NGvEu9KIHClO"
+WEBHOOK_URL = ""
 
 MESSAGE = """@everyone 🎯 **Trade ENTERED: RAY/USDT** 🎯
 

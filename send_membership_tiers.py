@@ -12,7 +12,7 @@ def send_membership_tiers():
     """Send the membership tiers announcement to Discord as a purple embed card"""
 
     # Discord webhook URL
-    webhook_url = "https://discord.com/api/webhooks/1438326547110035547/pRXOZkQnwNpB4V_1NschjbqxsveZL92ZpzKOwLFwKCgV_9jMZfVEqQtThhHOQit0XYCn"
+    webhook_url = ""
 
     # Role IDs for mentions (clickable role links)
     HEADHUNTERS_ROLE_ID = "734627491548889088"

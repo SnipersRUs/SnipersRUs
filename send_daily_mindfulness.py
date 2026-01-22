@@ -12,7 +12,7 @@ def send_daily_mindfulness():
     """Send the daily mindfulness check-in to Discord with @everyone ping"""
     
     # Discord webhook URL
-    webhook_url = "https://discord.com/api/webhooks/1417721618028957696/2V-0LHWY8-irDO8JYKZenfN9xtAB0gIMbLLZwEL6zQWVM4juGaLfaKnQCaxIzJ-YKeNk"
+    webhook_url = ""
     
     # The daily mindfulness message content with @everyone ping
     message_content = """@everyone

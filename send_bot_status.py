@@ -6,7 +6,7 @@ Send bot status update to Discord
 import requests
 from datetime import datetime, timezone
 
-DISCORD_WEBHOOK = "https://discord.com/api/webhooks/1451483953897668610/uhi0EVl81jV4B17m6tbiwZ3fOV88F7goMERBn4Vyim4_owOpDNZK1regFliw4bcl8mBF"
+DISCORD_WEBHOOK = ""
 
 def send_status():
     """Send bot status update"""

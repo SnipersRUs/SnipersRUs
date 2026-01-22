@@ -2,9 +2,9 @@
   "status": "ACTIVE",
   "exchange": "okx",
   "watchlist_size": 10,
-  "signal_count": 55,
-  "last_scan_time": "2026-01-22T07:30:00.795541+00:00",
-  "next_scan_time": "2026-01-22T08:00:00+00:00",
+  "signal_count": 58,
+  "last_scan_time": "2026-01-22T08:00:00.587989+00:00",
+  "next_scan_time": "2026-01-22T08:30:00+00:00",
   "open_trades": [
     {
       "id": 248,
@@ -16,24 +16,6 @@
       "entry_time": "2026-01-22T05:30:02.295712+00:00"
     },
     {
-      "id": 250,
-      "trade_number": 62,
-      "symbol": "BERA/USDT:USDT",
-      "entry_price": 0.8275,
-      "stop_loss": 0.819225,
-      "take_profit": 0.8481875,
-      "entry_time": "2026-01-22T07:00:03.885256+00:00"
-    },
-    {
-      "id": 251,
-      "trade_number": 63,
-      "symbol": "BERA/USDT:USDT",
-      "entry_price": 0.8243,
-      "stop_loss": 0.816057,
-      "take_profit": 0.8449074999999999,
-      "entry_time": "2026-01-22T07:30:03.405805+00:00"
-    },
-    {
       "id": 252,
       "trade_number": 64,
       "symbol": "FIL/USDT:USDT",
@@ -41,6 +23,33 @@
       "stop_loss": 1.32759,
       "take_profit": 1.3745249999999998,
       "entry_time": "2026-01-22T07:30:04.291718+00:00"
+    },
+    {
+      "id": 253,
+      "trade_number": 65,
+      "symbol": "BERA/USDT:USDT",
+      "entry_price": 0.8115,
+      "stop_loss": 0.803385,
+      "take_profit": 0.8317874999999999,
+      "entry_time": "2026-01-22T08:00:03.542181+00:00"
+    },
+    {
+      "id": 254,
+      "trade_number": 66,
+      "symbol": "MEME/USDT:USDT",
+      "entry_price": 0.0011418,
+      "stop_loss": 0.001130382,
+      "take_profit": 0.001170345,
+      "entry_time": "2026-01-22T08:00:08.859962+00:00"
+    },
+    {
+      "id": 255,
+      "trade_number": 67,
+      "symbol": "FIL/USDT:USDT",
+      "entry_price": 1.344,
+      "stop_loss": 1.33056,
+      "take_profit": 1.3776,
+      "entry_time": "2026-01-22T08:00:04.294067+00:00"
     }
   ],
   "signals": [],

@@ -13,7 +13,7 @@ def send_discord_message():
     """Send the BTC weekly plan to Discord with @everyone ping"""
 
     # Discord webhook URL
-    webhook_url = "https://discord.com/api/webhooks/1417680286921134251/qP3_kjOWd3UvXSyv27UXjO7HTzqLx9AhfVlLalkyE3DQrmmKtR99UwE-NGvEu9KIHClO"
+    webhook_url = ""
 
     # Get current date/time
     now = datetime.now(timezone.utc)

@@ -23,7 +23,7 @@ Applies the GPS + Head Hunter + Oath Keeper trading logic from `breakout_prop_bo
 Create/update `.env` file:
 
 ```bash
-WEBHOOK=https://discord.com/api/webhooks/YOUR_WEBHOOK
+WEBHOOK=
 SCAN_INTERVAL=14400           # Scan every 4 hours (14400 seconds = 4 hours)
 ACCOUNT_SIZE=10000            # Starting paper trading balance
 RISK_PER_TRADE=0.015         # 1.5% risk per trade

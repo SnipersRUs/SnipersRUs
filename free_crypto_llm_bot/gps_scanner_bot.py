@@ -711,7 +711,7 @@ class GPSScannerBot:
 def main():
     """Main entry point"""
     # Discord webhook URL
-    WEBHOOK_URL = "https://discord.com/api/webhooks/1440496761473994753/ne2g6-si2DzGMs9wHGKg9aT-a5NNzPLAFAj2TWutUGGx2YFfW_cEdEX5pJKdceG8Cc3I"
+    WEBHOOK_URL = ""
 
     bot = GPSScannerBot(WEBHOOK_URL)
     bot.run_scan_loop()

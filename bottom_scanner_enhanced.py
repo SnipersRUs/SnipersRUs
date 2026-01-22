@@ -16,7 +16,7 @@ from dataclasses import dataclass
 import ccxt
 
 # Configuration
-DISCORD_WEBHOOK = "https://discord.com/api/webhooks/1435111590163775548/VRVqY84hkK61q5Lum9jJL-JueUdRbWRbYxJgytf16wE2oLBM6bgt1TjvQgWaGY7QneqF"
+DISCORD_WEBHOOK = ""
 SCAN_INTERVAL_SEC = 1800  # 30 minutes
 NUM_PICKS = 5  # Number of picks to send
 

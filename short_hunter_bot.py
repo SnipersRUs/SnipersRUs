@@ -17,7 +17,7 @@ from dataclasses import dataclass, field
 # ==========================================
 # CONFIGURATION
 # ==========================================
-DISCORD_WEBHOOK_URL = 'https://discord.com/api/webhooks/1444925694290300938/ACddvkCxvrMz6I_LqbH7l4TOyhicCMh67g-kAtal8YPi0F-AZbXnZpYe7vzrQihJKo5X'
+DISCORD_WEBHOOK_URL = ''
 EXCHANGE = "OKX"
 OKX_INSTRUMENTS_URL = "https://www.okx.com/api/v5/public/instruments"
 OKX_CANDLES_URL = "https://www.okx.com/api/v5/market/candles"

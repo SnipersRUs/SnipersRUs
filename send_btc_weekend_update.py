@@ -5,7 +5,7 @@ def send_btc_weekend_update():
     """Send the BTC weekend update Part 1 to Discord"""
 
     # Discord webhook URL
-    webhook_url = "https://discord.com/api/webhooks/1417680286921134251/qP3_kjOWd3UvXSyv27UXjO7HTzqLx9AhfVlLalkyE3DQrmmKtR99UwE-NGvEu9KIHClO"
+    webhook_url = ""
 
     # Part 1 - First portion of the message
     message_content = """@everyone

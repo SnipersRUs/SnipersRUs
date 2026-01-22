@@ -11,7 +11,7 @@ def send_server_disclaimer():
     """Send the server disclaimer to Discord"""
 
     # Discord webhook URL
-    webhook_url = "https://discord.com/api/webhooks/1438337434029916240/xDJVmNFBdXkgxQLaJ5PrV3g2-bQLosEy8mUxmVobfLORk8edacqCemzDeAqfQLcrtA57"
+    webhook_url = ""
 
     # Message content
     message_content = """We want to create a safe and supportive learning environment in this Discord server. If you have any questions or concerns, please do not hesitate to ask. We are here to help and support you in your learning journey. Our moderators and members @oathkeepers are here to help and are happy to share their knowledge and experiences with you.

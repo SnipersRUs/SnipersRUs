@@ -19,7 +19,7 @@ import pandas as pd
 import numpy as np
 
 # Configuration
-DISCORD_WEBHOOK = "https://discord.com/api/webhooks/1451743020188963060/d1jtofalj83RbUQVUOAPhws7rQfTJUzV8tf1AjXiAIWU6BoVoucV-UYfO2tDb7M_fzSS"
+DISCORD_WEBHOOK = ""
 
 # Allowed symbols (case-insensitive)
 ALLOWED_SYMBOLS = ["BTC", "SOL", "ETH", "BITCOIN", "SOLANA", "ETHEREUM"]

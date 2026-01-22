@@ -6,7 +6,7 @@ Send PivotX Pro update announcement to Discord
 import requests
 from datetime import datetime, timezone
 
-WEBHOOK_URL = "https://discord.com/api/webhooks/1363315528831340787/KfoIJA6G1eEYjegzgrkgZ2qtDaaHL1hrs-ocU00wajpAdNsejWOm5HTvsmCYyrF9jOgr"
+WEBHOOK_URL = ""
 TV_LINK = "https://www.tradingview.com/script/BQXcICYn-PivotX/"
 
 def create_pivotx_embed():

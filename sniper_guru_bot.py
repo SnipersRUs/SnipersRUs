@@ -21,7 +21,7 @@ CONFIG = {
     "tz_ny": "America/New_York",
     "run_time_local": "08:55",      # NY local time to run daily pre-open
     "memory_csv": "sniperguru_memory.csv",
-    "discord_webhook": "https://discord.com/api/webhooks/1417680286921134251/qP3_kjOWd3UvXSyv27UXjO7HTzqLx9AhfVlLalkyE3DQrmmKtR99UwE-NGvEu9KIHClO",
+    "discord_webhook": "",
     "news_rss": [
         "https://www.reuters.com/markets/wealth/rss",          # world/markets
         "https://www.reuters.com/finance/markets/rss",         # markets

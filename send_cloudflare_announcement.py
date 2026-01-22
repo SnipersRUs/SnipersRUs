@@ -12,7 +12,7 @@ def send_cloudflare_announcement():
     """Send the Cloudflare announcement to Discord"""
     
     # Discord webhook URL
-    webhook_url = "https://discord.com/api/webhooks/1417680286921134251/qP3_kjOWd3UvXSyv27UXjO7HTzqLx9AhfVlLalkyE3DQrmmKtR99UwE-NGvEu9KIHClO"
+    webhook_url = ""
     
     # The Cloudflare announcement message content
     message_content = """Hey Snipers! 👋

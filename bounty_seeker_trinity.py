@@ -61,7 +61,7 @@ STABLECOINS = {
 PREFERRED_EXCHANGE = "okx"  # Options: "okx" or "kraken"
 
 # Discord webhook
-DISCORD_WEBHOOK = "https://discord.com/api/webhooks/1432976746692612147/SLf6oNcxTZfnmt1LmGLv-asGHwi-BnR2T8XIneUr7zM1tTbsSMncMZgzytvTFiAHmpcr"
+DISCORD_WEBHOOK = ""
 
 # ====================== DATABASE SETUP ======================
 def init_database():

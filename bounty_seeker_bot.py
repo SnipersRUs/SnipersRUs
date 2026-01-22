@@ -22,7 +22,7 @@ import ccxt
 import logging
 
 # ====================== CONFIGURATION ======================
-DISCORD_WEBHOOK = "https://discord.com/api/webhooks/1432976746692612147/SLf6oNcxTZfnmt1LmGLv-asGHwi-BnR2T8XIneUr7zM1tTbsSMncMZgzytvTFiAHmpcr"
+DISCORD_WEBHOOK = ""
 
 # Exchange: OKX (Best Liquidity & Access)
 # Falls back to OKX if Binance is restricted

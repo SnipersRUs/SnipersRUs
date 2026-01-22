@@ -5,7 +5,7 @@ def send_mms_bot_explanation():
     """Send explanation of what the MMS bot does to Discord"""
 
     # Discord webhook URL
-    webhook_url = "https://discord.com/api/webhooks/1417096846978842634/__rOUU6qOz_mRIRO2MUG8PpR4BMyTpmONQ9PDIpB21z47k5pKDbBbSjj3AKciiHsOCq8"
+    webhook_url = ""
 
     # Part 1 of the MMS bot explanation
     message_content = """**🤖 MMS Bot - What It Does & How to Read It (Part 1/2)**

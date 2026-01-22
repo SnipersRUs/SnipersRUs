@@ -12,7 +12,7 @@ def send_pivotx_announcement():
     """Send the PivotX announcement to Discord as a purple sniper card"""
 
     # Discord webhook URL
-    webhook_url = "https://discord.com/api/webhooks/1363315528831340787/KfoIJA6G1eEYjegzgrkgZ2qtDaaHL1hrs-ocU00wajpAdNsejWOm5HTvsmCYyrF9jOgr"
+    webhook_url = ""
 
     # Purple color for sniper card
     PURPLE_COLOR = 0x8E44AD

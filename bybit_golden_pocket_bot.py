@@ -144,8 +144,7 @@ class BybitGoldenPocketBot:
 
     async def send_discord_notification(self, message: str, color: int = 0x00ff00):
         """Send Discord notification"""
-        if not self.discord_webhook:
-            return
+        return
 
         try:
             embed = {

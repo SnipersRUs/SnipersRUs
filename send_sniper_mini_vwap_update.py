@@ -6,7 +6,7 @@ Send Sniper Mini VWAP [Real-Time Optimized] update announcement to Discord
 import requests
 from datetime import datetime, timezone
 
-WEBHOOK_URL = "https://discord.com/api/webhooks/1363315528831340787/KfoIJA6G1eEYjegzgrkgZ2qtDaaHL1hrs-ocU00wajpAdNsejWOm5HTvsmCYyrF9jOgr"
+WEBHOOK_URL = ""
 TV_LINK = "https://www.tradingview.com/script/YOUR_SCRIPT_ID_HERE/"  # Update with actual TradingView link
 
 def create_sniper_vwap_embed():

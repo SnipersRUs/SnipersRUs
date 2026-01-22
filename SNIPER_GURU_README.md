@@ -63,7 +63,7 @@ python3 run_sniper_guru.py --loop --post
 
 The bot uses the following Discord webhook:
 ```
-https://discord.com/api/webhooks/1417680286921134251/qP3_kjOWd3UvXSyv27UXjO7HTzqLx9AhfVlLalkyE3DQrmmKtR99UwE-NGvEu9KIHClO
+
 ```
 
 ## Key Features

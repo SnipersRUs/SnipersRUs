@@ -11,7 +11,7 @@ from datetime import datetime
 def send_btc_analysis():
     """Send comprehensive BTC analysis to Discord"""
 
-    webhook_url = "https://discord.com/api/webhooks/1417680286921134251/qP3_kjOWd3UvXSyv27UXjO7HTzqLx9AhfVlLalkyE3DQrmmKtR99UwE-NGvEu9KIHClO"
+    webhook_url = ""
 
     embed = {
         "title": "📊 TUESDAY NY SESSION UPDATE — OCT 21, 2025",

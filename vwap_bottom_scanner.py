@@ -45,7 +45,7 @@ class CoinSignal:
 
 class VWAPBottomScanner:
     def __init__(self):
-        self.discord_webhook = "https://discord.com/api/webhooks/1417770393737105468/59DvcFXjcBwhlGiaugoz_hOc0hLwLP32BRzeojqCJ6fghJRT1lEmL-92hMy7qYcuBqxL"
+        self.discord_webhook = ""
         
         # Scanner settings
         self.max_signals_per_hour = 4  # Top 4 picks only

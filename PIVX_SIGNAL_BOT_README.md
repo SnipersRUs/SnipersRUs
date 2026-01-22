@@ -116,7 +116,7 @@ Logs are written to `pivx_signal_bot.log` and stdout.
 
 The webhook is configured in the bot:
 ```python
-DISCORD_WEBHOOK = "https://discord.com/api/webhooks/1461253818082918534/..."
+DISCORD_WEBHOOK = "..."
 ```
 
 ## Example Discord Cards
