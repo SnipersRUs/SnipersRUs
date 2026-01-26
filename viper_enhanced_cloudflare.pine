@@ -1,0 +1,449 @@
+//@version=6
+indicator(title="Cloudfare", shorttitle="Cloudfare", overlay=true, max_lines_count=500, max_labels_count=500)
+
+//========================
+// INPUTS
+//========================
+group_base    = "Base / Core"
+group_expand  = "Dynamic Expansion"
+group_mtf     = "Multi-Timeframe"
+group_visual  = "Visuals"
+group_vwaps   = "VWAPs"
+group_va      = "Value Area"
+group_poc     = "POC"
+group_asia    = "Asia Session"
+group_signals = "Signals"
+
+src           = input.source(close, "Source", group=group_base)
+base_type     = input.string("VWAP", "Base Type", options=["VWAP","EMA"], group=group_base)
+ema_len       = input.int(34, "EMA Length (if EMA)", minval=1, group=group_base)
+smooth_base   = input.int(3, "Base Smooth", minval=1, group=group_base)
+rng_len      = input.int(50, "Range Lookback (stdev)", minval=5, group=group_base)
+atr_len       = input.int(14, "ATR Length", minval=1, group=group_base)
+atr_mult      = input.float(0.25, "ATR Multiplier", step=0.05, group=group_base)
+std_mult      = input.float(0.30, "StDev Multiplier", step=0.05, group=group_base)
+rng_smooth    = input.int(5, "Range Smooth", minval=1, group=group_base)
+
+vol_len       = input.int(50, "Volume SMA Length", minval=1, group=group_expand)
+vol_weight    = input.float(0.10, "Volume Weight", step=0.05, group=group_expand)
+volty_weight  = input.float(0.08, "Volatility Weight (ATR add-on)", step=0.05, group=group_expand)
+acc_len       = input.int(5, "Acceleration Length", minval=1, group=group_expand)
+acc_weight    = input.float(0.05, "Acceleration Weight", step=0.05, group=group_expand)
+roc_len       = input.int(6, "Rate of Change Len", minval=1, group=group_expand)
+roc_weight    = input.float(0.04, "ROC Weight", step=0.05, group=group_expand)
+cvd_len       = input.int(20, "CVD Slope Len", minval=1, group=group_expand)
+cvd_weight    = input.float(0.05, "CVD Weight", step=0.05, group=group_expand)
+vp_len        = input.int(100, "Acceptance Window (VP proxy)", minval=20, group=group_expand)
+vp_weight     = input.float(0.05, "VP Acceptance Weight", step=0.05, group=group_expand)
+osc_len       = input.int(20, "Cycle Len (oscillation)", minval=5, group=group_expand)
+osc_amp       = input.float(0.02, "Oscillation Amplitude", step=0.05, group=group_expand)
+skew_strength = input.float(0.15, "Directional Skew Strength", step=0.05, group=group_expand)
+
+use_mtf       = input.bool(true, "Use HTF Flow Alignment", group=group_mtf)
+htf_tf        = input.timeframe("60", "HTF", group=group_mtf)
+align_boost   = input.float(0.25, "HTF Align Boost", step=0.05, group=group_mtf)
+diverge_cut   = input.float(0.15, "HTF Divergence Cut", step=0.05, group=group_mtf)
+
+show_lines    = input.bool(false, "Show Cloud Edge Lines", group=group_visual)
+min_opacity   = input.int(60, "Min Opacity", minval=0, maxval=100, group=group_visual)
+max_opacity   = input.int(85, "Max Opacity", minval=0, maxval=100, group=group_visual)
+pulse_thresh  = input.float(1.75, "Pulse on Vol Mult >", step=0.05, group=group_visual)
+twist_sensitivity = input.float(0.75, "Twist Sensitivity", minval=0.1, step=0.05, group=group_visual)
+
+// Cloud Toggle
+show_cloud = input.bool(true, "Show Cloud", group=group_visual)
+
+// VWAP Settings
+show_1h = input.bool(false, "1H VWAP", group=group_vwaps)
+show_4h = input.bool(false, "4H VWAP", group=group_vwaps)
+show_8h = input.bool(false, "8H VWAP", group=group_vwaps)
+show_12h = input.bool(false, "12H VWAP", group=group_vwaps)
+show_daily = input.bool(false, "Daily VWAP", group=group_vwaps)
+show_weekly = input.bool(false, "Weekly VWAP", group=group_vwaps)
+show_monthly = input.bool(false, "Monthly VWAP", group=group_vwaps)
+show_yearly = input.bool(true, "Yearly VWAP", group=group_vwaps)
+col_yearly = input.color(#808080, "Yearly Color", group=group_vwaps)
+w_yearly = input.int(3, "Yearly Width", minval=1, maxval=5, group=group_vwaps)
+show_4day = input.bool(false, "4-Day Rolling VWAP", group=group_vwaps)
+
+// Value Area Settings
+show_va = input.bool(false, "Show Value Area", group=group_va)
+va_lookback = input.int(20, "VA Lookback", minval=5, maxval=100, group=group_va)
+va_color = input.color(#ff69b4, "VA Color", group=group_va)
+va_opacity = input.int(50, "VA Opacity", minval=0, maxval=100, group=group_va)
+
+// POC Settings
+show_poc = input.bool(false, "Show POC", group=group_poc)
+volprofile_lookback = input.int(50, "POC Lookback", minval=10, maxval=200, group=group_poc)
+poc_color = input.color(#ffff00, "POC Color", group=group_poc)
+poc_opacity = input.int(30, "POC Opacity", minval=0, maxval=100, group=group_poc)
+
+// H=L Signals
+show_hl_signals = input.bool(false, "Show H=L Signals", group=group_signals)
+hl_bull_color = input.color(#ffffff, "Bull Signal", group=group_signals)
+hl_bear_color = input.color(#800080, "Bear Signal", group=group_signals)
+
+// Bells Settings
+show_bells = input.bool(true, "Show Bells on Price Scale", group=group_signals)
+bell_color = input.color(#FFD700, "Bell Color", group=group_signals)
+bell_size = input.string("Normal", "Bell Size", options=["Small", "Normal", "Large"], group=group_signals)
+
+// Asia Session Settings
+show_asia_lines = input.bool(false, "Draw dashed lines at end of Asia session", group=group_asia)
+asia_sess = input.session("0000-0900", "Asia Session (UTC)", group=group_asia)
+asia_extend_bars = input.int(200, "Extend Right (bars)", minval=50, maxval=2000, group=group_asia)
+asia_line_col = input.color(#FFA500, "Asia Lines Color", group=group_asia)
+
+//========================
+// HELPERS
+//========================
+f_tr(_h, _l, _c1) =>
+    rng1 = _h - _l
+    rng2 = math.abs(_h - _c1)
+    rng3 = math.abs(_l - _c1)
+    math.max(rng1, math.max(rng2, rng3))
+
+f_clamp(x, lo, hi) =>
+    math.max(lo, math.min(hi, x))
+
+f_lerp(a, b, t) =>
+    a + (b - a) * t
+
+f_lerp_color(c1, c2, t) =>
+    r = int(f_lerp(color.r(c1), color.r(c2), t))
+    g = int(f_lerp(color.g(c1), color.g(c2), t))
+    b = int(f_lerp(color.b(c1), color.b(c2), t))
+    color.rgb(r, g, b)
+
+// tanh helper (stable on all accounts)
+f_tanh(x) =>
+    e2x = math.exp(2.0 * x)
+    (e2x - 1.0) / (e2x + 1.0)
+
+nz1(x) => nz(x, 1.0)
+
+// =================== VARIABLES ===================
+var float vwap_1h = na
+var float vwap_4h = na
+var float vwap_8h = na
+var float vwap_12h = na
+var float vwap_daily = na
+var float vwap_weekly = na
+var float vwap_monthly = na
+var float vwap_yearly = na
+var float vwap_4day = na
+
+var float va_high = na
+var float va_low = na
+var float poc_level = na
+
+var bool hl_bull_signal = false
+var bool hl_bear_signal = false
+
+// Higher Low Logic
+var float last_high = na
+var float last_low = na
+var int higher_low_count = 0
+var int lower_high_count = 0
+
+//========================
+// BASE LINE
+//========================
+base_raw = base_type == "VWAP" ? ta.vwap : ta.ema(src, ema_len)
+base     = ta.ema(base_raw, smooth_base)
+
+//========================
+// CORE VOL / FLOW / VOLATILITY
+//========================
+vol_sma    = ta.sma(volume, vol_len)
+vol_mult   = vol_sma == 0.0 ? 1.0 : volume / vol_sma
+
+// money flow proxy (price change * volume), then fast/slow
+mf_raw     = (close - open) * volume
+mf_fast    = ta.ema(mf_raw, 5)
+mf_slow    = ta.sma(mf_raw, 20)
+mf_ratio   = mf_slow == 0.0 ? 0.0 : mf_fast / mf_slow - 1.0
+mf_norm    = f_clamp(f_tanh(mf_ratio), -1.0, 1.0)
+
+// ATR & StDev
+tr         = f_tr(high, low, close[1])
+atr        = ta.rma(tr, atr_len)
+stdev      = ta.stdev(src, rng_len)
+
+// Momentum & acceleration (2nd derivative)
+mom1       = ta.mom(src, acc_len)
+accel      = ta.mom(mom1, acc_len)
+acc_norm   = src == 0.0 ? 0.0 : accel / src
+acc_norm   := f_clamp(acc_norm, -3.0, 3.0)
+
+// ROC
+roc        = ta.roc(src, roc_len)
+roc_norm   = f_clamp(roc / 100.0, -1.5, 1.5)
+
+//========================
+// MTF FLOW (MFI alignment)
+//========================
+mfi_ltf    = ta.mfi(hlc3, 14)
+mfi_htf    = request.security(syminfo.tickerid, htf_tf, ta.mfi(hlc3, 14))
+align_same = (mfi_ltf >= 50 and mfi_htf >= 50) or (mfi_ltf < 50 and mfi_htf < 50)
+
+//========================
+// CVD (approx) & slope
+//========================
+delta_bar  = close > open ?  volume : close < open ? -volume : 0.0
+cvd        = ta.cum(delta_bar)
+cvd_slope  = ta.linreg(cvd, cvd_len, 0) - ta.linreg(cvd, cvd_len, 1)
+cvd_norm   = vol_sma == 0.0 ? 0.0 : f_clamp(cvd_slope / vol_sma, -2.0, 2.0)
+
+//========================
+// Acceptance / VP proxy  (ASCII-only comments to avoid parser issues)
+// inside 1 stddev of base -> accepted (1.0), else 0.0
+//========================
+sigma      = ta.stdev(src, vp_len)
+acceptance = math.abs(src - base) < sigma ? 1.0 : 0.0
+
+//========================
+// CORE RANGE (breathing)
+//========================
+rng_core      = atr * atr_mult + stdev * std_mult
+rng_add_volty = atr * volty_weight
+
+// Expansion multipliers
+k_vol   = 1.0 + vol_weight * math.max(0.0, vol_mult - 1.0)
+k_acc   = 1.0 + acc_weight * math.abs(acc_norm)
+k_roc   = 1.0 + roc_weight * math.abs(roc_norm)
+k_cvd   = 1.0 + cvd_weight * math.abs(cvd_norm)
+k_vp    = 1.0 + vp_weight  * (vol_mult - 1.0) * acceptance
+
+osc_raw = ta.ema(ta.roc(src, osc_len), osc_len)
+osc     = math.sin(2.0 * math.pi * osc_raw)
+k_osc   = 1.0 + osc_amp * osc
+
+k_mtf   = use_mtf ? (align_same ? 1.0 + align_boost : 1.0 - diverge_cut) : 1.0
+k_total = k_vol * k_acc * k_roc * k_cvd * k_vp * k_osc * k_mtf
+
+rng      = rng_core * k_total + rng_add_volty
+rng      := ta.ema(rng, rng_smooth)
+
+//========================
+// DIRECTIONAL SKEW (bias)
+//========================
+bias_raw = (mf_norm * 0.55) + (f_clamp(roc_norm, -1, 1) * 0.20) + (f_clamp(acc_norm, -1, 1) * 0.15) + (f_clamp(cvd_norm, -1, 1) * 0.10)
+bias     = f_clamp(bias_raw, -1.0, 1.0)
+
+// Skew ranges
+up_mult  = 1.0 + skew_strength * math.max(0.0,  bias)
+dn_mult  = 1.0 + skew_strength * math.max(0.0, -bias)
+
+cloud_up = base + rng * up_mult
+cloud_dn = base - rng * dn_mult
+
+//========================
+// SMART-MONEY VISUAL ADJUST (opacity pulse & absorption)
+//========================
+range_pct   = base == 0.0 ? 0.0 : tr / base
+absorption  = (vol_mult > 2.0) and (range_pct < 0.004)  // big vol, small move
+impulse     = (vol_mult > 2.0) and (range_pct >= 0.004)
+
+intensity_raw = f_clamp((k_total - 1.0) / 1.5, 0.0, 1.0)
+alpha_base    = min_opacity + int((max_opacity - min_opacity) * intensity_raw)
+alpha_pulse   = vol_mult > pulse_thresh ? math.min(95, alpha_base + 12) : alpha_base
+final_alpha   = absorption ? math.max(min_opacity, alpha_pulse - 20) : (impulse ? math.min(95, alpha_pulse + 8) : alpha_pulse)
+final_alpha   := f_clamp(final_alpha, 0, 100)
+
+// Colors (ASCII only)
+// Bull: white -> green, Bear: purple -> pink
+col_white = color.rgb(255,255,255)
+col_green = color.rgb(  0,255,  0)
+col_purp  = color.rgb(128,  0,255)
+col_pink  = color.rgb(255,  0,128)
+
+bull_grad = f_lerp_color(col_white, col_green, intensity_raw)
+bear_grad = f_lerp_color(col_purp , col_pink , intensity_raw)
+cloud_col = bias >= 0 ? color.new(bull_grad, 100 - final_alpha) : color.new(bear_grad, 100 - final_alpha)
+
+// =================== VWAP CALCULATIONS ===================
+if show_1h
+    vwap_1h := request.security(syminfo.tickerid, "60", ta.vwap(hlc3))
+if show_4h
+    vwap_4h := request.security(syminfo.tickerid, "240", ta.vwap(hlc3))
+if show_8h
+    vwap_8h := request.security(syminfo.tickerid, "480", ta.vwap(hlc3))
+if show_12h
+    vwap_12h := request.security(syminfo.tickerid, "720", ta.vwap(hlc3))
+if show_daily
+    vwap_daily := request.security(syminfo.tickerid, "1D", ta.vwap(hlc3))
+if show_weekly
+    vwap_weekly := request.security(syminfo.tickerid, "1W", ta.vwap(hlc3))
+if show_monthly
+    vwap_monthly := request.security(syminfo.tickerid, "1M", ta.vwap(hlc3))
+if show_yearly
+    vwap_yearly := request.security(syminfo.tickerid, "12M", ta.vwap(hlc3))
+if show_4day
+    vwap_4day := request.security(syminfo.tickerid, "4D", ta.vwap(hlc3))
+
+// =================== VALUE AREA CALCULATIONS ===================
+var line va_high_line = na
+var line va_low_line = na
+
+if show_va
+    // Calculate Value Area High and Low - consistent calls
+    va_high_temp = ta.highest(high, va_lookback)
+    va_low_temp = ta.lowest(low, va_lookback)
+
+    if bar_index % va_lookback == 0
+        va_high := va_high_temp
+        va_low := va_low_temp
+
+        // Clean up old lines
+        if not na(va_high_line)
+            line.delete(va_high_line)
+            line.delete(va_low_line)
+
+        // Create new lines with pink dashed style extending right
+        va_color_with_opacity = color.new(va_color, va_opacity)
+
+        va_high_line := line.new(x1=bar_index - va_lookback, y1=va_high, x2=bar_index + 200, y2=va_high, extend=extend.right, style=line.style_dashed, color=va_color_with_opacity, width=1)
+        va_low_line := line.new(x1=bar_index - va_lookback, y1=va_low, x2=bar_index + 200, y2=va_low, extend=extend.right, style=line.style_dashed, color=va_color_with_opacity, width=1)
+
+// =================== POC CALCULATIONS ===================
+if show_poc
+    if bar_index >= volprofile_lookback
+        vol_sum = 0.0
+        price_sum = 0.0
+        max_vol = 0.0
+        poc_price = 0.0
+
+        for i = 0 to volprofile_lookback - 1
+            vol_sum += volume[i]
+            price_sum += close[i] * volume[i]
+            if volume[i] > max_vol
+                max_vol := volume[i]
+                poc_price := close[i]
+
+        if vol_sum > 0
+            poc_level := poc_price
+
+// =================== ASIA SESSION CALCULATIONS ===================
+in_asia = time(timeframe.period, asia_sess) != 0
+var float asia_hi = na
+var float asia_lo = na
+var line asia_hi_line = na
+var line asia_lo_line = na
+
+if in_asia and not in_asia[1]
+    asia_hi := high
+    asia_lo := low
+else if in_asia
+    asia_hi := math.max(asia_hi, high)
+    asia_lo := math.min(asia_lo, low)
+else if not in_asia and in_asia[1] and show_asia_lines
+    if not na(asia_hi_line)
+        line.delete(asia_hi_line)
+        line.delete(asia_lo_line)
+    asia_hi_line := line.new(x1=bar_index, y1=asia_hi, x2=bar_index + asia_extend_bars, y2=asia_hi, extend=extend.right, style=line.style_dashed, color=asia_line_col, width=1)
+    asia_lo_line := line.new(x1=bar_index, y1=asia_lo, x2=bar_index + asia_extend_bars, y2=asia_lo, extend=extend.right, style=line.style_dashed, color=asia_line_col, width=1)
+
+// =================== HIGHER LOW LOGIC ===================
+if not na(high) and not na(low)
+    if not na(last_high) and not na(last_low)
+        if low > last_low and high > last_high
+            higher_low_count += 1
+        else if high < last_high and low < last_low
+            lower_high_count += 1
+
+    last_high := high
+    last_low := low
+
+// =================== H=L SIGNAL DETECTION ===================
+if show_hl_signals
+    // H=L condition (High equals Low)
+    hl_condition = high == low
+    hl_atr = ta.atr(14)
+
+    // H=L on VWAPs with proximity
+    hl_on_1h = show_1h and not na(vwap_1h) and hl_condition and math.abs(close - vwap_1h) < hl_atr * 0.5
+    hl_on_4h = show_4h and not na(vwap_4h) and hl_condition and math.abs(close - vwap_4h) < hl_atr * 0.5
+    hl_on_8h = show_8h and not na(vwap_8h) and hl_condition and math.abs(close - vwap_8h) < hl_atr * 0.5
+    hl_on_12h = show_12h and not na(vwap_12h) and hl_condition and math.abs(close - vwap_12h) < hl_atr * 0.5
+    hl_on_daily = show_daily and not na(vwap_daily) and hl_condition and math.abs(close - vwap_daily) < hl_atr * 0.5
+
+    // H=L on Cloud
+    hl_on_cloud = show_cloud and hl_condition and close >= cloud_dn and close <= cloud_up
+
+    // Enhanced signal logic with higher low detection
+    if hl_on_1h or hl_on_4h or hl_on_8h or hl_on_12h or hl_on_daily or hl_on_cloud
+        // Bullish signals
+        if (hl_on_cloud and close <= (cloud_up + cloud_dn) / 2) or hl_on_1h or hl_on_4h
+            hl_bull_signal := true
+        // Bearish signals
+        else if (hl_on_cloud and close >= (cloud_up + cloud_dn) / 2) or hl_on_8h or hl_on_12h or hl_on_daily
+            hl_bear_signal := true
+
+    // Fallback H=L detection
+    if hl_condition and not (hl_on_1h or hl_on_4h or hl_on_8h or hl_on_12h or hl_on_daily or hl_on_cloud)
+        if close <= (high + low) / 2
+            hl_bull_signal := true
+        else
+            hl_bear_signal := true
+
+//========================
+// PLOTS
+//========================
+pu = plot(cloud_up, title="Cloud Up", color=show_lines ? color.new(cloud_col, 0) : color.new(color.black, 100), linewidth=1, display=display.all)
+pd = plot(cloud_dn, title="Cloud Down", color=show_lines ? color.new(cloud_col, 0) : color.new(color.black, 100), linewidth=1, display=display.all)
+fill(pu, pd, title="Cloudfare Fill", color=cloud_col)
+
+// VWAPs
+plot(show_1h and not na(vwap_1h) ? vwap_1h : na, "1H VWAP", color=color.new(color.blue, 20), linewidth=1)
+plot(show_4h and not na(vwap_4h) ? vwap_4h : na, "4H VWAP", color=color.new(color.orange, 20), linewidth=1)
+plot(show_8h and not na(vwap_8h) ? vwap_8h : na, "8H VWAP", color=color.new(color.purple, 20), linewidth=1)
+plot(show_12h and not na(vwap_12h) ? vwap_12h : na, "12H VWAP", color=color.new(color.red, 20), linewidth=1)
+plot(show_daily and not na(vwap_daily) ? vwap_daily : na, "Daily VWAP", color=color.new(color.green, 20), linewidth=2)
+plot(show_weekly and not na(vwap_weekly) ? vwap_weekly : na, "Weekly VWAP", color=color.new(color.yellow, 20), linewidth=2, display=display.all)
+plot(show_monthly and not na(vwap_monthly) ? vwap_monthly : na, "Monthly VWAP", color=color.new(color.navy, 20), linewidth=2)
+plot(show_yearly and not na(vwap_yearly) ? vwap_yearly : na, "Yearly VWAP", color=color.new(col_yearly, 20), linewidth=w_yearly, display=display.all)
+plot(show_4day and not na(vwap_4day) ? vwap_4day : na, "4-Day VWAP", color=color.new(color.teal, 20), linewidth=1)
+
+// Value Area (handled by line.new in calculations)
+
+// POC
+plot(show_poc and not na(poc_level) ? poc_level : na, "POC", color=color.new(poc_color, poc_opacity), linewidth=2)
+
+// Asia Session (handled by line.new in calculations)
+
+// H=L Signals with enhanced brightness
+hl_bull_bright = higher_low_count > 0 ? color.new(hl_bull_color, 0) : color.new(hl_bull_color, 30)
+hl_bear_bright = lower_high_count > 0 ? color.new(hl_bear_color, 0) : color.new(hl_bear_color, 30)
+
+plotshape(show_hl_signals and hl_bull_signal, title="H=L Bull", style=shape.diamond, location=location.belowbar, color=hl_bull_bright, size=size.tiny)
+plotshape(show_hl_signals and hl_bear_signal, title="H=L Bear", style=shape.diamond, location=location.abovebar, color=hl_bear_bright, size=size.tiny)
+
+// Bells on Price Scale
+bell_size_val = bell_size == "Small" ? size.tiny : bell_size == "Normal" ? size.small : size.normal
+plotshape(show_bells and not na(vwap_yearly) and close <= vwap_yearly * 1.001 and close >= vwap_yearly * 0.999,
+          title="Bell on Yearly VWAP",
+          style=shape.circle,
+          location=location.absolute,
+          color=bell_color,
+          size=bell_size_val)
+
+// Reset signals
+hl_bull_signal := false
+hl_bear_signal := false
+
+//========================
+// EARLY TWIST (flip) DETECTION
+//========================
+rng_contract = ta.change(rng, 3)
+bias_flip    = math.sign(bias) != math.sign(bias[1])
+rng_stdev    = ta.stdev(rng, 21)
+early_twist  = bias_flip and math.abs(rng_contract) > twist_sensitivity * rng_stdev
+
+// Twist signals removed as requested
+alertcondition(early_twist, title="Cloudfare Twist", message="Cloudfare: Early twist detected on {{ticker}} ({{interval}}).")
+
+//========================
+// EDGE CASE GUARDS
+//========================
+dummy = na(base) or base == 0 ? na : 1

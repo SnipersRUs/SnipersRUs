@@ -1,0 +1,859 @@
+// @version=6
+indicator("Piv X", shorttitle="Piv X", overlay=true, max_labels_count=500, max_lines_count=500, max_boxes_count=500, max_bars_back=2000)
+
+// ============================================================================
+// INPUTS
+// ============================================================================
+grpPivotDetection = "🔍 Pivot Detection"
+grpMarketStructure = "📊 Market Structure"
+grpFilters = "🛡️ Filters"
+grpVisuals = "🎨 Visuals"
+grpAlerts = "🔔 Alerts"
+grpIBSS = "📈 IBSS Pro Signals"
+grpVWAP = "📏 VWAPs"
+grpPivotQuality = "✅ Pivot Quality"
+grpDivVWAP = "📏 Divergence VWAPs"
+
+// Pivot Detection Inputs
+atr_multiplier = input.float(0.8, "ATR Pivot Strength Multiplier", minval=0.1, maxval=2.0, step=0.1, group=grpPivotDetection, tooltip="Multiplier for ATR to determine dynamic pivot lookback. Higher values = fewer, more significant pivots.")
+volume_threshold = input.float(1.5, "Volume Spike Threshold", minval=1.0, maxval=5.0, step=0.1, group=grpPivotDetection)
+exhaustion_periods = input.int(3, "Exhaustion Lookback", minval=2, maxval=10, group=grpPivotDetection)
+min_price_move = input.float(2.0, "Min Price Move % for Exhaustion", minval=0.5, maxval=10.0, step=0.5, group=grpPivotDetection)
+min_pivot_significance = input.float(0.3, "Min Pivot Significance (ATR)", minval=0.1, maxval=2.0, step=0.1, group=grpPivotDetection, tooltip="Minimum ATR distance from surrounding bars. Higher = only significant pivots.")
+require_volume_confirmation = input.bool(true, "Require Volume Confirmation", group=grpPivotDetection, tooltip="Only show pivots with volume spike confirmation")
+
+// Pivot Quality Inputs
+use_rsi_divergence = input.bool(true, "Use RSI Divergence", group=grpPivotQuality)
+use_sfp = input.bool(true, "Use Swing Failure Pattern (SFP)", group=grpPivotQuality)
+use_liquidity_sweep = input.bool(true, "Use Liquidity Sweep", group=grpPivotQuality)
+use_candle_confirm = input.bool(true, "Use Candle Reversal Confirm", group=grpPivotQuality)
+use_key_level_align = input.bool(true, "Use Key Level Alignment", group=grpPivotQuality)
+use_fvg_fill = input.bool(true, "Use FVG Fill", group=grpPivotQuality)
+use_session_filter = input.bool(false, "Use Session Weighting", group=grpPivotQuality)
+use_mtf_pivot_conf = input.bool(true, "Use HTF Pivot Confluence", group=grpPivotQuality)
+key_level_atr_tolerance = input.float(0.3, "Key Level ATR Tolerance", minval=0.1, maxval=2.0, step=0.1, group=grpPivotQuality)
+mtf_pivot_tf = input.timeframe("240", "HTF Pivot Timeframe", group=grpPivotQuality)
+mtf_pivot_strength = input.int(3, "HTF Pivot Strength", minval=1, maxval=20, group=grpPivotQuality)
+mtf_pivot_atr_tolerance = input.float(0.5, "HTF Pivot ATR Tolerance", minval=0.1, maxval=3.0, step=0.1, group=grpPivotQuality)
+session_tz = input.string("Etc/UTC", "Session Timezone", group=grpPivotQuality)
+session_london = input.session("0700-1000", "London Session", group=grpPivotQuality)
+session_ny = input.session("1300-1600", "New York Session", group=grpPivotQuality)
+rsi_length = input.int(14, "RSI Length", minval=5, maxval=50, group=grpPivotQuality)
+rsi_overbought = input.int(70, "RSI Overbought", minval=60, maxval=90, group=grpPivotQuality)
+use_volume_climax = input.bool(true, "Use Volume Climax", group=grpPivotQuality)
+volume_climax_multiplier = input.float(2.5, "Volume Climax Multiplier", minval=1.5, maxval=5.0, step=0.1, group=grpPivotQuality)
+use_momentum_exhaustion = input.bool(true, "Use Momentum Exhaustion", group=grpPivotQuality)
+momentum_period = input.int(10, "Momentum Period", minval=5, maxval=20, group=grpPivotQuality)
+use_rejection_strength = input.bool(true, "Enhanced Rejection Analysis", group=grpPivotQuality)
+min_wick_ratio = input.float(0.4, "Min Wick Ratio for Rejection", minval=0.2, maxval=0.8, step=0.1, group=grpPivotQuality)
+
+// Market Structure Inputs
+mss_enabled = input.bool(true, "Show Market Structure Shift (MSS)", group=grpMarketStructure)
+fib_enabled = input.bool(false, "Auto-Draw Fibonacci", group=grpMarketStructure)
+
+// Filter Inputs
+mtf_enabled = input.bool(true, "Enable HTF Trend Filter", group=grpFilters)
+htf_res = input.timeframe("240", "Higher Timeframe", group=grpFilters, tooltip="Higher timeframe in minutes (240 = 4H, 60 = 1H, etc.)")
+htf_ma_len = input.int(50, "HTF MA Length", minval=10, maxval=200, group=grpFilters)
+atr_confirm_enabled = input.bool(false, "Enable ATR Confirmation", group=grpFilters, tooltip="When enabled, requires price confirmation before showing pivots (adds lag). Disable for real-time detection.")
+atr_confirm_mult = input.float(0.2, "ATR Confirmation Multiplier", minval=0.1, maxval=1.0, step=0.1, group=grpFilters, tooltip="Price must close beyond Pivot +/- (ATR * this multiplier) to confirm.")
+real_time_mode = input.bool(true, "Real-Time Mode", group=grpFilters, tooltip="Show pivots immediately as they form (no confirmation delay). Disable for confirmed-only pivots.")
+
+// Visual Inputs
+show_zones = input.bool(true, "Show Pivot Zones", group=grpVisuals)
+show_labels = input.bool(true, "Show Pivot Labels", group=grpVisuals)
+zone_extend_bars = input.int(50, "Zone Extension (bars)", minval=10, maxval=200, group=grpVisuals)
+show_exhaustion_arrows = input.bool(true, "Show Exhaustion Arrows", group=grpVisuals)
+show_pivot_points = input.bool(true, "Show Pivot Points", group=grpVisuals)
+show_pivot_lines = input.bool(true, "Show Pivot Lines", group=grpVisuals)
+show_top_signals = input.bool(true, "Show Enhanced Top Signals", group=grpVisuals)
+buy_exhaustion_color = input.color(color.rgb(255, 0, 100), "Buy Exhaustion (Red)", group=grpVisuals)
+sell_exhaustion_color = input.color(color.rgb(0, 255, 150), "Sell Exhaustion (Green)", group=grpVisuals)
+pivot_low_color = input.color(color.rgb(0, 255, 150), "Pivot Low (Neon Green)", group=grpVisuals)
+pivot_high_color = input.color(color.rgb(255, 0, 100), "Pivot High (Neon Red)", group=grpVisuals)
+top_signal_color = input.color(color.rgb(255, 100, 0), "Enhanced Top Signal (Orange)", group=grpVisuals)
+
+// Alerts
+enable_alerts = input.bool(true, "Enable Alerts", group=grpAlerts)
+
+// VWAP Inputs
+show_bottom_vwap = input.bool(true, "Show Bottom VWAP", group=grpVWAP)
+show_top_vwap = input.bool(true, "Show Top VWAP", group=grpVWAP)
+extreme_vwap_lookback = input.int(50, "Bottom/Top VWAP Lookback", minval=10, maxval=500, group=grpVWAP, tooltip="Number of bars to find the absolute lowest low / highest high for anchoring.")
+extreme_vwap_source = input.source(hlc3, "Bottom/Top VWAP Source", group=grpVWAP)
+
+vwap_source = input.source(hlc3, "VWAP Source", group=grpVWAP)
+show_4d_vwap = input.bool(false, "Show 4D VWAP", group=grpVWAP)
+show_9d_vwap = input.bool(false, "Show 9D VWAP", group=grpVWAP)
+show_4h_vwap = input.bool(false, "Show 4H VWAP", group=grpVWAP)
+show_8h_vwap = input.bool(false, "Show 8H VWAP", group=grpVWAP)
+show_weekly_vwap = input.bool(true, "Show Weekly VWAP", group=grpVWAP)
+show_monthly_vwap = input.bool(false, "Show Monthly VWAP", group=grpVWAP)
+show_yearly_vwap = input.bool(true, "Show Yearly VWAP", group=grpVWAP)
+show_prev_weekly_vwap = input.bool(false, "Show Previous Weekly VWAP", group=grpVWAP)
+show_prev_monthly_vwap = input.bool(false, "Show Previous Monthly VWAP", group=grpVWAP)
+show_prev_yearly_vwap = input.bool(false, "Show Previous Yearly VWAP", group=grpVWAP)
+
+// Color Inputs
+c_bull = input.color(color.new(color.green, 20), "Bullish Color", group=grpVisuals)
+c_bear = input.color(color.new(color.purple, 20), "Bearish Color", group=grpVisuals)
+c_mss = input.color(color.new(color.blue, 40), "MSS Line Color", group=grpVisuals)
+c_fib = input.color(color.gray, "Fibonacci Color", group=grpVisuals)
+c_golden_pocket = input.color(color.new(color.yellow, 0), "Golden Pocket (0.618) Color", group=grpVisuals)
+c_bottom_vwap = input.color(color.new(color.lime, 0), "Bottom VWAP Color", group=grpVWAP)
+c_top_vwap = input.color(color.new(color.red, 0), "Top VWAP Color", group=grpVWAP)
+c_weekly_vwap = input.color(color.new(color.orange, 0), "Weekly VWAP", group=grpVWAP)
+c_monthly_vwap = input.color(color.new(color.purple, 0), "Monthly VWAP", group=grpVWAP)
+c_yearly_vwap = input.color(color.new(color.white, 0), "Yearly VWAP", group=grpVWAP)
+c_prev_weekly_vwap = input.color(color.new(color.orange, 60), "Prev Weekly VWAP", group=grpVWAP)
+c_prev_monthly_vwap = input.color(color.new(color.purple, 60), "Prev Monthly VWAP", group=grpVWAP)
+c_prev_yearly_vwap = input.color(color.new(color.white, 60), "Prev Yearly VWAP", group=grpVWAP)
+c_4d_vwap = input.color(color.new(color.teal, 0), "4D VWAP", group=grpVWAP)
+c_9d_vwap = input.color(color.new(color.blue, 0), "9D VWAP", group=grpVWAP)
+c_4h_vwap = input.color(color.new(color.aqua, 0), "4H VWAP", group=grpVWAP)
+c_8h_vwap = input.color(color.new(color.fuchsia, 0), "8H VWAP", group=grpVWAP)
+
+// Alert Inputs
+alert_pivot_high = input.bool(true, "Alert on Pivot High", group=grpAlerts)
+alert_pivot_low = input.bool(true, "Alert on Pivot Low", group=grpAlerts)
+alert_major_zones = input.bool(true, "Alert on Major Pivot Zones", group=grpAlerts)
+alert_mss = input.bool(true, "Alert on Market Structure Shift (CHoCH)", group=grpAlerts)
+alert_exhaustion = input.bool(true, "Alert on Exhaustion Signals", group=grpAlerts)
+alert_fib_levels = input.bool(false, "Alert on Fibonacci Level Touches", group=grpAlerts)
+
+// IBSS Pro Inputs
+ibss_enabled = input.bool(true, "Enable IBSS Pro Signals", group=grpIBSS)
+// Trend Settings
+ibss_ma_fast_length = input.int(12, title="Fast MA Length", minval=1, group=grpIBSS)
+ibss_ma_slow_length = input.int(26, title="Slow MA Length", minval=1, group=grpIBSS)
+ibss_trend_threshold = input.float(0.5, title="Trend Strength Threshold", minval=0.1, maxval=2.0, step=0.1, group=grpIBSS)
+// Momentum Settings
+ibss_rsi_length = input.int(14, title="RSI Length", minval=1, group=grpIBSS)
+ibss_rsi_oversold = input.int(30, title="RSI Oversold Level", minval=1, maxval=50, group=grpIBSS)
+ibss_rsi_overbought = input.int(70, title="RSI Overbought Level", minval=50, maxval=100, group=grpIBSS)
+ibss_rsi_use_crossover = input.bool(false, title="Use RSI Crossover (Strict)", tooltip="If false, uses zone-based signals which are more frequent", group=grpIBSS)
+// Volume Settings (reuse PivotX volume settings or separate)
+ibss_volume_ma_length = input.int(20, title="Volume MA Length", minval=1, group=grpIBSS)
+ibss_volume_multiplier = input.float(1.5, title="Volume Spike Multiplier", minval=1.0, maxval=5.0, step=0.1, group=grpIBSS)
+// Volatility Settings (reuse PivotX ATR or separate)
+ibss_atr_length = input.int(14, title="ATR Length", minval=1, group=grpIBSS)
+ibss_atr_multiplier = input.float(2.0, title="ATR Stop Loss Multiplier", minval=0.5, maxval=5.0, step=0.1, group=grpIBSS)
+// Signal Settings
+ibss_use_trend_filter = input.bool(true, title="Use Trend Filter", tooltip="Filters signals by MA trend alignment", group=grpIBSS)
+ibss_use_volume_confirmation = input.bool(false, title="Use Volume Confirmation", tooltip="Requires volume spike for signals", group=grpIBSS)
+ibss_use_atr_stops = input.bool(true, title="Use ATR-Based Stops", group=grpIBSS)
+ibss_signal_cooldown = input.int(10, title="Signal Cooldown Bars", minval=0, maxval=50, tooltip="Minimum bars between signals", group=grpIBSS)
+ibss_show_debug = input.bool(false, title="Show Debug Info", tooltip="Shows RSI and condition states", group=grpIBSS)
+ibss_show_ma = input.bool(true, title="Show Moving Averages", group=grpIBSS)
+ibss_show_ma_cloud = input.bool(true, title="Show MA Cloud", group=grpIBSS)
+ibss_show_bg = input.bool(false, title="Show Background Trend Overlay", group=grpIBSS)
+
+// Divergence VWAP Inputs
+div_willr_length = input.int(14, "Williams %R Length", minval=1, group=grpDivVWAP)
+div_ob_level = input.int(-20, "Overbought Level", maxval=0, group=grpDivVWAP)
+div_os_level = input.int(-80, "Oversold Level", maxval=0, group=grpDivVWAP)
+div_pivot_lookback = input.int(5, "Pivot Lookback", minval=1, group=grpDivVWAP)
+div_lookback_range = input.int(60, "Divergence Lookback Range", minval=10, group=grpDivVWAP)
+show_div_bull_vwap = input.bool(true, "Show Bullish Divergence VWAP", group=grpDivVWAP)
+show_div_bear_vwap = input.bool(true, "Show Bearish Divergence VWAP", group=grpDivVWAP)
+show_div_vwap_fill = input.bool(false, "Show VWAP Fill Zone", group=grpDivVWAP)
+div_fill_transparency = input.int(90, "Fill Transparency", minval=50, maxval=99, group=grpDivVWAP)
+div_bull_color = input.color(color.white, "Bullish VWAP Color", group=grpDivVWAP)
+div_bear_color = input.color(#9C27B0, "Bearish VWAP Color (Purple)", group=grpDivVWAP)
+
+// ============================================================================
+// CALCULATIONS
+// ============================================================================
+
+// Volume Analysis
+avg_volume = ta.sma(volume, 20)
+volume_ratio = volume / avg_volume
+high_volume = volume_ratio >= volume_threshold
+volume_climax = volume_ratio >= volume_climax_multiplier
+
+// RSI Calculation
+rsi = ta.rsi(close, rsi_length)
+rsi_overbought_zone = rsi >= rsi_overbought
+
+// Precompute values used inside functions for consistency
+rsi_recent_high_idx = ta.highestbars(high, 10)
+rsi_prev_high_idx = ta.highestbars(high, 20)
+recent_exhaustion_low = ta.lowest(low, exhaustion_periods)
+recent_exhaustion_high = ta.highest(high, exhaustion_periods)
+
+// Momentum Calculation
+momentum = ta.mom(close, momentum_period)
+momentum_ma = ta.sma(momentum, momentum_period)
+momentum_exhaustion = momentum < momentum_ma and momentum < 0  // Momentum declining and negative
+
+// Price Action Analysis
+price_change_pct = ((close - close[exhaustion_periods]) / close[exhaustion_periods]) * 100
+is_selloff = price_change_pct <= -min_price_move
+is_rally = price_change_pct >= min_price_move
+
+// Calculate buying pressure score (0-100)
+calc_buying_pressure() =>
+    pressure = 0.0
+
+    // Base pressure from price action
+    if close > open
+        pressure += 30.0
+    if close > close[1]
+        pressure += 20.0
+
+    // Volume contribution
+    if high_volume
+        pressure += 30.0
+        // High volume with price rise = strong buying
+        if close > open and (close - open) / open > 0.01
+            pressure += 20.0
+
+    // Upper wick analysis (rejection of highs = selling)
+    body_high = math.max(close, open)
+    body_low = math.min(close, open)
+    lower_wick = body_low - low
+    upper_wick = high - body_high
+    total_range = high - low
+
+    if total_range > 0
+        // Small upper wick during rally = continued buying pressure
+        if is_rally and upper_wick / total_range < 0.1
+            pressure += 10.0
+        // Large upper wick = sellers stepping in (reduces pressure)
+        if upper_wick / total_range > 0.3
+            pressure -= 15.0
+
+    math.max(0, math.min(100, pressure))
+
+// Calculate selling pressure score (0-100)
+calc_selling_pressure() =>
+    pressure = 0.0
+
+    // Base pressure from price action
+    if close < open
+        pressure += 30.0
+    if close < close[1]
+        pressure += 20.0
+
+    // Volume contribution
+    if high_volume
+        pressure += 30.0
+        // High volume with price decline = strong selling
+        if close < open and (close - open) / open < -0.01
+            pressure += 20.0
+
+    // Lower wick analysis (rejection of lows = buying)
+    body_high = math.max(close, open)
+    body_low = math.min(close, open)
+    lower_wick = body_low - low
+    upper_wick = high - body_high
+    total_range = high - low
+
+    if total_range > 0
+        // Small lower wick during selloff = continued selling pressure
+        if is_selloff and lower_wick / total_range < 0.1
+            pressure += 10.0
+        // Large lower wick = buyers stepping in (reduces pressure)
+        if lower_wick / total_range > 0.3
+            pressure -= 15.0
+
+    math.max(0, math.min(100, pressure))
+
+buying_pressure = calc_buying_pressure()
+selling_pressure = calc_selling_pressure()
+
+// Calculate moving averages for pressure (extracted for consistency)
+avg_buying_pressure = ta.sma(buying_pressure, exhaustion_periods)
+avg_selling_pressure = ta.sma(selling_pressure, exhaustion_periods)
+
+// --- Core Calculations ---
+atr = ta.atr(14)
+avg_vol = ta.sma(volume, 20)
+vol_spike = volume > avg_vol * volume_threshold
+
+// --- Pivot Quality Helpers ---
+// Candle reversal patterns
+body = math.abs(close - open)
+candle_range = high - low
+upper_wick = high - math.max(close, open)
+lower_wick = math.min(close, open) - low
+
+bull_pin = candle_range > 0 and lower_wick >= body * 2 and (close - low) / candle_range >= 0.7
+bear_pin = candle_range > 0 and upper_wick >= body * 2 and (high - close) / candle_range >= 0.7
+
+bull_engulf = close > open and close[1] < open[1] and close >= open[1] and open <= close[1]
+bear_engulf = close < open and close[1] > open[1] and close <= open[1] and open >= close[1]
+
+bull_reversal_candle = bull_pin or bull_engulf
+bear_reversal_candle = bear_pin or bear_engulf
+
+// --- Dynamic Pivot Strength (Optimized for 5m, 15m, 1h A+ Setups) ---
+// Determine if we're on a lower timeframe that needs stricter filtering
+is_1min = timeframe.period == "1"
+is_5m = timeframe.period == "5"
+is_15m = timeframe.period == "15"
+is_1h = timeframe.period == "60" or timeframe.period == "1H"
+is_lower_tf = timeframe.in_seconds() <= 300  // 5 minutes or less
+is_higher_tf = timeframe.in_seconds() >= 900  // 15 minutes or higher
+is_aplus_tf = is_5m or is_15m or is_1h
+
+// Make pivot strength adaptive to timeframe
+pivot_strength_raw = math.max(2, math.round(atr / syminfo.mintick * atr_multiplier))
+base_min_strength = is_1min ? 5 : is_5m ? 4 : is_15m ? 3 : is_1h ? 3 : (is_lower_tf ? 6 : 3)
+base_max_strength = is_1min ? 15 : is_5m ? 15 : is_15m ? 18 : is_1h ? 25 : (is_lower_tf ? 20 : (timeframe.isintraday ? 25 : 50))
+min_strength = real_time_mode ? math.max(3, base_min_strength - 1) : base_min_strength
+max_strength = real_time_mode ? math.max(8, base_max_strength - 2) : base_max_strength
+pivot_strength = math.max(min_strength, math.min(pivot_strength_raw, max_strength))
+rt_pivot_strength = pivot_strength
+safe_pivot_strength = math.max(1, math.min(rt_pivot_strength, bar_index))
+
+// Detect pivot points (local highs and lows)
+ph = ta.pivothigh(high, safe_pivot_strength, safe_pivot_strength)
+pl = ta.pivotlow(low, safe_pivot_strength, safe_pivot_strength)
+pivot_high_val = ph
+pivot_low_val = pl
+is_pivot_high = not na(ph)
+is_pivot_low = not na(pl)
+
+// ============================================================================
+// DIVERGENCE VWAP CALCULATIONS (Williams %R)
+// ============================================================================
+
+div_highest_high = ta.highest(high, div_willr_length)
+div_lowest_low = ta.lowest(low, div_willr_length)
+div_willr = (div_highest_high - close) / (div_highest_high - div_lowest_low) * -100
+
+div_is_overbought = div_willr >= div_ob_level
+div_is_oversold = div_willr <= div_os_level
+
+div_price_pivot_low = ta.pivotlow(low, div_pivot_lookback, div_pivot_lookback)
+div_price_pivot_high = ta.pivothigh(high, div_pivot_lookback, div_pivot_lookback)
+div_willr_pivot_low = ta.pivotlow(div_willr, div_pivot_lookback, div_pivot_lookback)
+div_willr_pivot_high = ta.pivothigh(div_willr, div_pivot_lookback, div_pivot_lookback)
+
+var float div_last_price_low = na
+var float div_last_willr_low = na
+var int div_last_price_low_bar = na
+
+var float div_last_price_high = na
+var float div_last_willr_high = na
+var int div_last_price_high_bar = na
+
+div_bullish = false
+if not na(div_price_pivot_low) and not na(div_willr_pivot_low)
+    if not na(div_last_price_low) and not na(div_last_willr_low)
+        div_bars_back = bar_index - div_last_price_low_bar
+        if div_bars_back <= div_lookback_range and div_bars_back > 0
+            if low[div_pivot_lookback] < div_last_price_low and div_willr[div_pivot_lookback] > div_last_willr_low
+                if div_willr[div_pivot_lookback] <= div_os_level or div_last_willr_low <= div_os_level
+                    div_bullish := true
+
+if not na(div_price_pivot_low) and not na(div_willr_pivot_low)
+    div_last_price_low := low[div_pivot_lookback]
+    div_last_willr_low := div_willr[div_pivot_lookback]
+    div_last_price_low_bar := bar_index - div_pivot_lookback
+
+div_bearish = false
+if not na(div_price_pivot_high) and not na(div_willr_pivot_high)
+    if not na(div_last_price_high) and not na(div_last_willr_high)
+        div_bars_back = bar_index - div_last_price_high_bar
+        if div_bars_back <= div_lookback_range and div_bars_back > 0
+            if high[div_pivot_lookback] > div_last_price_high and div_willr[div_pivot_lookback] < div_last_willr_high
+                if div_willr[div_pivot_lookback] >= div_ob_level or div_last_willr_high >= div_ob_level
+                    div_bearish := true
+
+if not na(div_price_pivot_high) and not na(div_willr_pivot_high)
+    div_last_price_high := high[div_pivot_lookback]
+    div_last_willr_high := div_willr[div_pivot_lookback]
+    div_last_price_high_bar := bar_index - div_pivot_lookback
+
+var float div_bull_vwap_sum = 0.0
+var float div_bull_vol_sum = 0.0
+var float div_bull_vwap = na
+var bool div_bull_active = false
+
+if div_bullish
+    div_bull_vwap_sum := 0.0
+    div_bull_vol_sum := 0.0
+    div_bull_active := true
+
+if div_bull_active
+    div_typical = (high + low + close) / 3
+    div_bull_vwap_sum += div_typical * volume
+    div_bull_vol_sum += volume
+    div_bull_vwap := div_bull_vol_sum > 0 ? div_bull_vwap_sum / div_bull_vol_sum : na
+
+var float div_bear_vwap_sum = 0.0
+var float div_bear_vol_sum = 0.0
+var float div_bear_vwap = na
+var bool div_bear_active = false
+
+if div_bearish
+    div_bear_vwap_sum := 0.0
+    div_bear_vol_sum := 0.0
+    div_bear_active := true
+
+if div_bear_active
+    div_typical = (high + low + close) / 3
+    div_bear_vwap_sum += div_typical * volume
+    div_bear_vol_sum += volume
+    div_bear_vwap := div_bear_vol_sum > 0 ? div_bear_vwap_sum / div_bear_vol_sum : na
+
+// Store pivot levels
+var float last_pivot_high = na
+var float last_pivot_low = na
+var int last_pivot_high_bar = na
+var int last_pivot_low_bar = na
+
+if is_pivot_high
+    last_pivot_high := pivot_high_val
+    last_pivot_high_bar := bar_index - pivot_strength
+
+if is_pivot_low
+    last_pivot_low := pivot_low_val
+    last_pivot_low_bar := bar_index - pivot_strength
+
+// ============================================================================
+// ENHANCED TOP DETECTION FUNCTIONS
+// ============================================================================
+
+// Detect RSI Bearish Divergence (price makes higher high, RSI makes lower high)
+detect_rsi_bearish_divergence() =>
+    divergence = false
+    strength = 0.0
+
+    if use_rsi_divergence and bar_index >= 20 and rsi_recent_high_idx >= 0 and rsi_prev_high_idx >= 0
+        // Look for recent higher high in price
+        recent_high = high[rsi_recent_high_idx]
+        prev_high = high[rsi_prev_high_idx]
+
+        // Look for corresponding RSI values
+        recent_rsi = rsi[rsi_recent_high_idx]
+        prev_rsi = rsi[rsi_prev_high_idx]
+
+        // Bearish divergence: price higher high, RSI lower high
+        if recent_high > prev_high and recent_rsi < prev_rsi and recent_rsi >= 60
+            divergence := true
+            strength := (prev_rsi - recent_rsi) / prev_rsi * 100  // Percentage difference
+
+    [divergence, strength]
+
+// Detect Volume Climax at Top
+detect_volume_climax_top() =>
+    climax = false
+    strength = 0.0
+
+    if use_volume_climax
+        // Volume climax: extremely high volume with minimal price advance
+        if volume_climax
+            body_size = math.abs(close - open)
+            total_range = high - low
+            if total_range > 0
+                body_ratio = body_size / total_range
+                // Small body with huge volume = distribution
+                if body_ratio < 0.3 and close <= open
+                    climax := true
+                    strength := volume_ratio
+                // Even if green, if volume is extreme and price advance is small
+                if body_ratio < 0.4 and (close - open) / open < 0.01 and volume_ratio >= volume_climax_multiplier * 1.2
+                    climax := true
+                    strength := volume_ratio
+
+    [climax, strength]
+
+// Detect Strong Rejection Pattern
+detect_strong_rejection_top() =>
+    rejection = false
+    strength = 0.0
+
+    if use_rejection_strength
+        body_high = math.max(close, open)
+        body_low = math.min(close, open)
+        upper_wick = high - body_high
+        lower_wick = body_low - low
+        total_range = high - low
+
+        if total_range > 0
+            upper_wick_ratio = upper_wick / total_range
+            body_ratio = (body_high - body_low) / total_range
+
+            // Strong rejection: large upper wick, small body, bearish close
+            if upper_wick_ratio >= min_wick_ratio and body_ratio < 0.3 and close < open
+                rejection := true
+                strength := upper_wick_ratio * 100
+
+            // Shooting star pattern: small body at bottom, large upper wick
+            if upper_wick_ratio >= 0.5 and body_ratio < 0.2 and close < open
+                rejection := true
+                strength := upper_wick_ratio * 100 + 20  // Extra strength for shooting star
+
+    [rejection, strength]
+
+// Detect selling exhaustion with buyers stepping in
+detect_selling_exhaustion() =>
+    exhausted = false
+    exhaustion_strength = 0.0
+    is_major_pivot = false
+
+    // Check if we had a recent selloff
+    recent_selloff = false
+    selloff_strength = 0.0
+    for i = 1 to exhaustion_periods + 5
+        if i <= bar_index
+            past_price_change = ((close[i] - close[i + exhaustion_periods]) / close[i + exhaustion_periods]) * 100
+            if past_price_change <= -min_price_move
+                recent_selloff := true
+                selloff_strength := math.abs(past_price_change)
+                break
+
+    if recent_selloff
+        signals = 0
+
+        // 1. Volume exhaustion - volume decreasing after selloff
+        volume_decreasing = true
+        for i = 1 to exhaustion_periods
+            if i <= bar_index
+                if volume[i] >= volume[i-1] * 1.1
+                    volume_decreasing := false
+                    break
+
+        if volume_decreasing and volume_ratio < volume_threshold * 0.7
+            signals += 1
+            exhaustion_strength += 25.0
+
+        // 2. Price stabilization - price holding at a level
+        price_range_pct = ((recent_exhaustion_high - recent_exhaustion_low) / recent_exhaustion_low) * 100
+
+        if price_range_pct < 1.0  // Tight range
+            signals += 1
+            exhaustion_strength += 25.0
+
+        // 3. Absorption pattern - high volume with minimal price movement
+        body_size = math.abs(close - open)
+        total_range = high - low
+        if total_range > 0
+            body_ratio = body_size / total_range
+            // Small body, high volume = absorption
+            if body_ratio < 0.3 and volume_ratio >= volume_threshold * 0.8 and close >= open
+                signals += 1
+                exhaustion_strength += 30.0
+
+        // 4. Lower wick rejection - buyers rejecting lower prices
+        lower_wick = math.min(close, open) - low
+        upper_wick = high - math.max(close, open)
+        if lower_wick > upper_wick * 1.5 and lower_wick > 0
+            signals += 1
+            exhaustion_strength += 20.0
+
+        // 5. Selling pressure decreasing
+        current_pressure = selling_pressure
+        if current_pressure < avg_selling_pressure * 0.7
+            signals += 1
+            exhaustion_strength += 15.0
+
+        // 6. Pivot low confirmation - major support found
+        pivot_low_detected = is_pivot_low
+        near_pivot_low = not na(last_pivot_low) and math.abs(low - last_pivot_low) / last_pivot_low < 0.005
+        if pivot_low_detected or near_pivot_low
+            signals += 1
+            exhaustion_strength += 25.0
+            is_major_pivot := true
+
+        // 7. Price reversal confirmation - close above previous close
+        if close > close[1] and close > open
+            signals += 1
+            exhaustion_strength += 15.0
+
+        // Require at least 3 signals for confirmation (more accurate)
+        if signals >= 3
+            exhausted := true
+
+    [exhausted, exhaustion_strength, is_major_pivot]
+
+// ENHANCED: Detect buying exhaustion with sellers stepping in (BETTER TOP CALLS)
+detect_buying_exhaustion() =>
+    exhausted = false
+    exhaustion_strength = 0.0
+    is_major_pivot = false
+
+    // Pre-call functions unconditionally for consistency
+    [rsi_div, rsi_strength] = detect_rsi_bearish_divergence()
+    [vol_climax, vol_climax_strength] = detect_volume_climax_top()
+    [rejection, rejection_strength] = detect_strong_rejection_top()
+
+    // Check if we had a recent rally
+    recent_rally = false
+    rally_strength = 0.0
+    for i = 1 to exhaustion_periods + 5
+        if i <= bar_index
+            past_price_change = ((close[i] - close[i + exhaustion_periods]) / close[i + exhaustion_periods]) * 100
+            if past_price_change >= min_price_move
+                recent_rally := true
+                rally_strength := past_price_change
+                break
+
+    if recent_rally
+        signals = 0
+        enhanced_signals = 0  // Track enhanced top detection signals
+
+        // ===== STANDARD EXHAUSTION SIGNALS =====
+
+        // 1. Volume exhaustion - volume decreasing after rally
+        volume_decreasing = true
+        for i = 1 to exhaustion_periods
+            if i <= bar_index
+                if volume[i] >= volume[i-1] * 1.1
+                    volume_decreasing := false
+                    break
+
+        if volume_decreasing and volume_ratio < volume_threshold * 0.7
+            signals += 1
+            exhaustion_strength += 25.0
+
+        // 2. Price stabilization - price holding at a level
+        price_range_pct = ((recent_exhaustion_high - recent_exhaustion_low) / recent_exhaustion_low) * 100
+
+        if price_range_pct < 1.0  // Tight range
+            signals += 1
+            exhaustion_strength += 25.0
+
+        // 3. Distribution pattern - high volume with minimal price movement
+        body_size = math.abs(close - open)
+        total_range = high - low
+        if total_range > 0
+            body_ratio = body_size / total_range
+            // Small body, high volume = distribution
+            if body_ratio < 0.3 and volume_ratio >= volume_threshold * 0.8 and close <= open
+                signals += 1
+                exhaustion_strength += 30.0
+
+        // 4. Upper wick rejection - sellers rejecting higher prices
+        lower_wick = math.min(close, open) - low
+        upper_wick = high - math.max(close, open)
+        if upper_wick > lower_wick * 1.5 and upper_wick > 0
+            signals += 1
+            exhaustion_strength += 20.0
+
+        // 5. Buying pressure decreasing
+        current_pressure = buying_pressure
+        if current_pressure < avg_buying_pressure * 0.7
+            signals += 1
+            exhaustion_strength += 15.0
+
+        // 6. Pivot high confirmation - major resistance found
+        pivot_high_detected = is_pivot_high
+        near_pivot_high = not na(last_pivot_high) and math.abs(high - last_pivot_high) / last_pivot_high < 0.005
+        if pivot_high_detected or near_pivot_high
+            signals += 1
+            exhaustion_strength += 25.0
+            is_major_pivot := true
+
+        // 7. Price reversal confirmation - close below previous close
+        if close < close[1] and close < open
+            signals += 1
+            exhaustion_strength += 15.0
+
+        // ===== ENHANCED TOP DETECTION SIGNALS =====
+
+        // 8. RSI Bearish Divergence (already called above)
+        if rsi_div
+            enhanced_signals += 1
+            signals += 1
+            exhaustion_strength += 30.0  // High weight for divergence
+
+        // 9. RSI Overbought + Declining
+        if rsi_overbought_zone and rsi < rsi[1] and rsi < rsi[2]
+            enhanced_signals += 1
+            signals += 1
+            exhaustion_strength += 20.0
+
+        // 10. Volume Climax at Top (already called above)
+        if vol_climax
+            enhanced_signals += 1
+            signals += 1
+            exhaustion_strength += 35.0  // Very high weight for volume climax
+
+        // 11. Strong Rejection Pattern (already called above)
+        if rejection
+            enhanced_signals += 1
+            signals += 1
+            exhaustion_strength += 25.0  // High weight for strong rejection
+
+        // 12. Momentum Exhaustion
+        if use_momentum_exhaustion and momentum_exhaustion
+            enhanced_signals += 1
+            signals += 1
+            exhaustion_strength += 20.0
+
+        // 13. Multiple Rejection Wicks (2-3 bars in a row)
+        consecutive_rejections = 0
+        for i = 0 to 2
+            if i <= bar_index
+                past_body_high = math.max(close[i], open[i])
+                past_upper_wick = high[i] - past_body_high
+                past_total = high[i] - low[i]
+                if past_total > 0 and past_upper_wick / past_total >= min_wick_ratio
+                    consecutive_rejections += 1
+
+        if consecutive_rejections >= 2
+            enhanced_signals += 1
+            signals += 1
+            exhaustion_strength += 25.0
+
+        // 14. Price at Resistance + Rejection
+        if not na(last_pivot_high)
+            distance_from_resistance = math.abs(high - last_pivot_high) / last_pivot_high
+            if distance_from_resistance < 0.01  // Within 1% of resistance
+                upper_wick = high - math.max(close, open)
+                total_range = high - low
+                if total_range > 0 and upper_wick / total_range >= min_wick_ratio
+                    enhanced_signals += 1
+                    signals += 1
+                    exhaustion_strength += 30.0  // Very strong signal
+
+        // Require at least 3 signals for confirmation
+        // BUT: If we have 2+ enhanced signals, we can accept with fewer total signals
+        min_signals_required = enhanced_signals >= 2 ? 2 : 3
+
+        if signals >= min_signals_required
+            exhausted := true
+            // Boost strength if we have multiple enhanced signals
+            if enhanced_signals >= 2
+                exhaustion_strength += 20.0  // Bonus for multiple enhanced confirmations
+
+    [exhausted, exhaustion_strength, is_major_pivot]
+
+[sell_exhausted, sell_strength, sell_is_pivot] = detect_selling_exhaustion()
+[buy_exhausted, buy_strength, buy_is_pivot] = detect_buying_exhaustion()
+
+// Enhanced top signal (combines multiple enhanced signals)
+[enhanced_rsi_div, _] = detect_rsi_bearish_divergence()
+[enhanced_vol_climax, _] = detect_volume_climax_top()
+[enhanced_rejection, _] = detect_strong_rejection_top()
+enhanced_top_signal = buy_exhausted and (enhanced_rsi_div or enhanced_vol_climax or enhanced_rejection) and rsi_overbought_zone
+
+// ============================================================================
+// VISUALIZATION
+// ============================================================================
+
+// Selling exhaustion (green x - buyers stepping in)
+plotshape(
+     series=show_exhaustion_arrows and sell_exhausted,
+     title="Sell Exhaustion",
+     location=location.belowbar,
+     color=sell_exhaustion_color,
+     style=shape.xcross,
+     size=size.tiny)
+
+// Buying exhaustion (red x - sellers stepping in)
+plotshape(
+     series=show_exhaustion_arrows and buy_exhausted,
+     title="Buy Exhaustion",
+     location=location.abovebar,
+     color=buy_exhaustion_color,
+     style=shape.xcross,
+     size=size.tiny)
+
+// ENHANCED: Top signal marker (orange triangle - strongest top signal)
+plotshape(
+     series=show_top_signals and enhanced_top_signal,
+     title="Enhanced Top Signal",
+     location=location.abovebar,
+     color=top_signal_color,
+     style=shape.triangleup,
+     size=size.small,
+     text="TOP")
+
+// Major pivot points
+plotshape(
+     series=show_pivot_points and is_pivot_low and sell_is_pivot,
+     title="Major Pivot Low",
+     location=location.belowbar,
+     color=pivot_low_color,
+     style=shape.diamond,
+     size=size.tiny)
+
+plotshape(
+     series=show_pivot_points and is_pivot_high and buy_is_pivot,
+     title="Major Pivot High",
+     location=location.abovebar,
+     color=pivot_high_color,
+     style=shape.diamond,
+     size=size.tiny)
+
+// Pivot lines
+var line pivot_high_line = na
+var line pivot_low_line = na
+
+pivot_high_condition = show_pivot_lines and is_pivot_high and buy_is_pivot
+if pivot_high_condition
+    if not na(pivot_high_line)
+        line.delete(pivot_high_line)
+    pivot_high_line := line.new(
+         x1=bar_index - pivot_strength,
+         y1=pivot_high_val,
+         x2=bar_index + 20,
+         y2=pivot_high_val,
+         color=color.new(pivot_high_color, 20),
+         width=2,
+         style=line.style_dashed,
+         extend=extend.right)
+
+pivot_low_condition = show_pivot_lines and is_pivot_low and sell_is_pivot
+if pivot_low_condition
+    if not na(pivot_low_line)
+        line.delete(pivot_low_line)
+    pivot_low_line := line.new(
+         x1=bar_index - pivot_strength,
+         y1=pivot_low_val,
+         x2=bar_index + 20,
+         y2=pivot_low_val,
+         color=color.new(pivot_low_color, 20),
+         width=2,
+         style=line.style_dashed,
+         extend=extend.right)
+
+// Divergence VWAPs (Williams %R)
+div_bull_plot = plot(show_div_bull_vwap and div_bull_active ? div_bull_vwap : na, title="Bullish Divergence VWAP",
+     color=div_bull_color, linewidth=1, style=plot.style_cross)
+div_bear_plot = plot(show_div_bear_vwap and div_bear_active ? div_bear_vwap : na, title="Bearish Divergence VWAP",
+     color=div_bear_color, linewidth=1, style=plot.style_cross)
+div_price_plot = plot(close, display=display.none)
+fill(div_bull_plot, div_price_plot, color=show_div_vwap_fill and div_bull_active and close > div_bull_vwap ?
+     color.new(div_bull_color, div_fill_transparency) : na)
+fill(div_bear_plot, div_price_plot, color=show_div_vwap_fill and div_bear_active and close < div_bear_vwap ?
+     color.new(div_bear_color, div_fill_transparency) : na)
+
+// ============================================================================
+// ALERTS
+// ============================================================================
+if enable_alerts and sell_exhausted and barstate.isconfirmed
+    alert("Selling Exhaustion! Buyers stepping in. Strength: " + str.tostring(math.round(sell_strength)) + "%", alert.freq_once_per_bar)
+
+if enable_alerts and buy_exhausted and barstate.isconfirmed
+    alert("Buying Exhaustion! Sellers stepping in. Strength: " + str.tostring(math.round(buy_strength)) + "%", alert.freq_once_per_bar)
+
+if enable_alerts and enhanced_top_signal and barstate.isconfirmed
+    alert("🔴 ENHANCED TOP SIGNAL! Multiple confirmations: RSI Divergence/Volume Climax/Strong Rejection. High probability reversal!", alert.freq_once_per_bar)
+
+alertcondition(
+     condition=sell_exhausted and barstate.isconfirmed,
+     title="Selling Exhaustion",
+     message="Major selling has stopped - buyers are stepping in")
+
+alertcondition(
+     condition=buy_exhausted and barstate.isconfirmed,
+     title="Buying Exhaustion",
+     message="Major buying has stopped - sellers are stepping in")
+
+alertcondition(
+     condition=enhanced_top_signal and barstate.isconfirmed,
+     title="Enhanced Top Signal",
+     message="🔴 STRONG TOP SIGNAL: Multiple enhanced confirmations detected - High probability short opportunity!")
+
+major_pivot_low = is_pivot_low and sell_is_pivot
+major_pivot_high = is_pivot_high and buy_is_pivot
+alertcondition(
+     condition=major_pivot_low or major_pivot_high,
+     title="Major Pivot",
+     message="Major pivot point detected")

@@ -1,0 +1,245 @@
+// @version=6
+// This Pine Script® code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © RickySpanish
+
+indicator(title="Oath Keeper", shorttitle="OK", overlay=false)
+
+// Inputs
+mfLength = input.int(8, "Money Flow Length", minval=1, maxval=100)
+volLength = input.int(20, "Volume MA Length", minval=1, maxval=100)
+liqThreshold = input.float(1.5, "Liquidation Volume Threshold", minval=1.0, maxval=5.0)
+oiLength = input.int(14, "Open Interest MA Length", minval=1, maxval=100)
+
+// Display options
+showPricePlot = input.bool(false, "Show Price (normalized)")
+showMacro = input.bool(true, "Show Macro (Major) Pivots & Divergences")
+showMicro = input.bool(true, "Show Micro (Minor) Pivots & Divergences")
+showConnectorLines = input.bool(true, "Show Divergence Connector Lines")
+
+// Pivot settings
+macroLeft = input.int(6, "Macro Pivot Left", minval=1, maxval=20)
+macroRight = input.int(6, "Macro Pivot Right", minval=1, maxval=20)
+microLeft = input.int(2, "Micro Pivot Left", minval=1, maxval=10)
+microRight = input.int(2, "Micro Pivot Right", minval=1, maxval=10)
+
+// Get data from security to ensure clean calculations
+[currentClose, currentVolume, currentHigh, currentLow, currentOpen] = request.security(syminfo.tickerid, timeframe.period, [close, volume, high, low, open])
+
+// Basic calculations without OI
+volMA = ta.sma(currentVolume, volLength)
+
+// Helper: tanh implementation for environments without math.tanh
+tanh_fn(x) =>
+    e2x = math.exp(2.0 * x)
+    (e2x - 1.0) / (e2x + 1.0)
+
+// Money Flow Calculation
+upVolume = currentVolume * (currentClose > currentClose[1] ? 1 : 0)
+downVolume = currentVolume * (currentClose < currentClose[1] ? 1 : 0)
+mfUp = ta.sma(upVolume, mfLength)
+mfDown = ta.sma(downVolume, mfLength)
+moneyFlow = 100 * mfUp / (mfUp + mfDown)
+
+// Enhanced Liquidation Detection (cache result to avoid conditional execution warning)
+_volSpike = currentVolume > volMA * 1.8
+_wickSize = math.abs(currentHigh - currentLow) > ta.atr(14) * 1.2
+_priceJump = math.abs(currentClose - currentClose[1]) / currentClose[1] > 0.008
+liq = _volSpike and _wickSize and _priceJump
+
+// Signal Detection (legacy)
+bullSignal = ta.crossover(moneyFlow, 65) and currentVolume > volMA
+bearSignal = ta.crossunder(moneyFlow, 35) and currentVolume > volMA
+
+// Fakeout Signal Detection
+fakeoutSignal = ((moneyFlow > 70 and moneyFlow[3] < 30) or
+                 (moneyFlow < 30 and moneyFlow[3] > 70))
+
+// Super Strong Signal Detection (legacy)
+superBullSignal = moneyFlow < 30 and                   // Deep oversold
+                 moneyFlow > moneyFlow[1] and          // Starting to turn up
+                 currentVolume > volMA * 1.5 and       // Strong volume
+                 (liq or                               // Either liquidation
+                 (currentVolume > volMA * 2 and        // Or strong rejection with volume
+                 math.abs(currentClose - currentLow) / math.abs(currentHigh - currentLow) > 0.7))
+
+superBearSignal = moneyFlow > 70 and                   // Deep overbought
+                 moneyFlow < moneyFlow[1] and          // Starting to turn down
+                 currentVolume > volMA * 1.5 and       // Strong volume
+                 (liq or                               // Either liquidation
+                 (currentVolume > volMA * 2 and        // Or strong rejection with volume
+                 math.abs(currentHigh - currentClose) / math.abs(currentHigh - currentLow) > 0.7))
+
+// Colors
+flowColor = moneyFlow > 50 ? color.white : color.purple
+bullCloud = color.new(color.green, 90)
+bearCloud = color.new(color.red, 90)
+
+// Reference Lines
+hline(80, "Overbought", color=color.new(color.white, 80), linestyle=hline.style_dotted)
+hline(50, "Middle", color=color.new(color.white, 90), linestyle=hline.style_dotted)
+hline(20, "Oversold", color=color.new(color.white, 80), linestyle=hline.style_dotted)
+
+// Main Money Flow Plot and Cloud
+mfPlot = plot(moneyFlow, title="Money Flow", color=flowColor, linewidth=2, style=plot.style_line)
+baselinePlot = plot(50, "Baseline", display=display.none)
+fill(mfPlot, baselinePlot, color = moneyFlow > 50 ? bullCloud : bearCloud)
+
+// Optional normalized price (OFF by default and hidden from display to avoid squeezing)
+normalizedPrice = 50 + 25 * tanh_fn(ta.roc(currentClose, 1) * 10)
+plot(showPricePlot ? normalizedPrice : na, title="Price (normalized)", color=color.new(color.gray, 60), display=display.none)
+
+// === Pivot detection (macro/micro) on price highs/lows and MF highs/lows ===
+ph_macro = showMacro ? ta.pivothigh(currentHigh, macroLeft, macroRight) : na
+pl_macro = showMacro ? ta.pivotlow(currentLow, macroLeft, macroRight) : na
+ph_micro = showMicro ? ta.pivothigh(currentHigh, microLeft, microRight) : na
+pl_micro = showMicro ? ta.pivotlow(currentLow, microLeft, microRight) : na
+
+mh_macro = showMacro ? ta.pivothigh(moneyFlow, macroLeft, macroRight) : na
+ml_macro = showMacro ? ta.pivotlow(moneyFlow, macroLeft, macroRight) : na
+mh_micro = showMicro ? ta.pivothigh(moneyFlow, microLeft, microRight) : na
+ml_micro = showMicro ? ta.pivotlow(moneyFlow, microLeft, microRight) : na
+
+// Storage for last two pivots per tier (declare one per line to avoid type issues)
+var float prevPriceHigh_macro = na
+var float lastPriceHigh_macro = na
+var float prevOscHigh_macro = na
+var float lastOscHigh_macro = na
+
+var float prevPriceLow_macro = na
+var float lastPriceLow_macro = na
+var float prevOscLow_macro = na
+var float lastOscLow_macro = na
+
+var float prevPriceHigh_micro = na
+var float lastPriceHigh_micro = na
+var float prevOscHigh_micro = na
+var float lastOscHigh_micro = na
+
+var float prevPriceLow_micro = na
+var float lastPriceLow_micro = na
+var float prevOscLow_micro = na
+var float lastOscLow_micro = na
+
+var int prevPHBar_macro = na
+var int lastPHBar_macro = na
+var int prevPLBar_macro = na
+var int lastPLBar_macro = na
+
+var int prevPHBar_micro = na
+var int lastPHBar_micro = na
+var int prevPLBar_micro = na
+var int lastPLBar_micro = na
+
+if not na(ph_macro)
+    prevPriceHigh_macro := lastPriceHigh_macro
+    prevOscHigh_macro := lastOscHigh_macro
+    prevPHBar_macro := lastPHBar_macro
+    lastPriceHigh_macro := ph_macro
+    lastOscHigh_macro := mh_macro
+    lastPHBar_macro := bar_index - macroRight
+
+if not na(pl_macro)
+    prevPriceLow_macro := lastPriceLow_macro
+    prevOscLow_macro := lastOscLow_macro
+    prevPLBar_macro := lastPLBar_macro
+    lastPriceLow_macro := pl_macro
+    lastOscLow_macro := ml_macro
+    lastPLBar_macro := bar_index - macroRight
+
+if not na(ph_micro)
+    prevPriceHigh_micro := lastPriceHigh_micro
+    prevOscHigh_micro := lastOscHigh_micro
+    prevPHBar_micro := lastPHBar_micro
+    lastPriceHigh_micro := ph_micro
+    lastOscHigh_micro := mh_micro
+    lastPHBar_micro := bar_index - microRight
+
+if not na(pl_micro)
+    prevPriceLow_micro := lastPriceLow_micro
+    prevOscLow_micro := lastOscLow_micro
+    prevPLBar_micro := lastPLBar_micro
+    lastPriceLow_micro := pl_micro
+    lastOscLow_micro := ml_micro
+    lastPLBar_micro := bar_index - microRight
+
+// Divergence helpers
+regularBear(priceHigherNow, oscLowerNow) => priceHigherNow and oscLowerNow
+regularBull(priceLowerNow, oscHigherNow) => priceLowerNow and oscHigherNow
+hiddenBear(priceLowerHigh, oscHigherHigh) => priceLowerHigh and oscHigherHigh
+hiddenBull(priceHigherLow, oscLowerLow) => priceHigherLow and oscLowerLow
+
+// Macro divergences (only fire on the bar when a new pivot is confirmed)
+macro_reg_bear = not na(ph_macro) and showMacro and not na(lastPriceHigh_macro) and not na(prevPriceHigh_macro) and not na(lastOscHigh_macro) and not na(prevOscHigh_macro) and regularBear(lastPriceHigh_macro > prevPriceHigh_macro, lastOscHigh_macro < prevOscHigh_macro)
+macro_hid_bear = not na(ph_macro) and showMacro and not na(lastPriceHigh_macro) and not na(prevPriceHigh_macro) and not na(lastOscHigh_macro) and not na(prevOscHigh_macro) and hiddenBear(lastPriceHigh_macro < prevPriceHigh_macro, lastOscHigh_macro > prevOscHigh_macro)
+macro_reg_bull = not na(pl_macro) and showMacro and not na(lastPriceLow_macro) and not na(prevPriceLow_macro) and not na(lastOscLow_macro) and not na(prevOscLow_macro) and regularBull(lastPriceLow_macro < prevPriceLow_macro, lastOscLow_macro > prevOscLow_macro)
+macro_hid_bull = not na(pl_macro) and showMacro and not na(lastPriceLow_macro) and not na(prevPriceLow_macro) and not na(lastOscLow_macro) and not na(prevOscLow_macro) and hiddenBull(lastPriceLow_macro > prevPriceLow_macro, lastOscLow_macro < prevOscLow_macro)
+
+// Micro divergences (only fire on the bar when a new pivot is confirmed)
+micro_reg_bear = not na(ph_micro) and showMicro and not na(lastPriceHigh_micro) and not na(prevPriceHigh_micro) and not na(lastOscHigh_micro) and not na(prevOscHigh_micro) and regularBear(lastPriceHigh_micro > prevPriceHigh_micro, lastOscHigh_micro < prevOscHigh_micro)
+micro_hid_bear = not na(ph_micro) and showMicro and not na(lastPriceHigh_micro) and not na(prevPriceHigh_micro) and not na(lastOscHigh_micro) and not na(prevOscHigh_micro) and hiddenBear(lastPriceHigh_micro < prevPriceHigh_micro, lastOscHigh_micro > prevOscHigh_micro)
+micro_reg_bull = not na(pl_micro) and showMicro and not na(lastPriceLow_micro) and not na(prevPriceLow_micro) and not na(lastOscLow_micro) and not na(prevOscLow_micro) and regularBull(lastPriceLow_micro < prevPriceLow_micro, lastOscLow_micro > prevOscLow_micro)
+micro_hid_bull = not na(pl_micro) and showMicro and not na(lastPriceLow_micro) and not na(prevPriceLow_micro) and not na(lastOscLow_micro) and not na(prevOscLow_micro) and hiddenBull(lastPriceLow_micro > prevPriceLow_micro, lastOscLow_micro < prevOscLow_micro)
+
+// Strong overlay gating
+strongBull = superBullSignal
+strongBear = superBearSignal
+
+// Colors
+colBull = color.new(#32CD32, 0)
+colBear = color.new(#9370DB, 0)
+colStrongBull = color.new(color.white, 0)
+colStrongBear = color.new(color.red, 0)
+colMajor = color.new(color.white, 0)
+
+// Pivot markers
+plotshape(showMacro and not na(ph_macro) ? moneyFlow[macroRight] : na, title="Macro Pivot High", style=shape.circle, location=location.absolute, color=colMajor, size=size.tiny, offset=-macroRight)
+plotshape(showMacro and not na(pl_macro) ? moneyFlow[macroRight] : na, title="Macro Pivot Low", style=shape.circle, location=location.absolute, color=colMajor, size=size.tiny, offset=-macroRight)
+plotshape(showMicro and not na(ph_micro) ? moneyFlow[microRight] : na, title="Micro Pivot High", style=shape.circle, location=location.absolute, color=color.new(colMajor, 60), size=size.tiny, offset=-microRight)
+plotshape(showMicro and not na(pl_micro) ? moneyFlow[microRight] : na, title="Micro Pivot Low", style=shape.circle, location=location.absolute, color=color.new(colMajor, 60), size=size.tiny, offset=-microRight)
+
+// Divergence markers
+plotshape(macro_reg_bull ? moneyFlow[macroRight] : na, title="Macro Regular Bullish Div", style=shape.circle, location=location.absolute, color=strongBull ? colStrongBull : colBull, size=size.tiny, offset=-macroRight)
+plotshape(macro_hid_bull ? moneyFlow[macroRight] : na, title="Macro Hidden Bullish Div", style=shape.square, location=location.absolute, color=strongBull ? colStrongBull : colBull, size=size.tiny, offset=-macroRight)
+plotshape(macro_reg_bear ? moneyFlow[macroRight] : na, title="Macro Regular Bearish Div", style=shape.circle, location=location.absolute, color=strongBear ? colStrongBear : colBear, size=size.tiny, offset=-macroRight)
+plotshape(macro_hid_bear ? moneyFlow[macroRight] : na, title="Macro Hidden Bearish Div", style=shape.square, location=location.absolute, color=strongBear ? colStrongBear : colBear, size=size.tiny, offset=-macroRight)
+
+plotshape(micro_reg_bull ? moneyFlow[microRight] : na, title="Micro Regular Bullish Div", style=shape.circle, location=location.absolute, color=strongBull ? colStrongBull : colBull, size=size.tiny, offset=-microRight)
+plotshape(micro_hid_bull ? moneyFlow[microRight] : na, title="Micro Hidden Bullish Div", style=shape.square, location=location.absolute, color=strongBull ? colStrongBull : colBull, size=size.tiny, offset=-microRight)
+plotshape(micro_reg_bear ? moneyFlow[microRight] : na, title="Micro Regular Bearish Div", style=shape.circle, location=location.absolute, color=strongBear ? colStrongBear : colBear, size=size.tiny, offset=-microRight)
+plotshape(micro_hid_bear ? moneyFlow[microRight] : na, title="Micro Hidden Bearish Div", style=shape.square, location=location.absolute, color=strongBear ? colStrongBear : colBear, size=size.tiny, offset=-microRight)
+
+// Connector lines
+if showConnectorLines
+    if macro_reg_bear or macro_hid_bear
+        line.new(x1=prevPHBar_macro, y1=prevOscHigh_macro, x2=lastPHBar_macro, y2=lastOscHigh_macro, xloc=xloc.bar_index, color=color.new(colBear, 30), width=1, extend=extend.none)
+    if macro_reg_bull or macro_hid_bull
+        line.new(x1=prevPLBar_macro, y1=prevOscLow_macro, x2=lastPLBar_macro, y2=lastOscLow_macro, xloc=xloc.bar_index, color=color.new(colBull, 30), width=1, extend=extend.none)
+    if micro_reg_bear or micro_hid_bear
+        line.new(x1=prevPHBar_micro, y1=prevOscHigh_micro, x2=lastPHBar_micro, y2=lastOscHigh_micro, xloc=xloc.bar_index, color=color.new(colBear, 70), width=1, extend=extend.none)
+    if micro_reg_bull or micro_hid_bull
+        line.new(x1=prevPLBar_micro, y1=prevOscLow_micro, x2=lastPLBar_micro, y2=lastOscLow_micro, xloc=xloc.bar_index, color=color.new(colBull, 70), width=1, extend=extend.none)
+
+// Keep existing regular signals & fakeouts
+plotshape(bullSignal and not superBullSignal ? moneyFlow : na, title="Bullish", style=shape.circle, location=location.absolute, color=#32CD32, size=size.tiny)
+plotshape(bearSignal and not superBearSignal ? moneyFlow : na, title="Bearish", style=shape.circle, location=location.absolute, color=#9370DB, size=size.tiny)
+plotshape(bullSignal and superBullSignal ? moneyFlow : na, title="Hidden Bullish", style=shape.square, location=location.absolute, color=#32CD32, size=size.tiny)
+plotshape(bearSignal and superBearSignal ? moneyFlow : na, title="Hidden Bearish", style=shape.square, location=location.absolute, color=#9370DB, size=size.tiny)
+plotshape(fakeoutSignal ? moneyFlow : na, title="Fakeout", style=shape.xcross, location=location.absolute, color=color.new(color.red, 0), size=size.tiny)
+
+// Alerts (legacy)
+alertcondition(bullSignal, "Bullish Signal", "Bullish Signal")
+alertcondition(bearSignal, "Bearish Signal", "Bearish Signal")
+alertcondition(fakeoutSignal, "Fakeout Signal", "Fakeout Signal")
+alertcondition(superBullSignal, "Super Bullish Signal", "Super Bullish Signal")
+alertcondition(superBearSignal, "Super Bearish Signal", "Super Bearish Signal")
+alertcondition(liq, "Liquidation Detected", "Liquidation Detected")
+
+// Divergence alerts
+alertcondition(macro_reg_bull, "Macro Regular Bullish Divergence", "Macro Regular Bullish Divergence")
+alertcondition(macro_hid_bull, "Macro Hidden Bullish Divergence", "Macro Hidden Bullish Divergence")
+alertcondition(macro_reg_bear, "Macro Regular Bearish Divergence", "Macro Regular Bearish Divergence")
+alertcondition(macro_hid_bear, "Macro Hidden Bearish Divergence", "Macro Hidden Bearish Divergence")
+alertcondition(micro_reg_bull, "Micro Regular Bullish Divergence", "Micro Regular Bullish Divergence")
+alertcondition(micro_hid_bull, "Micro Hidden Bullish Divergence", "Micro Hidden Bullish Divergence")
+alertcondition(micro_reg_bear, "Micro Regular Bearish Divergence", "Micro Regular Bearish Divergence")
+alertcondition(micro_hid_bear, "Micro Hidden Bearish Divergence", "Micro Hidden Bearish Divergence")

@@ -1,0 +1,276 @@
+//@version=6
+indicator("Sniper Mini VWAP [Real-Time Optimized]", overlay=true)
+
+// === CONSTANTS ===
+MS_IN_DAY = 86400000
+
+// === INPUTS ===
+// VWAP Settings
+show1h = input.bool(true, "Show 1H VWAP", group="VWAP Settings")
+show4h = input.bool(true, "Show 4H VWAP", group="VWAP Settings")
+show8h = input.bool(true, "Show 8H VWAP", group="VWAP Settings")
+showDaily = input.bool(true, "Show Daily VWAP", group="VWAP Settings")
+
+// ORB Settings (Disabled by default)
+showORB = input.bool(false, "Show ORB Strategy", group="ORB Strategy")
+orbDurationMinutes = input.int(30, "ORB Duration (minutes)", minval=15, maxval=120, group="ORB Strategy", tooltip="Length of opening range period for each session")
+showORBZone = input.bool(false, "Show ORB Background Zone", group="ORB Strategy", tooltip="Highlights the opening range area with colored background")
+daysToShow = input.int(4, "Days of ORB History", minval=1, maxval=7, group="ORB Strategy", tooltip="Number of previous days of ORB boxes to display")
+
+// ORB Signals (Enhanced - Disabled by default)
+showORBSignals = input.bool(false, "Show ORB Signals", group="ORB Signals", tooltip="Show buy/sell signals when price touches ORB support/resistance")
+showBreakoutBuy = input.bool(true, "Buy Signal (At ORB Low)", group="ORB Signals", tooltip="Buy when price touches ORB low support")
+showBreakdownSell = input.bool(true, "Sell Signal (At ORB High)", group="ORB Signals", tooltip="Sell when price touches ORB high resistance")
+useTrendFilter = input.bool(true, "Use Daily Trend Filter", group="ORB Signals", tooltip="Only take buy signals when 1H VWAP > Daily VWAP and vice-versa.")
+volumeMA = input.int(20, "Volume MA Length", group="ORB Signals")
+volumeMultiplier = input.float(1.5, "Breakout Volume Multiplier", minval=1.0, maxval=3.0, step=0.1, group="ORB Signals", tooltip="Require breakout volume to be > MA * Multiplier.")
+
+// Volatility-Based Adjustments (Crypto-Specific)
+useVolatilityAdjustment = input.bool(true, "Use Volatility Adjustment", group="Volatility Settings", tooltip="Adjust thresholds based on asset volatility (important for crypto)")
+atrPeriod = input.int(14, "ATR Period", minval=5, maxval=50, group="Volatility Settings")
+atrMultiplier = input.float(1.0, "ATR Multiplier", minval=0.5, maxval=3.0, step=0.1, group="Volatility Settings")
+volatilityMode = input.string("Auto", "Volatility Mode", options=["Auto", "High (Spot/DeFi)", "Medium (BTC/ETH)", "Low (Stablecoins)", "Custom"], group="Volatility Settings")
+customVolatilityMultiplier = input.float(1.5, "Custom Volatility Multiplier", minval=0.5, maxval=5.0, step=0.1, group="Volatility Settings")
+orbSignalOffset = input.int(5, "Signal Offset %", minval=1, maxval=20, group="ORB Strategy")
+
+// ORB Bias Settings
+showORBBias = input.bool(true, "Show ORB Bias Colors", group="ORB Bias", tooltip="Color ORB boxes based on bullish/bearish bias")
+biasThreshold = input.float(30.0, "Bias Threshold %", minval=10, maxval=50, step=5, group="ORB Bias")
+orbTightMultiplier = input.float(0.5, "Tight ORB Threshold (xATR)", minval=0.3, maxval=1.0, step=0.1, group="ORB Bias")
+orbWideMultiplier = input.float(1.5, "Wide ORB Threshold (xATR)", minval=1.0, maxval=3.0, step=0.1, group="ORB Bias")
+
+// === COLORS ===
+// VWAP Colors (Original Settings)
+c1h = color.green
+c4h = color.orange
+c8h = color.purple
+cDaily = color.red
+// ORB Bias Colors
+bullishOrbColor = color.new(#00FF00, 90) // Green background
+bearishOrbColor = color.new(#FF0000, 90) // Red background
+neutralOrbColor = color.new(#9400D3, 95) // Purple (EBR) background
+// Signal Colors
+buySignalColor = color.new(#00FF00, 0) // Green for buy
+sellSignalColor = color.new(#FF0000, 0) // Red for sell
+
+// === VWAPs (Fixed for v6) ===
+// Use request.security with ta.vwap for multi-timeframe VWAP
+f_vwap(tf) =>
+    request.security(syminfo.tickerid, tf, ta.vwap, lookahead=barmerge.lookahead_off)
+
+vwap1h = show1h ? f_vwap("60") : na
+vwap4h = show4h ? f_vwap("240") : na
+vwap8h = show8h ? f_vwap("480") : na
+vwapDaily = showDaily ? f_vwap("D") : na
+
+// === VOLATILITY CALCULATIONS (Crypto-Specific) ===
+atr = ta.atr(atrPeriod)
+atrPercent = close > 0 ? (atr / close) * 100 : 0
+volatilityMultiplier = volatilityMode == "Auto" ? (atrPercent > 5 ? 1.8 : atrPercent > 2 ? 1.3 : atrPercent > 1 ? 1.0 : 0.8) : volatilityMode == "High (Spot/DeFi)" ? 2.0 : volatilityMode == "Medium (BTC/ETH)" ? 1.3 : volatilityMode == "Low (Stablecoins)" ? 0.5 : customVolatilityMultiplier
+
+// === VOLUME CALCULATIONS (Called unconditionally for consistency) ===
+volumeMAValue = ta.sma(volume, volumeMA)
+
+// === USER-DEFINED TYPE FOR ORB DATA ===
+type ORB_Data
+    box b
+    int startBar
+    int endBar
+    float high
+    float low
+    int day
+    int session
+    float closePrice
+    float vwap1h
+    float vwap4h
+    float vwap8h
+    float vwapDaily
+    int higherLowsCount
+    int lowerHighsCount
+    float prevLow
+    float prevHigh
+
+// === MULTI-SESSION ORB CALCULATION ===
+// Session Definitions
+sessions = array.new_string(4)
+array.set(sessions, 0, "Sydney")
+array.set(sessions, 1, "Tokyo")
+array.set(sessions, 2, "London")
+array.set(sessions, 3, "New York")
+
+sessionStartHours = array.new_int(4)
+array.set(sessionStartHours, 0, 22) // Sydney (previous day 22:00)
+array.set(sessionStartHours, 1, 0)  // Tokyo (00:00)
+array.set(sessionStartHours, 2, 8)  // London (08:00)
+array.set(sessionStartHours, 3, 13) // New York (13:00)
+
+// ORB data array
+var array<ORB_Data> orbDataArray = array.new<ORB_Data>()
+var int[] brokenOrbIds = array.new_int()
+
+// Current day tracking
+var int lastDay = 0
+currentDay = year * 10000 + month * 100 + dayofmonth
+if lastDay == 0
+    lastDay := currentDay
+
+// Clean up old ORB data
+if showORB and array.size(orbDataArray) > 0
+    i = 0
+    while i < array.size(orbDataArray)
+        orbData = array.get(orbDataArray, i)
+        daysDiff = currentDay - orbData.day
+        if daysDiff > daysToShow
+            if not na(orbData.b)
+                box.delete(orbData.b)
+            array.remove(orbDataArray, i)
+        else
+            i += 1
+
+// Clean up old broken ORB IDs
+i = 0
+while i < array.size(brokenOrbIds)
+    orbId = array.get(brokenOrbIds, i)
+    orbDay = math.floor(orbId / 10)
+    daysDiff = currentDay - orbDay
+    if daysDiff > daysToShow
+        array.remove(brokenOrbIds, i)
+    else
+        i += 1
+
+// Process all sessions for ORB calculation
+if showORB
+    for sessionIdx = 0 to 3
+        sessionStartHour = array.get(sessionStartHours, sessionIdx)
+        sessionName = array.get(sessions, sessionIdx)
+
+        // Calculate session start time
+        sessionStartTime = timestamp(year, month, dayofmonth, sessionStartHour, 0)
+        if sessionStartHour == 22
+            // Sydney session starts previous day at 22:00
+            sessionStartTime := timestamp(year, month, dayofmonth - 1, 22, 0)
+
+        orbEndTime = sessionStartTime + orbDurationMinutes * 60 * 1000
+
+        // Check if we're in the ORB period
+        inOrbPeriod = time >= sessionStartTime and time <= orbEndTime
+        afterOrbPeriod = time > orbEndTime
+
+        // Find or create ORB data for this session
+        orbDataFound = false
+        orbDataIdx = 0
+        if array.size(orbDataArray) > 0
+            for orbIdx = 0 to array.size(orbDataArray) - 1
+                existingOrb = array.get(orbDataArray, orbIdx)
+                if existingOrb.day == currentDay and existingOrb.session == sessionIdx
+                    orbDataFound := true
+                    orbDataIdx := orbIdx
+                    break
+
+        if inOrbPeriod
+            if not orbDataFound
+                // Create new ORB data
+                newOrb = ORB_Data.new()
+                newOrb.startBar := bar_index
+                newOrb.endBar := bar_index
+                newOrb.high := high
+                newOrb.low := low
+                newOrb.day := currentDay
+                newOrb.session := sessionIdx
+                newOrb.closePrice := close
+                newOrb.vwap1h := vwap1h
+                newOrb.vwap4h := vwap4h
+                newOrb.vwap8h := vwap8h
+                newOrb.vwapDaily := vwapDaily
+                newOrb.higherLowsCount := 0
+                newOrb.lowerHighsCount := 0
+                newOrb.prevLow := low
+                newOrb.prevHigh := high
+                array.push(orbDataArray, newOrb)
+                orbDataIdx := array.size(orbDataArray) - 1
+
+            // Update ORB high/low
+            currentOrb = array.get(orbDataArray, orbDataIdx)
+            currentOrb.high := math.max(currentOrb.high, high)
+            currentOrb.low := math.min(currentOrb.low, low)
+            currentOrb.endBar := bar_index
+            currentOrb.closePrice := close
+            array.set(orbDataArray, orbDataIdx, currentOrb)
+
+        if afterOrbPeriod and orbDataFound
+            currentOrb = array.get(orbDataArray, orbDataIdx)
+
+            // Draw ORB box if enabled
+            if showORBZone and na(currentOrb.b)
+                orbBoxColor = neutralOrbColor
+                if showORBBias
+                    orbRange = currentOrb.high - currentOrb.low
+                    orbRangePercent = close > 0 ? (orbRange / close) * 100 : 0
+                    orbRangeATR = orbRange / atr
+
+                    if orbRangeATR < orbTightMultiplier
+                        orbBoxColor := bullishOrbColor
+                    else if orbRangeATR > orbWideMultiplier
+                        orbBoxColor := bearishOrbColor
+
+                currentOrb.b := box.new(
+                    left=currentOrb.startBar,
+                    top=currentOrb.high,
+                    right=bar_index,
+                    bottom=currentOrb.low,
+                    border_color=orbBoxColor,
+                    bgcolor=orbBoxColor,
+                    border_width=1,
+                    extend=extend.right
+                )
+                array.set(orbDataArray, orbDataIdx, currentOrb)
+
+            // Check for mean reversion signals at ORB support/resistance
+            if showORBSignals
+                // Trend filter
+                trendFilterPass = not useTrendFilter or (showBreakoutBuy and not na(vwap1h) and not na(vwapDaily) and vwap1h > vwapDaily) or (showBreakdownSell and not na(vwap1h) and not na(vwapDaily) and vwap1h < vwapDaily)
+
+                // Calculate tolerance for ORB touch detection
+                orbTolerance = atr * 0.1
+
+                // Buy signal: Price touches/approaches ORB LOW (support level) - buying the dip
+                if showBreakoutBuy and math.abs(close - currentOrb.low) <= orbTolerance and close[1] > currentOrb.low + orbTolerance and trendFilterPass
+                    orbId = currentOrb.day * 10 + sessionIdx
+                    isBroken = false
+                    for brokenId in brokenOrbIds
+                        if brokenId == orbId
+                            isBroken := true
+                            break
+
+                    if not isBroken
+                        label.new(bar_index, low, "BUY", style=label.style_label_up, color=buySignalColor, textcolor=color.white, size=size.normal)
+                        array.push(brokenOrbIds, orbId)
+
+                // Sell signal: Price touches/approaches ORB HIGH (resistance level) - selling the top
+                if showBreakdownSell and math.abs(close - currentOrb.high) <= orbTolerance and close[1] < currentOrb.high - orbTolerance and trendFilterPass
+                    orbId = currentOrb.day * 10 + sessionIdx
+                    isBroken = false
+                    for brokenId in brokenOrbIds
+                        if brokenId == orbId
+                            isBroken := true
+                            break
+
+                    if not isBroken
+                        label.new(bar_index, high, "SELL", style=label.style_label_down, color=sellSignalColor, textcolor=color.white, size=size.normal)
+                        array.push(brokenOrbIds, orbId)
+
+// === PLOT VWAPs (Cross Style, Smallest Line) ===
+plot(vwap1h, "1H VWAP", color=c1h, linewidth=1, style=plot.style_cross)
+plot(vwap4h, "4H VWAP", color=c4h, linewidth=1, style=plot.style_cross)
+plot(vwap8h, "8H VWAP", color=c8h, linewidth=1, style=plot.style_cross)
+plot(vwapDaily, "Daily VWAP", color=cDaily, linewidth=1, style=plot.style_cross)
+
+
+
+
+
+
+
+
+
+

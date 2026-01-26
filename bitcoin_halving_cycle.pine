@@ -1,0 +1,260 @@
+//@version=6
+indicator("Bitcoin Halving Cycle Tracker", overlay=true, max_labels_count=500, max_lines_count=100)
+
+// ========================================
+// BITCOIN HALVING CYCLE INDICATOR
+// ========================================
+// Tracks Bitcoin's 4-year halving cycle
+// Historical halvings: 2012-11-28, 2016-07-09, 2020-05-11, 2024-04-20
+// Next halving: ~2028 (estimated)
+// ========================================
+
+// === INPUT GROUPS ===
+grpDisplay = "📊 Display Settings"
+grpPhases = "🔄 Cycle Phases"
+grpVWAP = "📈 Phase-Specific VWAPs"
+grpAlerts = "🔔 Alerts"
+
+// === DISPLAY INPUTS ===
+showHalvingDates = input.bool(true, "Show Halving Date Markers", group=grpDisplay)
+showPhaseLabels = input.bool(true, "Show Phase Labels", group=grpDisplay)
+showDaysCounter = input.bool(true, "Show Days Since/Until Halving", group=grpDisplay)
+showBackground = input.bool(true, "Show Phase Background Colors", group=grpDisplay)
+showPhaseLines = input.bool(false, "Show Phase Transition Lines", group=grpDisplay)
+
+// === PHASE INPUTS ===
+// Phase durations (days after halving)
+accumulationStart = input.int(0, "Accumulation Start (days)", group=grpPhases, tooltip="Days after halving when accumulation phase begins")
+accumulationEnd = input.int(365, "Accumulation End (days)", group=grpPhases, tooltip="Days after halving when accumulation phase ends")
+bullStart = input.int(365, "Bull Run Start (days)", group=grpPhases, tooltip="Days after halving when bull run begins")
+bullEnd = input.int(730, "Bull Run End (days)", group=grpPhases, tooltip="Days after halving when bull run ends")
+distributionStart = input.int(730, "Distribution Start (days)", group=grpPhases, tooltip="Days after halving when distribution phase begins")
+distributionEnd = input.int(1095, "Distribution End (days)", group=grpPhases, tooltip="Days after halving when distribution phase ends")
+bearStart = input.int(1095, "Bear Market Start (days)", group=grpPhases, tooltip="Days after halving when bear market begins")
+bearEnd = input.int(1460, "Bear Market End (days)", group=grpPhases, tooltip="Days after halving when bear market ends (next halving)")
+
+// === VWAP INPUTS ===
+showPhaseVWAP = input.bool(true, "Show Phase VWAP", group=grpVWAP, tooltip="VWAP that resets at each phase change")
+showHalvingVWAP = input.bool(true, "Show Halving VWAP", group=grpVWAP, tooltip="VWAP that resets at each halving")
+
+// === ALERT INPUTS ===
+alertOnPhaseChange = input.bool(true, "Alert: Phase Change", group=grpAlerts)
+alertOnHalvingApproach = input.bool(true, "Alert: Halving Approaching (100 days)", group=grpAlerts)
+
+// === COLORS ===
+grpColors = "🎨 Colors"
+accumulationColor = input.color(color.new(color.blue, 0), "Accumulation", group=grpColors)
+bullColor = input.color(color.new(color.lime, 0), "Bull Run", group=grpColors)
+distributionColor = input.color(color.new(color.orange, 0), "Distribution", group=grpColors)
+bearColor = input.color(color.new(color.red, 0), "Bear Market", group=grpColors)
+halvingColor = input.color(color.new(color.yellow, 0), "Halving Event", group=grpColors)
+
+// === HALVING DATES (Historical) ===
+// Timestamp of each halving (midnight UTC)
+halving1 = timestamp(2012, 11, 28, 0, 0, 0)  // First halving
+halving2 = timestamp(2016, 7, 9, 0, 0, 0)    // Second halving
+halving3 = timestamp(2020, 5, 11, 0, 0, 0)    // Third halving
+halving4 = timestamp(2024, 4, 20, 0, 0, 0)    // Fourth halving (most recent)
+// Estimated next halving: ~2028-04-20 (block 840,000)
+halving5 = timestamp(2028, 4, 20, 0, 0, 0)    // Next halving (estimated)
+
+// Function to get current halving cycle info
+// Returns: [lastHalvingDate, nextHalvingDate, daysSinceLast, daysUntilNext, phase]
+getHalvingCycle() =>
+    currentTime = time
+    lastHalving = halving4  // Start with most recent
+    nextHalving = halving5
+
+    // Determine which halving we're between
+    if currentTime >= halving4 and currentTime < halving5
+        lastHalving := halving4
+        nextHalving := halving5
+    else if currentTime >= halving3 and currentTime < halving4
+        lastHalving := halving3
+        nextHalving := halving4
+    else if currentTime >= halving2 and currentTime < halving3
+        lastHalving := halving2
+        nextHalving := halving3
+    else if currentTime >= halving1 and currentTime < halving2
+        lastHalving := halving1
+        nextHalving := halving2
+    else if currentTime < halving1
+        lastHalving := halving1
+        nextHalving := halving1
+    else
+        // Future beyond halving5, estimate
+        lastHalving := halving5
+        nextHalving := halving5 + (4 * 365 * 24 * 60 * 60 * 1000)  // ~4 years in milliseconds
+
+    daysSinceLast = (currentTime - lastHalving) / (1000 * 60 * 60 * 24)
+    daysUntilNext = (nextHalving - currentTime) / (1000 * 60 * 60 * 24)
+
+    // Determine phase based on days since last halving
+    phase = "Unknown"
+    if daysSinceLast >= accumulationStart and daysSinceLast < accumulationEnd
+        phase := "Accumulation"
+    else if daysSinceLast >= bullStart and daysSinceLast < bullEnd
+        phase := "Bull Run"
+    else if daysSinceLast >= distributionStart and daysSinceLast < distributionEnd
+        phase := "Distribution"
+    else if daysSinceLast >= bearStart and daysSinceLast < bearEnd
+        phase := "Bear Market"
+    else if daysSinceLast < accumulationStart
+        phase := "Immediate Post-Halving"
+    else
+        phase := "Pre-Halving"
+
+    [lastHalving, nextHalving, daysSinceLast, daysUntilNext, phase]
+
+// Get current cycle info (only recalculate on day changes)
+var float cachedDaysSince = na
+var float cachedDaysUntil = na
+var string cachedPhase = ""
+var int cachedDay = na
+
+dayChange = ta.change(dayofmonth)
+day_changed = not na(dayChange) and dayChange != 0
+
+if day_changed or na(cachedDaysSince)
+    [lastHalving, nextHalving, daysSince, daysUntil, phase] = getHalvingCycle()
+    cachedDaysSince := daysSince
+    cachedDaysUntil := daysUntil
+    cachedPhase := phase
+    cachedDay := dayofmonth
+
+currentDaysSince = cachedDaysSince
+currentDaysUntil = cachedDaysUntil
+currentPhase = cachedPhase
+
+// === PHASE DETECTION ===
+isAccumulation = currentPhase == "Accumulation"
+isBullRun = currentPhase == "Bull Run"
+isDistribution = currentPhase == "Distribution"
+isBearMarket = currentPhase == "Bear Market"
+isPostHalving = currentPhase == "Immediate Post-Halving"
+isPreHalving = currentPhase == "Pre-Halving"
+
+// Check if we're near a halving date (within 1 day)
+nearHalving = math.abs(currentDaysSince) < 1 or math.abs(currentDaysUntil) < 1
+
+// === PHASE-SPECIFIC VWAPs ===
+// Halving VWAP - resets at each halving
+var float halvingVWAPSum = 0.0
+var float halvingVolumeSum = 0.0
+var int lastHalvingVWAPBar = -1
+
+isHalvingVWAPReset = day_changed and nearHalving and (bar_index != lastHalvingVWAPBar)
+if isHalvingVWAPReset
+    lastHalvingVWAPBar := bar_index
+    halvingVWAPSum := close * volume
+    halvingVolumeSum := volume
+else if day_changed
+    halvingVWAPSum := halvingVWAPSum + close * volume
+    halvingVolumeSum := halvingVolumeSum + volume
+
+halvingVWAP = halvingVolumeSum > 0 ? halvingVWAPSum / halvingVolumeSum : na
+
+// Phase VWAP - resets at phase changes
+var float phaseVWAPSum = 0.0
+var float phaseVolumeSum = 0.0
+var int lastPhaseVWAPBar = -1
+var string lastTrackedPhase = ""
+
+phaseChanged = day_changed and currentPhase != lastTrackedPhase
+isPhaseVWAPReset = phaseChanged and (bar_index != lastPhaseVWAPBar)
+
+if isPhaseVWAPReset
+    lastPhaseVWAPBar := bar_index
+    lastTrackedPhase := currentPhase
+    phaseVWAPSum := close * volume
+    phaseVolumeSum := volume
+else if day_changed
+    phaseVWAPSum := phaseVWAPSum + close * volume
+    phaseVolumeSum := phaseVolumeSum + volume
+
+phaseVWAP = phaseVolumeSum > 0 ? phaseVWAPSum / phaseVolumeSum : na
+
+// === VISUALIZATION ===
+// Background colors
+bgColor = na
+if showBackground
+    if isAccumulation
+        bgColor := color.new(accumulationColor, 97)
+    else if isBullRun
+        bgColor := color.new(bullColor, 97)
+    else if isDistribution
+        bgColor := color.new(distributionColor, 97)
+    else if isBearMarket
+        bgColor := color.new(bearColor, 97)
+    else if nearHalving
+        bgColor := color.new(halvingColor, 95)
+
+bgcolor(bgColor)
+
+// Phase transition lines
+if showPhaseLines and phaseChanged
+    line.new(bar_index, low, bar_index, high, color=color.new(color.white, 70), width=2, style=line.style_dashed)
+
+// Halving date markers
+if showHalvingDates and day_changed
+    if nearHalving
+        label.new(bar_index, high, "⚡ HALVING", style=label.style_label_down, color=halvingColor, textcolor=color.white, size=size.normal)
+
+// Phase labels
+if showPhaseLabels and day_changed
+    phaseLabel = currentPhase
+    if nearHalving
+        phaseLabel := "⚡ HALVING EVENT"
+
+    labelColor = isAccumulation ? accumulationColor : isBullRun ? bullColor : isDistribution ? distributionColor : isBearMarket ? bearColor : color.gray
+
+    label.new(bar_index, low, phaseLabel, style=label.style_label_up, color=labelColor, textcolor=color.white, size=size.small)
+
+// Days counter
+if showDaysCounter and day_changed
+    daysText = "Days Since Halving: " + str.tostring(math.round(currentDaysSince)) + "\nDays Until Next: " + str.tostring(math.round(currentDaysUntil))
+    label.new(bar_index, low, daysText, style=label.style_label_up, color=color.new(color.gray, 70), textcolor=color.white, size=size.tiny)
+
+// === VWAP PLOTS ===
+plot(showHalvingVWAP ? halvingVWAP : na, "Halving VWAP", color=halvingColor, linewidth=2, style=plot.style_line)
+plot(showPhaseVWAP ? phaseVWAP : na, "Phase VWAP", color=color.new(color.white, 30), linewidth=1, style=plot.style_line)
+
+// === ALERTS ===
+if alertOnPhaseChange and phaseChanged
+    alert("Halving Cycle Phase Changed: " + currentPhase, alert.freq_once_per_bar)
+
+if alertOnHalvingApproach and day_changed and currentDaysUntil <= 100 and currentDaysUntil > 0
+    alert("Halving Approaching in " + str.tostring(math.round(currentDaysUntil)) + " days!", alert.freq_once_per_bar)
+
+// === DATA WINDOW INFO ===
+var table infoTable = na
+if barstate.islast
+    if na(infoTable)
+        infoTable := table.new(position.top_left, 2, 6, bgcolor=color.new(color.black, 85), border_width=1)
+
+    table.cell(infoTable, 0, 0, "Halving Cycle Info", text_color=color.white, text_size=size.normal, bgcolor=color.new(color.gray, 50))
+    table.cell(infoTable, 1, 0, "", text_color=color.white, text_size=size.normal, bgcolor=color.new(color.gray, 50))
+
+    table.cell(infoTable, 0, 1, "Current Phase", text_color=color.white, text_size=size.small)
+    phaseDisplayColor = isAccumulation ? accumulationColor : isBullRun ? bullColor : isDistribution ? distributionColor : isBearMarket ? bearColor : color.gray
+    table.cell(infoTable, 1, 1, currentPhase, text_color=phaseDisplayColor, text_size=size.small)
+
+    table.cell(infoTable, 0, 2, "Days Since Last", text_color=color.white, text_size=size.small)
+    table.cell(infoTable, 1, 2, str.tostring(math.round(currentDaysSince)), text_color=color.white, text_size=size.small)
+
+    table.cell(infoTable, 0, 3, "Days Until Next", text_color=color.white, text_size=size.small)
+    table.cell(infoTable, 1, 3, str.tostring(math.round(currentDaysUntil)), text_color=color.white, text_size=size.small)
+
+    table.cell(infoTable, 0, 4, "Cycle Progress", text_color=color.white, text_size=size.small)
+    cycleProgress = (currentDaysSince / 1460) * 100  // 4 years = ~1460 days
+    table.cell(infoTable, 1, 4, str.tostring(math.round(cycleProgress, 1)) + "%", text_color=color.white, text_size=size.small)
+
+    table.cell(infoTable, 0, 5, "Next Halving", text_color=color.white, text_size=size.small)
+    table.cell(infoTable, 1, 5, "~2028-04-20", text_color=color.white, text_size=size.small)
+
+
+
+
+
+
+

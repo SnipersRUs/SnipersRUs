@@ -1,0 +1,165 @@
+//@version=6
+indicator("Liquidity Hunter Scalp Pro", shorttitle="ScalpHunt", overlay=false)
+
+// ── INPUTS
+g1 = "🚀 Scalp Settings (Lower TF)"
+scalpMode = input.bool(true, "Enable Scalp Mode (Auto-Optimize)", group=g1)
+// When scalp mode is on, we use lower lookbacks and thresholds.
+// When off, we use the manual inputs below.
+
+lookback_manual = input.int(100, "Manual Lookback (Swing)", minval=20, group=g1)
+liqMin_manual   = input.float(10.0, "Manual Min Liq (M) (Swing)", step=0.1, group=g1)
+
+// Auto-tuned values for Scalping
+lookback_val = scalpMode ? 20 : lookback_manual
+liqMin_val   = scalpMode ? 1.0 : liqMin_manual // Much lower threshold for scalping
+
+g2 = "📊 Volume & Volatility"
+rvolLen        = input.int(20, "RVOL Lookback", minval=5, group=g2)
+rvolMin        = input.float(1.5, "Min RVOL", step=0.1, group=g2)
+zThresh        = input.float(1.2, "Z-Score Threshold", step=0.1, group=g2) // Lowered slightly for sensitivity
+useVWAP        = input.bool(true, "Use VWAP Deviation", group=g2)
+vwapMultiplier = input.float(1.5, "VWAP Multiplier", step=0.1, group=g2)
+
+g_rev = "🎯 Reversal & Trap"
+show_trap_labels  = input.bool(true, "Show Labels on Chart", group=g_rev)
+show_trap_dots    = input.bool(true, "Show Trap Dots", group=g_rev)
+detect_local_sweeps = input.bool(true, "Detect Local Intraday Sweeps", group=g_rev)
+local_sweep_len   = input.int(20, "Local Structure Lookback", minval=5, maxval=100, group=g_rev)
+
+// ── CORE CALCULATIONS
+// Liquidity Calculation
+volumeM  = volume / 1e6
+rangePU  = high - low
+liqRawM  = volumeM * rangePU
+isBear   = close < open
+
+tickMove     = math.abs(close - close[1])
+tickVolume   = tickMove > 0 ? volume / tickMove : volume
+liqEnhancedM = (liqRawM * 0.7) + ((tickVolume / 1e6) * 0.3)
+
+// Z-Score Logic (Dynamic Lookback)
+liqMean = ta.sma(liqEnhancedM, lookback_val)
+liqStd  = ta.stdev(liqEnhancedM, lookback_val)
+z       = liqStd > 0 ? (liqEnhancedM - liqMean) / liqStd : 0.0
+
+// Volatility & VWAP
+atr14 = ta.atr(14)
+vwapValue    = ta.vwap(hlc3)
+vwapDev      = ta.stdev(hlc3, 20)
+vwapDistance = vwapDev > 0 ? math.abs(close - vwapValue) / vwapDev : 0.0
+isVWAPExtreme = useVWAP ? vwapDistance > vwapMultiplier : true
+
+// Volume Analysis
+avgVolume = ta.wma(volume, rvolLen)
+rvol      = volume / math.max(1.0, avgVolume)
+isHighVol = rvol >= rvolMin
+
+// Delta & CVD
+buyVolume  = isBear ? volume * (high - close) / math.max(rangePU, 0.001) : volume * (close - low) / math.max(rangePU, 0.001)
+sellVolume = volume - buyVolume
+delta      = buyVolume - sellVolume
+var float cvd = 0
+cvd += delta
+cvdTrend    = cvd > cvd[1]
+
+// ── DETECTION LOGIC
+
+// 1. Sweeps (Stop Hunts)
+// Daily Sweep (Swing Trading)
+[session_high, session_low, prev_high, prev_low] = request.security(syminfo.tickerid, "D", [high, low, high[1], low[1]])
+daily_sweep_detected = (high > prev_high and close < prev_high) or (low < prev_low and close > prev_low)
+
+// Local Sweep (Scalping - High/Low of last N bars)
+highest_local = ta.highest(high[1], local_sweep_len)
+lowest_local  = ta.lowest(low[1], local_sweep_len)
+local_sweep_detected = (high > highest_local and close < highest_local) or (low < lowest_local and close > lowest_local)
+
+// Combine Sweeps
+sweep_detected = daily_sweep_detected or (detect_local_sweeps and local_sweep_detected)
+
+// 2. Divergence
+lookback_div = scalpMode ? 10 : 20 // Faster divergence for scalp
+highest_liq   = ta.highest(liqEnhancedM, lookback_div)
+bearish_divergence = high >= ta.highest(high, lookback_div) * 0.995 and liqEnhancedM < highest_liq * 0.8
+bullish_divergence = low  <= ta.lowest(low, lookback_div) * 1.005 and liqEnhancedM < highest_liq * 0.8
+divergence_detected = bearish_divergence or bullish_divergence
+
+// 3. Scoring (Re-weighted for scalping)
+reversal_score = 0.0
+
+// Base Liquidity spike (Crucial for scalping)
+if liqEnhancedM >= liqMin_val and z >= zThresh
+    reversal_score += 1.5
+
+// Sweep (Major weight)
+if sweep_detected
+    reversal_score += 2.0
+
+// Divergence
+if divergence_detected
+    reversal_score += 1.0
+
+// VWAP Extremes
+if isVWAPExtreme
+    reversal_score += 0.5
+
+// Volume Profile Absorption (Simplified)
+absorption = isHighVol and rangePU < atr14 * 0.6
+if absorption
+    reversal_score += 1.0
+
+// Final Probability
+reversal_probability  = math.min(100.0, reversal_score * 14.0) // Slightly steeper curve
+trap_confirmed        = reversal_score >= 3.5 // Lowered threshold for faster signals
+extreme_reversal_prob = reversal_probability >= 75
+
+// ── VISUALS (Thicker Lines for Clarity)
+
+// Dynamic Colors - Modern, high-contrast
+color major_bull = color.new(#39ff14, 0)  // Neon green (major liquidity)
+color major_bear = color.new(#ff1f1f, 0)  // Bright red (major liquidity)
+color grab_bull  = color.new(#1fbf4b, 20) // Slightly darker green (LTF grabs)
+color grab_bear  = color.new(#c62828, 20) // Slightly darker red (LTF grabs)
+color noise_gray = color.new(color.gray, 75)
+
+color barColor = noise_gray
+
+// Priority Coloring
+if (sweep_detected or trap_confirmed) and liqEnhancedM >= liqMin_val
+    barColor := isBear ? grab_bear : grab_bull
+else if liqEnhancedM >= liqMin_val
+    barColor := isBear ? major_bear : major_bull
+
+// Plot Histogram with THICKER LINES (linewidth=4)
+plot(liqEnhancedM, "Liquidity", style=plot.style_columns, color=barColor, linewidth=4)
+
+// Threshold Lines
+hline(liqMin_val, "Min Size", color=color.gray, linestyle=hline.style_dotted, linewidth=1)
+plot(liqMean, "Mean", color=color.new(color.blue, 50), linewidth=2)
+
+// ── SIGNAL LABELS (Overlay on Main Chart)
+
+// 1. Major Trap Mark (brightness scales with probability)
+lbl_col = isBear ? color.red : color.lime
+trap_alpha = math.round(math.max(0.0, math.min(90.0, 90.0 - reversal_probability * 0.9)))
+trap_color = color.new(lbl_col, trap_alpha)
+plotshape(show_trap_dots and trap_confirmed, title="Trap Mark", style=shape.xcross, location=location.bottom, color=trap_color, size=size.tiny)
+
+// 2. Quick Sweep Mark (gray X, brightness scales with liquidity)
+sweep_mark = show_trap_labels and sweep_detected and not trap_confirmed and liqEnhancedM >= liqMin_val
+sweep_strength = sweep_mark ? math.min(1.0, liqEnhancedM / (liqMin_val * 3.0)) : 0.0
+sweep_alpha = math.round(math.max(0.0, math.min(90.0, 90.0 - sweep_strength * 60.0)))
+sweep_color = color.new(color.gray, sweep_alpha)
+plotshape(sweep_mark, title="Sweep Mark", style=shape.xcross, location=location.bottom, color=sweep_color, size=size.tiny)
+
+// 3. Absorption Mark (Bull = green, Bear = purple)
+absorption_mark = show_trap_labels and absorption and not trap_confirmed and not sweep_detected
+absorption_color = isBear ? color.purple : color.green
+plotshape(absorption_mark, title="Absorption Mark", style=shape.xcross, location=location.bottom, color=absorption_color, size=size.tiny)
+
+
+// ── ALERTS
+alertcondition(trap_confirmed, "Market Maker Trap Confirmed", "MM TRAP CONFIRMED")
+alertcondition(sweep_detected and liqEnhancedM >= liqMin_val, "Stop Hunt / Sweep", "SWEEP DETECTED")
+alertcondition(extreme_reversal_prob, "Extreme Reversal Zone", "EXTREME REVERSAL SETUP")

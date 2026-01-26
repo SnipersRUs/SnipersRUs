@@ -1,0 +1,222 @@
+//@version=5
+indicator("9-Day Cycle VWAP System", overlay=true, max_labels_count=500, max_lines_count=500)
+
+// ===== INPUTS =====
+showVWAPs = input.bool(true, "Show VWAP Lines", group="Display")
+showSignals = input.bool(true, "Show Buy/Sell Signals", group="Display")
+showCycleDays = input.bool(true, "Show Cycle Day Labels", group="Display")
+showZones = input.bool(true, "Show Reversal Zones", group="Display")
+
+// Standard Deviation multipliers
+sd1_mult = input.float(1.0, "1st Std Dev", group="VWAP Bands")
+sd2_mult = input.float(2.0, "2nd Std Dev (Reversal Zone)", group="VWAP Bands")
+
+// ===== CYCLE DAY COUNTER (MOVED UP) =====
+var int cycle_day = 1
+var int bars_since_reversal = 0
+
+if ta.change(time('D'))
+    bars_since_reversal += 1
+    cycle_day := bars_since_reversal
+
+// ===== VWAP CALCULATIONS =====
+
+// Daily VWAP
+var float daily_vwap_sum = 0.0
+var float daily_volume_sum = 0.0
+var float daily_vwap = na
+
+if ta.change(time('D'))
+    daily_vwap_sum := 0.0
+    daily_volume_sum := 0.0
+
+daily_vwap_sum += volume * hl2
+daily_volume_sum += volume
+daily_vwap := daily_vwap_sum / daily_volume_sum
+
+// 4-Day Anchored VWAP (resets every 4 days)
+var float vwap_4d_sum = 0.0
+var float vwap_4d_vol = 0.0
+var float vwap_4d = na
+
+if ta.change(time('4D')) or cycle_day == 1
+    vwap_4d_sum := 0.0
+    vwap_4d_vol := 0.0
+
+vwap_4d_sum += volume * hl2
+vwap_4d_vol += volume
+vwap_4d := vwap_4d_sum / vwap_4d_vol
+
+// 9-Day Anchored VWAP (our cycle anchor) - resets every 9 days
+var float vwap_9d_sum = 0.0
+var float vwap_9d_vol = 0.0
+var float vwap_9d = na
+
+if ta.change(time('9D')) or cycle_day == 1
+    vwap_9d_sum := 0.0
+    vwap_9d_vol := 0.0
+
+vwap_9d_sum += volume * hl2
+vwap_9d_vol += volume
+vwap_9d := vwap_9d_sum / vwap_9d_vol
+
+// Weekly VWAP (Monday reset)
+var float vwap_weekly_sum = 0.0
+var float vwap_weekly_vol = 0.0
+var float vwap_weekly = na
+
+if ta.change(time('W'))
+    vwap_weekly_sum := 0.0
+    vwap_weekly_vol := 0.0
+
+vwap_weekly_sum += volume * hl2
+vwap_weekly_vol += volume
+vwap_weekly := vwap_weekly_sum / vwap_weekly_vol
+
+// ===== STANDARD DEVIATION BANDS FOR 9-DAY VWAP =====
+length_9d = 9
+src = hlc3
+sum_src = 0.0
+sum_vol = 0.0
+sum_src_sq = 0.0
+
+for i = 0 to length_9d - 1
+    price = src[i]
+    vol = volume[i]
+    sum_src += price * vol
+    sum_vol += vol
+    sum_src_sq += price * price * vol
+
+vwap_9d_calc = sum_src / sum_vol
+variance = (sum_src_sq / sum_vol) - (vwap_9d_calc * vwap_9d_calc)
+std_dev = math.sqrt(math.max(variance, 0))
+
+vwap_9d_upper1 = vwap_9d_calc + (std_dev * sd1_mult)
+vwap_9d_lower1 = vwap_9d_calc - (std_dev * sd1_mult)
+vwap_9d_upper2 = vwap_9d_calc + (std_dev * sd2_mult)
+vwap_9d_lower2 = vwap_9d_calc - (std_dev * sd2_mult)
+
+// ===== CYCLE DAY COUNTER (ALREADY DECLARED ABOVE) =====
+
+// ===== MARKET STRUCTURE =====
+// Trend direction based on 4-day VWAP
+trend_up = close > vwap_4d
+trend_down = close < vwap_4d
+
+// Price position relative to 9-day VWAP
+in_upper_reversal_zone = close > vwap_9d_upper2
+in_lower_reversal_zone = close < vwap_9d_lower2
+extended_up = close > vwap_9d_upper1
+extended_down = close < vwap_9d_lower1
+
+// Day classification
+is_expansion_phase = cycle_day >= 1 and cycle_day <= 4
+is_extension_phase = cycle_day >= 5 and cycle_day <= 6
+is_day_7 = cycle_day == 7
+is_exhaustion_phase = cycle_day >= 7 and cycle_day <= 9
+is_chop_phase = cycle_day >= 10
+
+// ===== RSI CALCULATION - MOVED BEFORE USAGE =====
+rsi_val = ta.rsi(close, 14)
+
+// ===== SIGNAL LOGIC =====
+
+// BUY SIGNALS
+// 1. Days 1-4: Price reclaims 4-day VWAP with momentum
+buy_signal_early = is_expansion_phase and ta.crossover(close, vwap_4d) and volume > ta.sma(volume, 20)
+
+// 2. Days 5-6: Continuation on pullback to 9-day VWAP
+buy_signal_continuation = is_extension_phase and trend_up and close > vwap_9d_calc and low <= vwap_9d_calc and close > open
+
+// 3. Day 7+: Reversal from lower reversal zone
+buy_signal_reversal = (is_day_7 or is_exhaustion_phase) and in_lower_reversal_zone and ta.crossover(close, vwap_9d_lower1) and rsi_val > 30
+
+// 4. New cycle start after chop
+buy_signal_new_cycle = is_chop_phase and ta.crossover(close, vwap_9d_calc) and ta.crossover(close, vwap_4d)
+
+buy_signal = buy_signal_early or buy_signal_continuation or buy_signal_reversal or buy_signal_new_cycle
+
+// SELL SIGNALS
+// 1. Days 1-4: Loss of 4-day VWAP support
+sell_signal_early = is_expansion_phase and ta.crossunder(close, vwap_4d) and volume > ta.sma(volume, 20)
+
+// 2. Days 5-6: Failure at 9-day VWAP resistance
+sell_signal_continuation = is_extension_phase and trend_down and close < vwap_9d_calc and high >= vwap_9d_calc and close < open
+
+// 3. Day 7+: Reversal from upper reversal zone
+sell_signal_reversal = (is_day_7 or is_exhaustion_phase) and in_upper_reversal_zone and ta.crossunder(close, vwap_9d_upper1) and rsi_val < 70
+
+// 4. New cycle start after chop
+sell_signal_new_cycle = is_chop_phase and ta.crossunder(close, vwap_9d_calc) and ta.crossunder(close, vwap_4d)
+
+sell_signal = sell_signal_early or sell_signal_continuation or sell_signal_reversal or sell_signal_new_cycle
+
+// Reset cycle counter on confirmed reversals
+if (sell_signal_reversal or buy_signal_reversal) and is_exhaustion_phase
+    bars_since_reversal := 0
+    cycle_day := 1
+
+// ===== PLOTTING =====
+
+// VWAP Lines
+plot(showVWAPs ? daily_vwap : na, "Daily VWAP", color.new(color.yellow, 50), 1)
+plot(showVWAPs ? vwap_4d : na, "4-Day VWAP", color.new(color.blue, 0), 2)
+plot(showVWAPs ? vwap_9d : na, "9-Day VWAP", color.new(color.orange, 0), 3)
+plot(showVWAPs ? vwap_weekly : na, "Weekly VWAP", color.new(color.purple, 30), 2, plot.style_circles)
+
+// Standard Deviation Bands
+p1 = plot(showZones ? vwap_9d_upper1 : na, "Upper 1SD", color.new(color.green, 70), 1)
+p2 = plot(showZones ? vwap_9d_lower1 : na, "Lower 1SD", color.new(color.red, 70), 1)
+p3 = plot(showZones ? vwap_9d_upper2 : na, "Upper 2SD", color.new(color.green, 80), 1, plot.style_circles)
+p4 = plot(showZones ? vwap_9d_lower2 : na, "Lower 2SD", color.new(color.red, 80), 1, plot.style_circles)
+
+// Reversal zones
+fill(p1, p3, color.new(color.green, 90), title="Upper Reversal Zone")
+fill(p2, p4, color.new(color.red, 90), title="Lower Reversal Zone")
+
+// Background coloring for cycle phases
+bgcolor(is_expansion_phase ? color.new(color.blue, 95) : na, title="Expansion Phase (Days 1-4)")
+bgcolor(is_extension_phase ? color.new(color.green, 95) : na, title="Extension Phase (Days 5-6)")
+bgcolor(is_day_7 ? color.new(color.orange, 90) : na, title="Day 7 Decision")
+bgcolor(is_exhaustion_phase and cycle_day > 7 ? color.new(color.red, 95) : na, title="Exhaustion (Days 8-9)")
+bgcolor(is_chop_phase ? color.new(color.gray, 97) : na, title="Chop Phase")
+
+// Buy/Sell Signals
+plotshape(showSignals and buy_signal, "Buy", shape.labelup, location.belowbar, color.new(color.green, 0), text="BUY", textcolor=color.white, size=size.small)
+plotshape(showSignals and sell_signal, "Sell", shape.labeldown, location.abovebar, color.new(color.red, 0), text="SELL", textcolor=color.white, size=size.small)
+
+// Cycle Day Label
+if showCycleDays and ta.change(time('D')) != 0
+    label.new(bar_index, high, "D" + str.tostring(cycle_day), style=label.style_label_down, color=color.new(color.white, 30), textcolor=color.black, size=size.tiny)
+
+// ===== ALERTS =====
+alertcondition(buy_signal, "Buy Signal", "9-Day Cycle BUY signal triggered")
+alertcondition(sell_signal, "Sell Signal", "9-Day Cycle SELL signal triggered")
+alertcondition(is_day_7 and in_upper_reversal_zone, "Day 7 Reversal Watch (Short)", "Day 7: Price in upper reversal zone - watch for short")
+alertcondition(is_day_7 and in_lower_reversal_zone, "Day 7 Reversal Watch (Long)", "Day 7: Price in lower reversal zone - watch for long")
+
+// ===== TABLE INFO =====
+var table info_table = table.new(position.top_right, 2, 6, bgcolor=color.new(color.black, 80), frame_color=color.gray, frame_width=1)
+
+if barstate.islast
+    table.cell(info_table, 0, 0, "Cycle Day", text_color=color.white, bgcolor=color.new(color.gray, 70))
+    table.cell(info_table, 1, 0, str.tostring(cycle_day), text_color=color.yellow, bgcolor=color.new(color.gray, 70))
+
+    table.cell(info_table, 0, 1, "Phase", text_color=color.white)
+    phase_text = is_expansion_phase ? "Expansion (1-4)" : is_extension_phase ? "Extension (5-6)" : is_day_7 ? "Day 7 Decision" : is_exhaustion_phase ? "Exhaustion (8-9)" : "Chop"
+    phase_color = is_expansion_phase ? color.blue : is_extension_phase ? color.green : is_day_7 ? color.orange : is_exhaustion_phase ? color.red : color.gray
+    table.cell(info_table, 1, 1, phase_text, text_color=phase_color)
+
+    table.cell(info_table, 0, 2, "Trend", text_color=color.white)
+    table.cell(info_table, 1, 2, trend_up ? "UP ↑" : trend_down ? "DOWN ↓" : "NEUTRAL", text_color=trend_up ? color.green : trend_down ? color.red : color.gray)
+
+    table.cell(info_table, 0, 3, "Position", text_color=color.white)
+    pos_text = in_upper_reversal_zone ? "Reversal Zone ↓" : in_lower_reversal_zone ? "Reversal Zone ↑" : extended_up ? "Extended Up" : extended_down ? "Extended Down" : "Normal"
+    pos_color = in_upper_reversal_zone ? color.red : in_lower_reversal_zone ? color.green : color.white
+    table.cell(info_table, 1, 3, pos_text, text_color=pos_color)
+
+    table.cell(info_table, 0, 4, "4D VWAP", text_color=color.white)
+    table.cell(info_table, 1, 4, str.tostring(vwap_4d, format.mintick), text_color=color.blue)
+
+    table.cell(info_table, 0, 5, "9D VWAP", text_color=color.white)
+    table.cell(info_table, 1, 5, str.tostring(vwap_9d, format.mintick), text_color=color.orange)

@@ -1,0 +1,835 @@
+//@version=6
+indicator("Cloudfare 2.0", "CLOUDFARE2", overlay=true, max_labels_count=500)
+
+// ============================================================================
+// INPUT PARAMETERS
+// ============================================================================
+ma_fast = input.int(20, "Fast MA", minval=5, maxval=50)
+ma_medium = input.int(50, "Medium MA", minval=20, maxval=100)
+ma_slow = input.int(200, "Slow MA", minval=100, maxval=300)
+confirmation_days = input.int(5, "Confirmation Days", minval=3, maxval=10)
+volume_threshold = input.float(1.2, "Volume Threshold", minval=1.0, maxval=2.0)
+atr_multiplier = input.float(1.5, "ATR Multiplier", minval=1.0, maxval=3.0)
+
+// ============================================================================
+// DYNAMIC CLOUD PARAMETERS
+// ============================================================================
+cloud_sensitivity = input.float(1.2, "Cloud Sensitivity", minval=0.3, maxval=3.0)
+volume_cloud_multiplier = input.float(0.8, "Volume Cloud Multiplier", minval=0.3, maxval=2.0)
+money_flow_period = input.int(14, "Money Flow Period", minval=5, maxval=50)
+order_flow_period = input.int(21, "Order Flow Period", minval=10, maxval=100)
+cloud_base_multiplier = input.float(0.6, "Cloud Base Size", minval=0.2, maxval=1.5)
+
+// ============================================================================
+// VWAP SETTINGS - OPTIMIZED VWAPs
+// ============================================================================
+show_1h_vwap = input.bool(false, "Show 1-Hour Anchored VWAP")
+show_2h_vwap = input.bool(false, "Show 2-Hour Anchored VWAP")
+show_6h_vwap = input.bool(false, "Show 6-Hour Anchored VWAP")
+show_4d_vwap = input.bool(true, "Show 4D VWAP")
+show_9d_vwap = input.bool(false, "Show 9-Day VWAP")
+show_weekly_vwap = input.bool(true, "Show Weekly VWAP")
+show_monthly_vwap = input.bool(false, "Show Monthly VWAP")
+show_yearly_vwap = input.bool(false, "Show Yearly VWAP")
+show_prev_year_vwap = input.bool(false, "Show Previous Year VWAP")
+show_session_boxes = input.bool(false, "Show Asian Session Boxes")
+show_ny_session_boxes = input.bool(false, "Show New York Session Boxes")
+show_current_session_box = input.bool(false, "Show Current Session Box")
+// Removed VWAP stack signals input as they are not working
+
+// ============================================================================
+// COLOR SETTINGS
+// ============================================================================
+cloud_bull_color = input.color(#00FF00, "Cloud Bull Color")
+cloud_bear_color = input.color(#FF0000, "Cloud Bear Color")
+vwap_1h_color = input.color(#00FF00, "1H VWAP Color (Lime)")
+vwap_2h_color = input.color(#FF00FF, "2H VWAP Color (Pink)")
+vwap_6h_color = input.color(#FFFF00, "6H VWAP Color (Yellow)")
+vwap_4d_color = input.color(#00FFFF, "4D VWAP Color (Neon Blue)")
+vwap_9d_color = input.color(#0000FF, "9D VWAP Color (Blue)")
+vwap_weekly_color = input.color(#FFA500, "Weekly VWAP Color (Orange)")
+vwap_monthly_color = input.color(#FF00FF, "Monthly VWAP Color (Hot Pink)")
+vwap_yearly_color = input.color(#FFFFFF, "Yearly VWAP Color (White)")
+vwap_prev_year_color = input.color(#FFE4E1, "Previous Year VWAP Color (Pinkish White)")
+session_box_color = input.color(#0000FF, "Asian Session Box Color (Blue)")
+ny_session_box_color = input.color(#FF0000, "New York Session Box Color (Red)")
+current_session_box_color = input.color(#FFFF00, "Current Session Box Color (Yellow)")
+
+// ============================================================================
+// SIGNAL SETTINGS
+// ============================================================================
+// Divergence signals removed as requested
+show_bull_confirm = input.bool(true, "Show Bull Confirmations")
+show_bear_confirm = input.bool(true, "Show Bear Confirmations")
+show_reversal_signals = input.bool(true, "Show Higher High/Lower Low Reversal Signals")
+show_pre_bull = input.bool(false, "Show Pre-Bull Signals")
+show_pre_bear = input.bool(false, "Show Pre-Bear Signals")
+show_trend_line = input.bool(true, "Show Trend Line")
+show_dynamic_cloud = input.bool(true, "Show Dynamic Cloud")
+
+// ============================================================================
+// CALCULATIONS
+// ============================================================================
+// Moving Averages
+ma20 = ta.sma(close, ma_fast)
+ma50 = ta.sma(close, ma_medium)
+ma200 = ta.sma(close, ma_slow)
+
+// Volume and ATR
+avg_volume = ta.sma(volume, 20)
+atr = ta.atr(14)
+volume_ok = volume > avg_volume * volume_threshold
+move_significant = math.abs(close - close[1]) > atr * atr_multiplier
+
+// ============================================================================
+// MONEY FLOW & ORDER FLOW CALCULATIONS
+// ============================================================================
+// Money Flow Index (MFI)
+mfi = ta.mfi(close, money_flow_period)
+money_flow_strength = (mfi - 50) / 50  // Normalize to -1 to 1
+
+// On Balance Volume (OBV) for order flow
+obv = ta.obv
+obv_change = obv - obv[1]
+obv_strength = ta.sma(obv_change, order_flow_period)
+
+// ============================================================================
+// VWAP CALCULATIONS - ALL VWAPs RESTORED
+// ============================================================================
+// Standard VWAP
+vwap = ta.vwap(hlc3)
+
+// 1 Hour Anchored VWAP (resets every hour)
+is_new_1h = ta.change(time("60")) != 0 or bar_index == 0
+var float vwap_1h_sum = 0.0
+var float vwap_1h_vol = 0.0
+if is_new_1h
+    vwap_1h_sum := hlc3 * volume
+    vwap_1h_vol := volume
+else
+    vwap_1h_sum += hlc3 * volume
+    vwap_1h_vol += volume
+vwap_1h = vwap_1h_vol > 0 ? vwap_1h_sum / vwap_1h_vol : na
+
+// 2 Hour Anchored VWAP (resets every 2 hours)
+is_new_2h = ta.change(time("120")) != 0 or bar_index == 0
+var float vwap_2h_sum = 0.0
+var float vwap_2h_vol = 0.0
+if is_new_2h
+    vwap_2h_sum := hlc3 * volume
+    vwap_2h_vol := volume
+else
+    vwap_2h_sum += hlc3 * volume
+    vwap_2h_vol += volume
+vwap_2h = vwap_2h_vol > 0 ? vwap_2h_sum / vwap_2h_vol : na
+
+// 6 Hour Anchored VWAP (resets every 6 hours)
+is_new_6h = ta.change(time("360")) != 0 or bar_index == 0
+var float vwap_6h_sum = 0.0
+var float vwap_6h_vol = 0.0
+if is_new_6h
+    vwap_6h_sum := hlc3 * volume
+    vwap_6h_vol := volume
+else
+    vwap_6h_sum += hlc3 * volume
+    vwap_6h_vol += volume
+vwap_6h = vwap_6h_vol > 0 ? vwap_6h_sum / vwap_6h_vol : na
+
+// Removed 3D VWAP as requested
+
+// Removed 4H and 3D VWAPs as they are redundant
+
+// 4 Day Anchored VWAP (resets every 4 days)
+// Track day changes manually to reset every 4 days
+var int day_counter_4d = 0
+var int last_day_4d = dayofmonth
+var int last_month_4d = month
+is_new_day_4d = dayofmonth != last_day_4d or month != last_month_4d
+if is_new_day_4d
+    day_counter_4d := day_counter_4d + 1
+    last_day_4d := dayofmonth
+    last_month_4d := month
+    if day_counter_4d >= 4
+        day_counter_4d := 0
+
+// Reset on day 0 (after completing 4 days) or on first bar
+is_new_4d = (is_new_day_4d and day_counter_4d == 0) or (bar_index == 0)
+var float vwap_4d_sum = 0.0
+var float vwap_4d_vol = 0.0
+if is_new_4d
+    vwap_4d_sum := hlc3 * volume
+    vwap_4d_vol := volume
+else
+    vwap_4d_sum += hlc3 * volume
+    vwap_4d_vol += volume
+vwap_4d = vwap_4d_vol > 0 ? vwap_4d_sum / vwap_4d_vol : na
+
+// 9 Day Anchored VWAP (resets every 9 days) with reversal zones
+// Track day changes manually to reset every 9 days
+var int day_counter_9d = 0
+var int last_day_9d = dayofmonth
+var int last_month_9d = month
+is_new_day_9d = dayofmonth != last_day_9d or month != last_month_9d
+if is_new_day_9d
+    day_counter_9d := day_counter_9d + 1
+    last_day_9d := dayofmonth
+    last_month_9d := month
+    if day_counter_9d >= 9
+        day_counter_9d := 0
+
+// Reset on day 0 (after completing 9 days) or on first bar
+is_new_9d = (is_new_day_9d and day_counter_9d == 0) or (bar_index == 0)
+var float vwap_9d_sum = 0.0
+var float vwap_9d_vol = 0.0
+if is_new_9d
+    vwap_9d_sum := hlc3 * volume
+    vwap_9d_vol := volume
+else
+    vwap_9d_sum += hlc3 * volume
+    vwap_9d_vol += volume
+vwap_9d = vwap_9d_vol > 0 ? vwap_9d_sum / vwap_9d_vol : na
+
+// Weekly Anchored VWAP (resets every week)
+is_new_week = ta.change(time("1W")) != 0 or bar_index == 0
+var float vwap_weekly_sum = 0.0
+var float vwap_weekly_vol = 0.0
+if is_new_week
+    vwap_weekly_sum := hlc3 * volume
+    vwap_weekly_vol := volume
+else
+    vwap_weekly_sum += hlc3 * volume
+    vwap_weekly_vol += volume
+vwap_weekly = vwap_weekly_vol > 0 ? vwap_weekly_sum / vwap_weekly_vol : na
+
+// Monthly Anchored VWAP (resets every month)
+is_new_month = ta.change(time("1M")) != 0 or bar_index == 0
+var float vwap_monthly_sum = 0.0
+var float vwap_monthly_vol = 0.0
+if is_new_month
+    vwap_monthly_sum := hlc3 * volume
+    vwap_monthly_vol := volume
+else
+    vwap_monthly_sum += hlc3 * volume
+    vwap_monthly_vol += volume
+vwap_monthly = vwap_monthly_vol > 0 ? vwap_monthly_sum / vwap_monthly_vol : na
+
+// Yearly Anchored VWAP (resets every year)
+is_new_year = ta.change(time("12M")) != 0 or bar_index == 0
+var float vwap_yearly_sum = 0.0
+var float vwap_yearly_vol = 0.0
+if is_new_year
+    vwap_yearly_sum := hlc3 * volume
+    vwap_yearly_vol := volume
+else
+    vwap_yearly_sum += hlc3 * volume
+    vwap_yearly_vol += volume
+vwap_yearly = vwap_yearly_vol > 0 ? vwap_yearly_sum / vwap_yearly_vol : na
+
+// Previous Year VWAP (anchored to start of previous year)
+// Save the previous year's VWAP when a new year starts
+var float vwap_prev_year = na
+
+// When a new year starts, capture the previous year's final VWAP values
+if is_new_year and bar_index > 0
+    // Save the previous year's VWAP (from before the reset)
+    prev_year_sum = vwap_yearly_sum[1]
+    prev_year_vol = vwap_yearly_vol[1]
+    if prev_year_vol > 0
+        vwap_prev_year := prev_year_sum / prev_year_vol
+    else
+        vwap_prev_year := na
+
+// ============================================================================
+// SESSION BOX CALCULATIONS (TRANSPARENT LIKE ORIGINAL)
+// ============================================================================
+// Asian session times (00:00-12:00 UTC)
+is_asian_session = hour >= 0 and hour < 12
+asian_session_start = is_asian_session and not is_asian_session[1]
+asian_session_end = not is_asian_session and is_asian_session[1]
+
+// Track Asian session high/low
+var float asian_high = na
+var float asian_low = na
+var int asian_start_bar = na
+
+if asian_session_start
+    asian_high := high
+    asian_low := low
+    asian_start_bar := bar_index
+else if is_asian_session
+    asian_high := math.max(asian_high, high)
+    asian_low := math.min(asian_low, low)
+
+// New York session times (13:00-22:00 UTC, 8:00-17:00 EST)
+is_ny_session = hour >= 13 and hour < 22
+ny_session_start = is_ny_session and not is_ny_session[1]
+ny_session_end = not is_ny_session and is_ny_session[1]
+
+// Track New York session high/low
+var float ny_high = na
+var float ny_low = na
+var int ny_start_bar = na
+
+if ny_session_start
+    ny_high := high
+    ny_low := low
+    ny_start_bar := bar_index
+else if is_ny_session
+    ny_high := math.max(ny_high, high)
+    ny_low := math.min(ny_low, low)
+
+// Current session tracking (Asian, London, or New York)
+// Asian: 00:00-12:00 UTC
+// London: 08:00-17:00 UTC
+// New York: 13:00-22:00 UTC
+
+is_london_session = hour >= 8 and hour < 17
+
+// Determine which session is currently active
+current_session_active = is_asian_session or is_london_session or is_ny_session
+current_session_start = (is_asian_session and not is_asian_session[1]) or (is_london_session and not is_london_session[1]) or (is_ny_session and not is_ny_session[1])
+current_session_end = (not is_asian_session and is_asian_session[1]) or (not is_london_session and is_london_session[1]) or (not is_ny_session and is_ny_session[1])
+
+// Track current session high/low and end bar (only for active session)
+var float current_session_high = na
+var float current_session_low = na
+var int current_session_start_bar = na
+var int current_session_end_bar = na
+
+if current_session_start
+    // New session started - reset tracking
+    current_session_high := high
+    current_session_low := low
+    current_session_start_bar := bar_index
+    // Calculate session end bar based on which session
+    if is_asian_session
+        // Asian session ends at hour 12 (12:00 UTC)
+        current_session_end_bar := bar_index + (12 - hour) * 60  // Approximate, will update as we approach
+    else if is_london_session
+        // London session ends at hour 17 (17:00 UTC)
+        current_session_end_bar := bar_index + (17 - hour) * 60
+    else if is_ny_session
+        // New York session ends at hour 22 (22:00 UTC)
+        current_session_end_bar := bar_index + (22 - hour) * 60
+else if current_session_active
+    // Continue tracking current session
+    current_session_high := math.max(current_session_high, high)
+    current_session_low := math.min(current_session_low, low)
+    // Update end bar if we're getting close to session end
+    if is_asian_session and hour >= 11
+        current_session_end_bar := bar_index + (12 - hour) * 60
+    else if is_london_session and hour >= 16
+        current_session_end_bar := bar_index + (17 - hour) * 60
+    else if is_ny_session and hour >= 21
+        current_session_end_bar := bar_index + (22 - hour) * 60
+else
+    // No active session - clear values
+    current_session_high := na
+    current_session_low := na
+    current_session_start_bar := na
+    current_session_end_bar := na
+
+// Removed liquidity flush detection as requested
+
+// ============================================================================
+// TREND SCORING SYSTEM (0-10 scale)
+// ============================================================================
+score = 0.0
+
+// Price vs Moving Averages (5 points)
+if close > ma200
+    score += 3
+if close > ma50
+    score += 2
+
+// MA Relationship (2 points)
+if ma50 > ma200
+    score += 2
+
+// Momentum (2 points)
+if ma20 > ma20[1]
+    score += 1
+if close > close[1]
+    score += 1
+
+// Pattern Recognition (1 point)
+if close > close[5] and close[1] > close[6]
+    score += 1
+
+// ============================================================================
+// TREND CLASSIFICATION
+// ============================================================================
+trend_strength = switch
+    score >= 8 => "Strong Bull"
+    score >= 6 => "Bull Market"
+    score >= 4 => "Neutral"
+    score >= 2 => "Bear Market"
+    => "Strong Bear"
+
+trend_color = switch
+    score >= 8 => color.new(color.green, 0)
+    score >= 6 => color.new(color.lime, 20)
+    score >= 4 => color.new(color.yellow, 40)
+    score >= 2 => color.new(color.orange, 20)
+    => color.new(color.red, 0)
+
+// ============================================================================
+// TREND CHANGE DETECTION
+// ============================================================================
+// Bull signal: score crosses above 6
+bull_signal = score > 6 and score[1] <= 6 and volume_ok and move_significant
+// Bear signal: score drops below 4
+bear_signal = score < 4 and score[1] >= 4 and volume_ok and move_significant
+
+// Confirmation tracking
+var int bull_confirmation = 0
+var int bear_confirmation = 0
+var bool confirmed_bull = false
+var bool confirmed_bear = false
+
+// Update confirmation counters
+if bull_signal
+    bull_confirmation := 1
+    bear_confirmation := 0
+    confirmed_bear := false
+else if bear_signal
+    bear_confirmation := 1
+    bull_confirmation := 0
+    confirmed_bull := false
+else
+    if bull_confirmation > 0 and score > 6
+        bull_confirmation += 1
+        if bull_confirmation >= confirmation_days
+            confirmed_bull := true
+    else if bear_confirmation > 0 and score < 4
+        bear_confirmation += 1
+        if bear_confirmation >= confirmation_days
+            confirmed_bear := true
+    else
+        bull_confirmation := 0
+        bear_confirmation := 0
+
+// ============================================================================
+// TREND LINE CALCULATION
+// ============================================================================
+trend_line = switch
+    score >= 6 => ma50
+    score <= 4 => ma50
+    => na
+
+// ============================================================================
+// VWAP STACK ANALYSIS (Must be before signal logic)
+// ============================================================================
+// VWAP stack analysis for optimal entries
+vwap_stack_bull = close > vwap_1h and close > vwap_2h and close > vwap_6h and close > vwap_4d and close > vwap_weekly and close > vwap_monthly and close > vwap_yearly
+vwap_stack_bear = close < vwap_1h and close < vwap_2h and close < vwap_6h and close < vwap_4d and close < vwap_weekly and close < vwap_monthly and close < vwap_yearly
+
+// ============================================================================
+// ENHANCED SIGNAL LOGIC - THE CORE OF THE IMPROVEMENT
+// ============================================================================
+// --- RSI for Momentum and Divergence ---
+rsi = ta.rsi(close, 14)
+rsi_oversold = rsi < 30
+rsi_overbought = rsi > 70
+
+// --- Powerful Divergence Detection (Manual Implementation) ---
+// Lookback period for finding swing points
+divergence_lookback = 14
+
+// Find recent swing lows and highs
+recent_low = ta.lowest(low, divergence_lookback)
+recent_high = ta.highest(high, divergence_lookback)
+recent_rsi_low = ta.lowest(rsi, divergence_lookback)
+recent_rsi_high = ta.highest(rsi, divergence_lookback)
+
+// Compare with previous swing points
+prev_low = ta.lowest(low[divergence_lookback], divergence_lookback)
+prev_high = ta.highest(high[divergence_lookback], divergence_lookback)
+prev_rsi_low = ta.lowest(rsi[divergence_lookback], divergence_lookback)
+prev_rsi_high = ta.highest(rsi[divergence_lookback], divergence_lookback)
+
+// Bullish Divergence: Price makes lower low, RSI makes higher low
+price_makes_lower_low = recent_low < prev_low and low == recent_low
+rsi_makes_higher_low = recent_rsi_low > prev_rsi_low and rsi == recent_rsi_low
+bullDivergence = price_makes_lower_low and rsi_makes_higher_low and rsi < 50
+
+// Bearish Divergence: Price makes higher high, RSI makes lower high
+price_makes_higher_high = recent_high > prev_high and high == recent_high
+rsi_makes_lower_high = recent_rsi_high < prev_rsi_high and rsi == recent_rsi_high
+bearDivergence = price_makes_higher_high and rsi_makes_lower_high and rsi > 50
+
+// --- Master Signal Conditions (STRICT FILTERING) ---
+// Track last signal to prevent spam
+var int last_long_bar = 0
+var int last_short_bar = 0
+var float long_strength_value = 0.0
+var float short_strength_value = 0.0
+min_bars_between_signals = 10 // Minimum bars between signals
+
+// A long signal requires a bullish trend, a bounce on the 50 MA, and supportive momentum.
+longCondition1 = score >= 6 // Bullish Trend
+longCondition2 = ta.crossover(close, ma50) and close > close[1] // Bounce off 50 MA
+longCondition3 = rsi_oversold or (rsi > rsi[1] and rsi < 40) // Momentum is turning up from oversold
+longCondition4 = volume_ok and move_significant // Volume and price movement confirmation
+longCondition5 = bar_index - last_long_bar >= min_bars_between_signals // Prevent signal spam
+
+// Calculate signal strength (0-100) for brightness - only when signal triggers
+long_strength_calc = 0.0
+if longCondition1
+    long_strength_calc += 30
+if longCondition2
+    long_strength_calc += 25
+if longCondition3
+    long_strength_calc += 20
+if longCondition4
+    long_strength_calc += 15
+if vwap_stack_bull
+    long_strength_calc += 10
+
+masterLongSignal = longCondition1 and longCondition2 and longCondition3 and longCondition4 and longCondition5
+if masterLongSignal
+    last_long_bar := bar_index
+    long_strength_value := long_strength_calc
+
+// A short signal requires a bearish trend, a rejection at the 50 MA, and weakening momentum.
+shortCondition1 = score <= 4 // Bearish Trend
+shortCondition2 = ta.crossunder(close, ma50) and close < close[1] // Rejection at 50 MA
+shortCondition3 = rsi_overbought or (rsi < rsi[1] and rsi > 60) // Momentum is turning down from overbought
+shortCondition4 = volume_ok and move_significant // Volume and price movement confirmation
+shortCondition5 = bar_index - last_short_bar >= min_bars_between_signals // Prevent signal spam
+
+// Calculate signal strength (0-100) for brightness - only when signal triggers
+short_strength_calc = 0.0
+if shortCondition1
+    short_strength_calc += 30
+if shortCondition2
+    short_strength_calc += 25
+if shortCondition3
+    short_strength_calc += 20
+if shortCondition4
+    short_strength_calc += 15
+if vwap_stack_bear
+    short_strength_calc += 10
+
+masterShortSignal = shortCondition1 and shortCondition2 and shortCondition3 and shortCondition4 and shortCondition5
+if masterShortSignal
+    last_short_bar := bar_index
+    short_strength_value := short_strength_calc
+
+// --- High-Confidence Divergence Signals (STRICT FILTERING) ---
+var int last_div_long_bar = 0
+var int last_div_short_bar = 0
+
+divergenceLongSignal = bullDivergence and score >= 4 and bar_index - last_div_long_bar >= min_bars_between_signals * 2
+if divergenceLongSignal
+    last_div_long_bar := bar_index
+
+divergenceShortSignal = bearDivergence and score <= 6 and bar_index - last_div_short_bar >= min_bars_between_signals * 2
+if divergenceShortSignal
+    last_div_short_bar := bar_index
+
+// --- Legacy Pre-Confirm Signals (kept for backward compatibility) ---
+ma50_strong_bull = close > ma50 and close[1] <= ma50 and close > close[1] and volume_ok and rsi_oversold
+ma50_strong_bear = close < ma50 and close[1] >= ma50 and close < close[1] and volume_ok and rsi_overbought
+ma200_strong_bull = close > ma200 and close[1] <= ma200 and close > close[1] and volume_ok and close > close[5]
+ma200_strong_bear = close < ma200 and close[1] >= ma200 and close < close[1] and volume_ok and close < close[5]
+trend_bounce_bull = close > trend_line and close[1] <= trend_line and close > close[1] and volume_ok and score > 4
+trend_bounce_bear = close < trend_line and close[1] >= trend_line and close < close[1] and volume_ok and score < 6
+
+var bool pre_bull_signal = false
+var bool pre_bear_signal = false
+pre_bull_signal := (ma50_strong_bull or ma200_strong_bull or trend_bounce_bull) and not pre_bull_signal[1]
+pre_bear_signal := (ma50_strong_bear or ma200_strong_bear or trend_bounce_bear) and not pre_bear_signal[1]
+
+// ============================================================================
+// ADDITIONAL SIGNAL DETECTION
+// ============================================================================
+// Volume divergence detection
+volume_surge = volume > avg_volume * 1.5
+volume_divergence_bull = close > close[5] and volume < avg_volume * 0.8
+volume_divergence_bear = close < close[5] and volume < avg_volume * 0.8
+
+// Major pivot detection
+major_pivot_bull = close > ta.highest(high, 10) and close > close[3]
+major_pivot_bear = close < ta.lowest(low, 10) and close < close[3]
+
+// RSI confirmation (using existing variables from earlier)
+rsi_divergence_bull = close > close[5] and rsi > rsi[5]
+rsi_divergence_bear = close < close[5] and rsi < rsi[5]
+
+// ============================================================================
+// REVERSAL SIGNALS (Original Logic with Brightness)
+// ============================================================================
+// Original reversal patterns with toggle
+reversal_bull = show_reversal_signals and close > open and close > close[1] and volume > avg_volume * 1.5 and rsi < 40
+reversal_bear = show_reversal_signals and close < open and close < close[1] and volume > avg_volume * 1.5 and rsi > 60
+
+// Calculate reversal signal strength (0-100) for brightness - brighter = better/more probable move
+reversal_bull_strength = 0.0
+if reversal_bull
+    reversal_bull_strength += 30  // Base pattern
+    if volume > avg_volume * 2.0  // Extra volume bonus
+        reversal_bull_strength += 25
+    if rsi < 30  // More oversold = stronger
+        reversal_bull_strength += 25
+    if close > close[2]  // Stronger momentum
+        reversal_bull_strength += 20
+
+reversal_bear_strength = 0.0
+if reversal_bear
+    reversal_bear_strength += 30  // Base pattern
+    if volume > avg_volume * 2.0  // Extra volume bonus
+        reversal_bear_strength += 25
+    if rsi > 70  // More overbought = stronger
+        reversal_bear_strength += 25
+    if close < close[2]  // Stronger momentum
+        reversal_bear_strength += 20
+
+// Removed reversal zone candle detection as candle coloring is not working
+
+// Removed debug plots to unclutter the code
+
+// ============================================================================
+// DYNAMIC CLOUD CALCULATION
+// ============================================================================
+cloud_base_size = atr * cloud_base_multiplier
+
+// Breathing effect
+breathing_factor = 1 + math.sin(bar_index * 0.1) * 0.2
+
+// Volume and money flow expansion
+volume_ratio = volume / avg_volume
+volume_expansion = (volume_ratio - 1) * volume_cloud_multiplier * 0.5
+money_flow_expansion = math.abs(money_flow_strength) * cloud_sensitivity * 0.3
+order_flow_expansion = math.abs(obv_strength) / 2000000
+
+// ============================================================================
+// HIGH/LOW SWEEP DETECTION (X MARKERS) - BALANCED APPROACH
+// ============================================================================
+// Balanced lookback - not too short, not too long
+sweep_lookback = 35  // Balanced lookback period
+major_sweep_lookback = 70  // For significant level breaks
+
+// Calculate recent highs/lows
+highest_high_sweep = ta.highest(high, sweep_lookback)
+lowest_low_sweep = ta.lowest(low, sweep_lookback)
+major_high = ta.highest(high, major_sweep_lookback)
+major_low = ta.lowest(low, major_sweep_lookback)
+
+// Basic sweep detection
+high_sweep_basic = high > highest_high_sweep[1] and high[1] < highest_high_sweep[1]
+low_sweep_basic = low < lowest_low_sweep[1] and low[1] > lowest_low_sweep[1]
+
+// Volume confirmation - moderate threshold
+volume_confirmed = volume > avg_volume * 1.2  // 1.2x average volume (balanced)
+
+// ATR confirmation - moderate threshold
+sweep_move_size = math.abs(high - highest_high_sweep[1])  // For high sweeps
+sweep_move_size_low = math.abs(lowest_low_sweep[1] - low)  // For low sweeps
+significant_move = sweep_move_size > atr * 1.0 or sweep_move_size_low > atr * 1.0  // 1.0x ATR (balanced)
+
+// Major level confirmation - breaking significant levels
+major_high_break = high > major_high[1] and high[1] < major_high[1]
+major_low_break = low < major_low[1] and low[1] > major_low[1]
+
+// Balanced quality filters
+// High sweep: basic sweep + (volume OR significant move OR major break)
+high_sweep_quality = high_sweep_basic and (volume_confirmed or significant_move or major_high_break)
+
+// Low sweep: basic sweep + (volume OR significant move OR major break)
+low_sweep_quality = low_sweep_basic and (volume_confirmed or significant_move or major_low_break)
+
+// Track last signal to prevent spam
+var int last_high_sweep_bar = 0
+var int last_low_sweep_bar = 0
+min_bars_between_sweeps = 20  // Balanced spacing
+
+// Final sweep signals
+high_sweep_signal = high_sweep_quality and bar_index - last_high_sweep_bar >= min_bars_between_sweeps
+low_sweep_signal = low_sweep_quality and bar_index - last_low_sweep_bar >= min_bars_between_sweeps
+
+if high_sweep_signal
+    last_high_sweep_bar := bar_index
+if low_sweep_signal
+    last_low_sweep_bar := bar_index
+
+// For cloud coloring (legacy support)
+liquidity_flush_bull = false
+liquidity_flush_bear = false
+liquidity_expansion = 0.0
+liquidity_cloud_expansion = 0.0
+
+// Combined expansion (INCLUDING liquidity expansion for recognition)
+total_expansion = breathing_factor + (volume_expansion + money_flow_expansion + order_flow_expansion + liquidity_cloud_expansion) / 4
+
+// Dynamic cloud boundaries
+cloud_upper = trend_line + (cloud_base_size * total_expansion)
+cloud_lower = trend_line - (cloud_base_size * total_expansion)
+
+// Dynamic cloud color (BRIGHTENED FOR BETTER VISIBILITY)
+cloud_color = if liquidity_flush_bull or liquidity_flush_bear
+    color.new(color.yellow, 20)  // BRIGHT YELLOW for liquidity flushes
+else if money_flow_strength > 0
+    if money_flow_strength > 0.5
+        color.new(color.green, 60)  // Brighter green for strong bull
+    else
+        color.new(color.lime, 65)   // Brighter green for weak bull
+else if money_flow_strength < 0
+    if money_flow_strength < -0.5
+        color.new(color.red, 60)   // Brighter red for strong bear
+    else
+        color.new(color.maroon, 65) // Brighter red for weak bear
+else
+    color.new(color.gray, 70)      // Brighter gray for neutral
+
+// ============================================================================
+// VISUAL OUTPUT - DIAMONDS WITH BRIGHTNESS = STRENGTH (All Tiny Size)
+// ============================================================================
+// Calculate opacity based on signal strength (brighter = stronger/better signal)
+reversal_bull_opacity = math.round(85 - (reversal_bull_strength * 0.85))
+reversal_bear_opacity = math.round(85 - (reversal_bear_strength * 0.85))
+divergence_opacity = 20 // Divergence signals are always very bright (high confidence)
+
+// Reversal Signals - Tiny diamonds (brighter = better/more probable move)
+plotshape(reversal_bull, "Reversal Bull Signal", shape.diamond,
+          location.belowbar, color.new(color.lime, reversal_bull_opacity), size=size.tiny)
+
+plotshape(reversal_bear, "Reversal Bear Signal", shape.diamond,
+          location.abovebar, color.new(color.maroon, reversal_bear_opacity), size=size.tiny)
+
+// Divergence signals removed as requested
+
+// Confirmed Bull/Bear Signals - Removed to stay under 64 plot limit
+// plotshape(show_bull_confirm and confirmed_bull and not confirmed_bull[1], "Bull Confirm", shape.diamond,
+//           location.belowbar, color.new(color.white, 70), size=size.tiny)
+// plotshape(show_bear_confirm and confirmed_bear and not confirmed_bear[1], "Bear Confirm", shape.diamond,
+//           location.abovebar, color.new(color.purple, 70), size=size.tiny)
+
+// High/Low Sweep Signals - X markers (smaller)
+plotshape(high_sweep_signal, "High Sweep", shape.xcross,
+          location.abovebar, color.new(color.red, 0), size=size.tiny)
+
+plotshape(low_sweep_signal, "Low Sweep", shape.xcross,
+          location.belowbar, color.new(color.green, 0), size=size.tiny)
+
+// ============================================================================
+// PLOT ALL ELEMENTS
+// ============================================================================
+// Plot Trend Line
+plot(show_trend_line ? trend_line : na, "Trend Line", color=trend_color, linewidth=3)
+
+// Plot optimized VWAPs (Cross lines and thin lines)
+plot(show_1h_vwap ? vwap_1h : na, "1H VWAP", color=vwap_1h_color, linewidth=1, style=plot.style_cross)
+plot(show_2h_vwap ? vwap_2h : na, "2H VWAP", color=vwap_2h_color, linewidth=1, style=plot.style_cross)
+plot(show_6h_vwap ? vwap_6h : na, "6H VWAP", color=vwap_6h_color, linewidth=1, style=plot.style_cross)
+plot(show_4d_vwap ? vwap_4d : na, "4D VWAP", color=vwap_4d_color, linewidth=1, style=plot.style_cross)
+plot(show_9d_vwap ? vwap_9d : na, "9D VWAP", color=vwap_9d_color, linewidth=1, style=plot.style_cross)
+plot(show_weekly_vwap ? vwap_weekly : na, "Weekly VWAP", color=vwap_weekly_color, linewidth=1, style=plot.style_cross)
+// Monthly VWAP removed to stay under 64 plot limit - use yearly VWAP instead
+plot(show_yearly_vwap ? vwap_yearly : na, "Yearly VWAP", color=vwap_yearly_color, linewidth=1, style=plot.style_cross)
+plot(show_prev_year_vwap ? vwap_prev_year : na, "Previous Year VWAP", color=vwap_prev_year_color, linewidth=1, style=plot.style_cross)
+
+// Removed HH/LL signal plots as they are not working
+
+// Removed old reversal signals - now using master signals with strength-based brightness
+
+// Removed liquidity flush signals as they are not working
+
+// Removed VWAP stack signals as they are not working
+
+// Plot dynamic cloud boundaries
+cloud_upper_plot = plot(show_dynamic_cloud ? cloud_upper : na, "Cloud Upper", color=cloud_color, linewidth=1)
+cloud_lower_plot = plot(show_dynamic_cloud ? cloud_lower : na, "Cloud Lower", color=cloud_color, linewidth=1)
+
+// Fill the cloud area
+fill(cloud_upper_plot, cloud_lower_plot, color=show_dynamic_cloud ? cloud_color : na, title="Dynamic Cloud")
+
+// ============================================================================
+// SESSION BOXES (TRANSPARENT LIKE ORIGINAL)
+// ============================================================================
+// Draw Asian session boxes with transparency (Blue)
+if show_session_boxes and asian_session_end and not na(asian_high) and not na(asian_low)
+    box.new(asian_start_bar, asian_high, bar_index, asian_low, border_color=color.new(session_box_color, 70), bgcolor=color.new(session_box_color, 90), border_width=1, extend=extend.none)
+
+// Draw New York session boxes with transparency (Red)
+if show_ny_session_boxes and ny_session_end and not na(ny_high) and not na(ny_low)
+    box.new(ny_start_bar, ny_high, bar_index, ny_low, border_color=color.new(ny_session_box_color, 70), bgcolor=color.new(ny_session_box_color, 90), border_width=1, extend=extend.none)
+
+// Draw Current Session box (Yellow) - extends to session end, not beyond
+var box current_session_box = na
+var int session_end_bar = na
+
+// Track session end bar when session ends
+if current_session_end and not na(current_session_start_bar)
+    session_end_bar := bar_index - 1  // Session ended on previous bar
+
+// Delete box when new session starts
+if current_session_start and not na(current_session_box)
+    box.delete(current_session_box)
+    current_session_box := na
+    session_end_bar := na
+
+// Show box during active session - extends to session end (right edge)
+if show_current_session_box and current_session_active and not na(current_session_high) and not na(current_session_low) and not na(current_session_start_bar)
+    // Box extends to right edge while session is active (shows where session will end)
+    if na(current_session_box)
+        current_session_box := box.new(current_session_start_bar, current_session_high, bar_index, current_session_low, border_color=color.new(current_session_box_color, 50), bgcolor=color.new(current_session_box_color, 85), border_width=1, extend=extend.right)
+    else
+        // Update box to current bar and session high/low, extend to right
+        box.delete(current_session_box)
+        current_session_box := box.new(current_session_start_bar, current_session_high, bar_index, current_session_low, border_color=color.new(current_session_box_color, 50), bgcolor=color.new(current_session_box_color, 85), border_width=1, extend=extend.right)
+// After session ends, box stays at session end bar (no extension beyond)
+else if show_current_session_box and not current_session_active and not na(session_end_bar) and not na(current_session_high) and not na(current_session_low) and not na(current_session_start_bar) and na(current_session_box)
+    // Create box showing completed session (from start to end)
+    current_session_box := box.new(current_session_start_bar, current_session_high, session_end_bar, current_session_low, border_color=color.new(current_session_box_color, 50), bgcolor=color.new(current_session_box_color, 85), border_width=1, extend=extend.none)
+
+// Removed candle color overlay as it is not working properly
+
+// ============================================================================
+// ALERTS
+// ============================================================================
+// Confirmed Trend Alerts
+alertcondition(confirmed_bull and show_bull_confirm, "Bull Confirmation", "🟢 BULL CONFIRMED - Strong bullish trend established")
+alertcondition(confirmed_bear and show_bear_confirm, "Bear Confirmation", "🔴 BEAR CONFIRMED - Strong bearish trend established")
+
+// Divergence alerts removed as requested
+
+// Reversal Signal Alerts
+alertcondition(reversal_bull and show_reversal_signals, "Reversal Bull Signal", "💎 REVERSAL BULL SIGNAL")
+alertcondition(reversal_bear and show_reversal_signals, "Reversal Bear Signal", "💎 REVERSAL BEAR SIGNAL")
+
+// Pre-Signal Alerts
+alertcondition(pre_bull_signal and show_pre_bull, "Pre-Bull Signal", "🟡 PRE-BULL SIGNAL - Potential bullish reversal forming")
+alertcondition(pre_bear_signal and show_pre_bear, "Pre-Bear Signal", "🟡 PRE-BEAR SIGNAL - Potential bearish reversal forming")
+alertcondition(ta.crossover(ma50, ma200), "Golden Cross", "🌟 GOLDEN CROSS")
+alertcondition(ta.crossunder(ma50, ma200), "Death Cross", "💀 DEATH CROSS")
+
+// All VWAP Break Alerts
+alertcondition(ta.crossover(close, vwap_1h), "1H VWAP Break Above", "📈 1H VWAP BREAK ABOVE")
+alertcondition(ta.crossunder(close, vwap_1h), "1H VWAP Break Below", "📉 1H VWAP BREAK BELOW")
+alertcondition(ta.crossover(close, vwap_2h), "2H VWAP Break Above", "📈 2H VWAP BREAK ABOVE")
+alertcondition(ta.crossunder(close, vwap_2h), "2H VWAP Break Below", "📉 2H VWAP BREAK BELOW")
+alertcondition(ta.crossover(close, vwap_6h), "6H VWAP Break Above", "📈 6H VWAP BREAK ABOVE")
+alertcondition(ta.crossunder(close, vwap_6h), "6H VWAP Break Below", "📉 6H VWAP BREAK BELOW")
+alertcondition(ta.crossover(close, vwap_4d), "4D VWAP Break Above", "📈 4D VWAP BREAK ABOVE")
+alertcondition(ta.crossunder(close, vwap_4d), "4D VWAP Break Below", "📉 4D VWAP BREAK BELOW")
+alertcondition(ta.crossover(close, vwap_9d), "9D VWAP Break Above", "📈 9D VWAP BREAK ABOVE")
+alertcondition(ta.crossunder(close, vwap_9d), "9D VWAP Break Below", "📉 9D VWAP BREAK BELOW")
+alertcondition(ta.crossover(close, vwap_weekly), "Weekly VWAP Break Above", "📈 WEEKLY VWAP BREAK ABOVE")
+alertcondition(ta.crossunder(close, vwap_weekly), "Weekly VWAP Break Below", "📉 WEEKLY VWAP BREAK BELOW")
+alertcondition(ta.crossover(close, vwap_monthly), "Monthly VWAP Break Above", "📈 MONTHLY VWAP BREAK ABOVE")
+alertcondition(ta.crossunder(close, vwap_monthly), "Monthly VWAP Break Below", "📉 MONTHLY VWAP BREAK BELOW")
+alertcondition(ta.crossover(close, vwap_yearly), "Yearly VWAP Break Above", "📈 YEARLY VWAP BREAK ABOVE")
+alertcondition(ta.crossunder(close, vwap_yearly), "Yearly VWAP Break Below", "📉 YEARLY VWAP BREAK BELOW")
+
+// High/Low Sweep Alerts
+alertcondition(high_sweep_signal, "High Sweep", "❌ HIGH SWEEP - Major price sweep above recent high")
+alertcondition(low_sweep_signal, "Low Sweep", "❌ LOW SWEEP - Major price sweep below recent low")
+
+// Trend Line Alerts
+alertcondition(ta.crossover(close, trend_line) and show_trend_line, "Trend Line Break Above", "📈 TREND LINE BREAK ABOVE - Bullish trend confirmed")
+alertcondition(ta.crossunder(close, trend_line) and show_trend_line, "Trend Line Break Below", "📉 TREND LINE BREAK BELOW - Bearish trend confirmed")
+
+// Trend Score Change Alerts
+alertcondition(score > 6 and score[1] <= 6, "Trend Score Bullish", "📊 TREND SCORE TURNED BULLISH - Score crossed above 6")
+alertcondition(score < 4 and score[1] >= 4, "Trend Score Bearish", "📊 TREND SCORE TURNED BEARISH - Score crossed below 4")

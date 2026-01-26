@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CryptoPulse - Real-time Crypto Intelligence Preview</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fadeIn {
+            animation: fadeIn 0.3s ease-out;
+        }
+        .animate-pulse {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: .5; }
+        }
+        .line-clamp-2 {
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        .backdrop-blur-xl {
+            backdrop-filter: blur(24px);
+        }
+        .backdrop-blur-lg {
+            backdrop-filter: blur(16px);
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-4 md:p-8">
+    <div class="max-w-7xl mx-auto">
+        <!-- Header Widget -->
+        <div class="bg-black/40 backdrop-blur-xl border border-purple-500/20 rounded-lg mb-6">
+            <div class="p-4">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="relative">
+                            <svg class="h-10 w-10 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            <svg class="h-4 w-4 text-yellow-400 absolute -top-1 -right-1" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clip-rule="evenodd"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <h1 class="text-xl font-bold text-white">CryptoPulse</h1>
+                            <p class="text-xs text-purple-300">Real-time crypto intelligence</p>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-4">
+                        <div class="flex items-center gap-2 text-sm text-gray-300">
+                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            <span>2m ago</span>
+                        </div>
+                        <button class="px-4 py-2 bg-orange-500 hover:bg-orange-600 rounded-md text-sm font-semibold text-white transition-all flex items-center gap-2">
+                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                            </svg>
+                            Refresh
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Stats -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <div class="bg-black/30 backdrop-blur-lg border border-purple-500/20 rounded-lg">
+                <div class="p-4">
+                    <div class="flex items-center gap-3">
+                        <div class="p-2 bg-orange-500/20 rounded-lg">
+                            <svg class="h-5 w-5 text-orange-400" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <p class="text-2xl font-bold text-white">12</p>
+                            <p class="text-xs text-gray-400">Hot News</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-black/30 backdrop-blur-lg border border-purple-500/20 rounded-lg">
+                <div class="p-4">
+                    <div class="flex items-center gap-3">
+                        <div class="p-2 bg-red-500/20 rounded-lg">
+                            <svg class="h-5 w-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <p class="text-2xl font-bold text-white">3</p>
+                            <p class="text-xs text-gray-400">Active Alerts</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-black/30 backdrop-blur-lg border border-purple-500/20 rounded-lg">
+                <div class="p-4">
+                    <div class="flex items-center gap-3">
+                        <div class="p-2 bg-purple-500/20 rounded-lg">
+                            <svg class="h-5 w-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <p class="text-2xl font-bold text-white">13</p>
+                            <p class="text-xs text-gray-400">Influencers</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-black/30 backdrop-blur-lg border border-purple-500/20 rounded-lg">
+                <div class="p-4">
+                    <div class="flex items-center gap-3">
+                        <div class="p-2 bg-green-500/20 rounded-lg">
+                            <svg class="h-5 w-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <p class="text-2xl font-bold text-white">47</p>
+                            <p class="text-xs text-gray-400">Total News</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="grid md:grid-cols-3 gap-6">
+            <!-- News Feed -->
+            <div class="md:col-span-2 bg-black/30 backdrop-blur-lg border border-purple-500/20 rounded-lg">
+                <div class="p-6 pb-3">
+                    <div class="flex items-center justify-between">
+                        <h2 class="text-lg font-semibold text-white flex items-center gap-2">
+                            <svg class="h-5 w-5 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                            </svg>
+                            Latest Crypto News
+                        </h2>
+                        <div class="flex gap-2">
+                            <button class="px-3 py-1 bg-orange-500 hover:bg-orange-600 rounded-md text-xs font-medium text-white">All</button>
+                            <button class="px-3 py-1 border border-purple-500/30 rounded-md text-xs font-medium text-gray-400 hover:bg-gray-800/50">DeFi</button>
+                            <button class="px-3 py-1 border border-purple-500/30 rounded-md text-xs font-medium text-gray-400 hover:bg-gray-800/50">NFT</button>
+                            <button class="px-3 py-1 border border-purple-500/30 rounded-md text-xs font-medium text-gray-400 hover:bg-gray-800/50">Regulation</button>
+                            <button class="px-3 py-1 border border-purple-500/30 rounded-md text-xs font-medium text-gray-400 hover:bg-gray-800/50">Tech</button>
+                            <button class="px-3 py-1 border border-purple-500/30 rounded-md text-xs font-medium text-gray-400 hover:bg-gray-800/50">Trading</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="p-6 pt-0">
+                    <div class="h-[500px] overflow-y-auto pr-4 space-y-3">
+                        <!-- High Impact News Item -->
+                        <div class="bg-black/40 border border-red-500/50 rounded-lg p-4 hover:border-red-500/70 transition-all hover:scale-[1.02]">
+                            <div class="flex items-start justify-between gap-3">
+                                <div class="flex-1 min-w-0">
+                                    <div class="flex items-center gap-2 mb-2 flex-wrap">
+                                        <span class="px-2 py-1 rounded-full text-xs font-bold bg-red-600 text-white">CRITICAL</span>
+                                        <span class="px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">Regulation</span>
+                                        <span class="px-2 py-1 border border-orange-500/50 rounded-full text-xs font-medium text-orange-300">BTC</span>
+                                        <span class="px-2 py-1 border border-orange-500/50 rounded-full text-xs font-medium text-orange-300">Bitcoin</span>
+                                        <span class="text-xs text-gray-500">📉</span>
+                                    </div>
+                                    <h3 class="font-semibold text-white mb-2 line-clamp-2">
+                                        <a href="https://cointelegraph.com" target="_blank" class="hover:text-orange-400 transition-colors">
+                                            SEC Announces Major Bitcoin Regulation - Market Plunges 15%
+                                        </a>
+                                    </h3>
+                                    <p class="text-sm text-gray-400 mb-2 line-clamp-2">
+                                        The Securities and Exchange Commission has announced sweeping new regulations for Bitcoin trading, causing immediate market panic and a 15% price drop across major exchanges.
+                                    </p>
+                                    <div class="flex items-center gap-3 text-xs text-gray-500">
+                                        <span>CoinTelegraph</span>
+                                        <span>•</span>
+                                        <span>2h ago</span>
+                                    </div>
+                                </div>
+                                <svg class="h-5 w-5 text-yellow-400 animate-pulse flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clip-rule="evenodd"></path>
+                                </svg>
+                            </div>
+                        </div>
+
+                        <!-- High Impact News Item -->
+                        <div class="bg-black/40 border border-purple-500/10 rounded-lg p-4 hover:border-orange-500/30 transition-all hover:scale-[1.02]">
+                            <div class="flex items-start justify-between gap-3">
+                                <div class="flex-1 min-w-0">
+                                    <div class="flex items-center gap-2 mb-2 flex-wrap">
+                                        <span class="px-2 py-1 rounded-full text-xs font-bold bg-red-500 text-white">HIGH</span>
+                                        <span class="px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">DeFi</span>
+                                        <span class="px-2 py-1 border border-orange-500/50 rounded-full text-xs font-medium text-orange-300">ETH</span>
+                                        <span class="px-2 py-1 border border-orange-500/50 rounded-full text-xs font-medium text-orange-300">Ethereum</span>
+                                        <span class="px-2 py-1 border border-orange-500/50 rounded-full text-xs font-medium text-orange-300">UNI</span>
+                                        <span class="text-xs text-gray-500">📈</span>
+                                    </div>
+                                    <h3 class="font-semibold text-white mb-2 line-clamp-2">
+                                        <a href="https://cointelegraph.com" target="_blank" class="hover:text-orange-400 transition-colors">
+                                            Vitalik Buterin Announces Ethereum 2.0 Upgrade Timeline - DeFi Surges
+                                        </a>
+                                    </h3>
+                                    <p class="text-sm text-gray-400 mb-2 line-clamp-2">
+                                        Ethereum founder Vitalik Buterin revealed the final timeline for the Ethereum 2.0 merge, sparking a massive rally in DeFi tokens and ETH price surging 12% in hours.
+                                    </p>
+                                    <div class="flex items-center gap-3 text-xs text-gray-500">
+                                        <span>CryptoPanic</span>
+                                        <span>•</span>
+                                        <span>5h ago</span>
+                                    </div>
+                                </div>
+                                <svg class="h-5 w-5 text-yellow-400 animate-pulse flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clip-rule="evenodd"></path>
+                                </svg>
+                            </div>
+                        </div>
+
+                        <!-- Medium Impact News Item -->
+                        <div class="bg-black/40 border border-purple-500/10 rounded-lg p-4 hover:border-orange-500/30 transition-all hover:scale-[1.02]">
+                            <div class="flex items-start justify-between gap-3">
+                                <div class="flex-1 min-w-0">
+                                    <div class="flex items-center gap-2 mb-2 flex-wrap">
+                                        <span class="px-2 py-1 rounded-full text-xs font-bold bg-orange-500 text-black">MEDIUM</span>
+                                        <span class="px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">Trading</span>
+                                        <span class="px-2 py-1 border border-orange-500/50 rounded-full text-xs font-medium text-orange-300">BTC</span>
+                                        <span class="px-2 py-1 border border-orange-500/50 rounded-full text-xs font-medium text-orange-300">Bitcoin</span>
+                                        <span class="text-xs text-gray-500">📈</span>
+                                    </div>
+                                    <h3 class="font-semibold text-white mb-2 line-clamp-2">
+                                        <a href="https://cointelegraph.com" target="_blank" class="hover:text-orange-400 transition-colors">
+                                            Bitcoin Flashes Buy Signals as $90K Becomes Key Support Level
+                                        </a>
+                                    </h3>
+                                    <p class="text-sm text-gray-400 mb-2 line-clamp-2">
+                                        Technical analysts are pointing to strong buy signals as Bitcoin consolidates above the critical $90,000 support level, with potential for a breakout rally.
+                                    </p>
+                                    <div class="flex items-center gap-3 text-xs text-gray-500">
+                                        <span>CoinTelegraph</span>
+                                        <span>•</span>
+                                        <span>8h ago</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- High Impact - Trump Mention -->
+                        <div class="bg-black/40 border border-red-500/50 rounded-lg p-4 hover:border-red-500/70 transition-all hover:scale-[1.02]">
+                            <div class="flex items-start justify-between gap-3">
+                                <div class="flex-1 min-w-0">
+                                    <div class="flex items-center gap-2 mb-2 flex-wrap">
+                                        <span class="px-2 py-1 rounded-full text-xs font-bold bg-red-500 text-white">HIGH</span>
+                                        <span class="px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">Regulation</span>
+                                        <span class="px-2 py-1 border border-orange-500/50 rounded-full text-xs font-medium text-orange-300">BTC</span>
+                                        <span class="px-2 py-1 border border-orange-500/50 rounded-full text-xs font-medium text-orange-300">Bitcoin</span>
+                                        <span class="text-xs text-gray-500">📉</span>
+                                    </div>
+                                    <h3 class="font-semibold text-white mb-2 line-clamp-2">
+                                        <a href="https://twitter.com" target="_blank" class="hover:text-orange-400 transition-colors">
+                                            Trump Announces Bitcoin Policy Stance - Market Reacts Instantly
+                                        </a>
+                                    </h3>
+                                    <p class="text-sm text-gray-400 mb-2 line-clamp-2">
+                                        Former President Trump made statements about Bitcoin regulation during a campaign event, causing immediate volatility as traders react to potential policy changes.
+                                    </p>
+                                    <div class="flex items-center gap-3 text-xs text-gray-500">
+                                        <span>Twitter / News</span>
+                                        <span>•</span>
+                                        <span>3h ago</span>
+                                    </div>
+                                </div>
+                                <svg class="h-5 w-5 text-yellow-400 animate-pulse flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clip-rule="evenodd"></path>
+                                </svg>
+                            </div>
+                        </div>
+
+                        <!-- More news items -->
+                        <div class="bg-black/40 border border-purple-500/10 rounded-lg p-4 hover:border-orange-500/30 transition-all hover:scale-[1.02]">
+                            <div class="flex items-start justify-between gap-3">
+                                <div class="flex-1 min-w-0">
+                                    <div class="flex items-center gap-2 mb-2 flex-wrap">
+                                        <span class="px-2 py-1 rounded-full text-xs font-bold bg-orange-500 text-black">MEDIUM</span>
+                                        <span class="px-2 py-1 rounded-full text-xs font-medium bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200">NFT</span>
+                                        <span class="px-2 py-1 border border-orange-500/50 rounded-full text-xs font-medium text-orange-300">ETH</span>
+                                        <span class="text-xs text-gray-500">➡️</span>
+                                    </div>
+                                    <h3 class="font-semibold text-white mb-2 line-clamp-2">
+                                        <a href="https://coindesk.com" target="_blank" class="hover:text-orange-400 transition-colors">
+                                            South Korea Weighs Ending One-Bank Rule for Crypto Exchanges
+                                        </a>
+                                    </h3>
+                                    <p class="text-sm text-gray-400 mb-2 line-clamp-2">
+                                        Regulatory authorities in South Korea are considering changes to the banking requirements for cryptocurrency exchanges, potentially opening up more competition.
+                                    </p>
+                                    <div class="flex items-center gap-3 text-xs text-gray-500">
+                                        <span>CoinDesk</span>
+                                        <span>•</span>
+                                        <span>12h ago</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sidebar -->
+            <div class="space-y-6">
+                <!-- Critical Alerts -->
+                <div class="bg-black/30 backdrop-blur-lg border border-red-500/20 rounded-lg">
+                    <div class="p-6 pb-3">
+                        <h2 class="text-lg font-semibold text-white flex items-center gap-2">
+                            <svg class="h-5 w-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                            </svg>
+                            Critical Alerts
+                        </h2>
+                    </div>
+                    <div class="p-6 pt-0">
+                        <div class="h-[200px] overflow-y-auto pr-4 space-y-3">
+                            <div class="bg-red-950/30 border border-red-500/50 rounded-lg p-4">
+                                <div class="flex items-start gap-3">
+                                    <svg class="h-4 w-4 text-red-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                                    </svg>
+                                    <div>
+                                        <p class="font-medium text-white text-sm">CRITICAL: SEC Announces Major Bitcoin Regulation</p>
+                                        <p class="text-sm text-gray-400 mt-1">Market plunges 15% following regulatory announcement</p>
+                                        <div class="flex items-center gap-2 mt-2">
+                                            <span class="px-2 py-1 border border-red-500/50 rounded-full text-xs text-red-300">news</span>
+                                            <span class="text-xs text-gray-500">2h ago</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="bg-red-950/30 border border-red-500/50 rounded-lg p-4">
+                                <div class="flex items-start gap-3">
+                                    <svg class="h-4 w-4 text-red-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                                    </svg>
+                                    <div>
+                                        <p class="font-medium text-white text-sm">HIGH: Trump Bitcoin Policy Announcement</p>
+                                        <p class="text-sm text-gray-400 mt-1">Market volatility spikes following political statements</p>
+                                        <div class="flex items-center gap-2 mt-2">
+                                            <span class="px-2 py-1 border border-red-500/50 rounded-full text-xs text-red-300">news</span>
+                                            <span class="text-xs text-gray-500">3h ago</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Top Influencers -->
+                <div class="bg-black/30 backdrop-blur-lg border border-purple-500/20 rounded-lg">
+                    <div class="p-6 pb-3">
+                        <h2 class="text-lg font-semibold text-white flex items-center gap-2">
+                            <svg class="h-5 w-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                            </svg>
+                            Crypto Influencers
+                        </h2>
+                    </div>
+                    <div class="p-6 pt-0">
+                        <div class="h-[280px] overflow-y-auto pr-4 space-y-3">
+                            <div class="p-3 bg-black/40 rounded-lg border border-purple-500/10 hover:border-purple-500/30 transition-all">
+                                <div class="flex items-center justify-between mb-2">
+                                    <div class="flex items-center gap-2">
+                                        <div class="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-orange-500 flex items-center justify-center text-white text-xs font-bold">V</div>
+                                        <div>
+                                            <p class="font-medium text-white text-sm">Vitalik Buterin</p>
+                                            <p class="text-xs text-gray-400">@VitalikButerin</p>
+                                        </div>
+                                    </div>
+                                    <span class="px-2 py-1 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-full text-xs font-medium text-white">legendary</span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <span class="px-2 py-1 border border-purple-500/30 rounded-full text-xs text-purple-300">tech</span>
+                                    <span class="px-2 py-1 border border-gray-500/30 rounded-full text-xs text-gray-400">Twitter/X</span>
+                                </div>
+                            </div>
+                            <div class="p-3 bg-black/40 rounded-lg border border-purple-500/10 hover:border-purple-500/30 transition-all">
+                                <div class="flex items-center justify-between mb-2">
+                                    <div class="flex items-center gap-2">
+                                        <div class="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-orange-500 flex items-center justify-center text-white text-xs font-bold">E</div>
+                                        <div>
+                                            <p class="font-medium text-white text-sm">Elon Musk</p>
+                                            <p class="text-xs text-gray-400">@elonmusk</p>
+                                        </div>
+                                    </div>
+                                    <span class="px-2 py-1 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-full text-xs font-medium text-white">legendary</span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <span class="px-2 py-1 border border-purple-500/30 rounded-full text-xs text-purple-300">trading</span>
+                                    <span class="px-2 py-1 border border-gray-500/30 rounded-full text-xs text-gray-400">Twitter/X</span>
+                                </div>
+                            </div>
+                            <div class="p-3 bg-black/40 rounded-lg border border-purple-500/10 hover:border-purple-500/30 transition-all">
+                                <div class="flex items-center justify-between mb-2">
+                                    <div class="flex items-center gap-2">
+                                        <div class="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-orange-500 flex items-center justify-center text-white text-xs font-bold">D</div>
+                                        <div>
+                                            <p class="font-medium text-white text-sm">Donald Trump</p>
+                                            <p class="text-xs text-gray-400">@realDonaldTrump</p>
+                                        </div>
+                                    </div>
+                                    <span class="px-2 py-1 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-full text-xs font-medium text-white">legendary</span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <span class="px-2 py-1 border border-purple-500/30 rounded-full text-xs text-purple-300">trading</span>
+                                    <span class="px-2 py-1 border border-gray-500/30 rounded-full text-xs text-gray-400">Twitter/X</span>
+                                </div>
+                            </div>
+                            <div class="p-3 bg-black/40 rounded-lg border border-purple-500/10 hover:border-purple-500/30 transition-all">
+                                <div class="flex items-center justify-between mb-2">
+                                    <div class="flex items-center gap-2">
+                                        <div class="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-orange-500 flex items-center justify-center text-white text-xs font-bold">C</div>
+                                        <div>
+                                            <p class="font-medium text-white text-sm">CZ</p>
+                                            <p class="text-xs text-gray-400">@cz_binance</p>
+                                        </div>
+                                    </div>
+                                    <span class="px-2 py-1 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-full text-xs font-medium text-white">legendary</span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <span class="px-2 py-1 border border-purple-500/30 rounded-full text-xs text-purple-300">trading</span>
+                                    <span class="px-2 py-1 border border-gray-500/30 rounded-full text-xs text-gray-400">Twitter/X</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Hot Takes -->
+                <div class="bg-black/30 backdrop-blur-lg border border-orange-500/20 rounded-lg">
+                    <div class="p-6 pb-3">
+                        <h2 class="text-lg font-semibold text-white flex items-center gap-2">
+                            <svg class="h-5 w-5 text-orange-400" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z"></path>
+                            </svg>
+                            Hot Takes
+                        </h2>
+                    </div>
+                    <div class="p-6 pt-0">
+                        <div class="space-y-3">
+                            <div class="p-3 bg-gradient-to-r from-orange-950/50 to-red-950/50 rounded-lg border border-orange-500/20">
+                                <div class="flex items-start gap-2">
+                                    <svg class="h-4 w-4 text-yellow-400 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clip-rule="evenodd"></path>
+                                    </svg>
+                                    <div class="flex-1 min-w-0">
+                                        <p class="text-sm font-medium text-white line-clamp-2">
+                                            SEC Announces Major Bitcoin Regulation - Market Plunges 15%
+                                        </p>
+                                        <div class="flex items-center gap-2 mt-1">
+                                            <span class="px-2 py-1 border border-orange-500/50 rounded-full text-xs text-orange-300">BTC</span>
+                                            <span class="px-2 py-1 border border-orange-500/50 rounded-full text-xs text-orange-300">Bitcoin</span>
+                                            <span class="text-xs text-gray-500">2h ago</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="p-3 bg-gradient-to-r from-orange-950/50 to-red-950/50 rounded-lg border border-orange-500/20">
+                                <div class="flex items-start gap-2">
+                                    <svg class="h-4 w-4 text-yellow-400 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clip-rule="evenodd"></path>
+                                    </svg>
+                                    <div class="flex-1 min-w-0">
+                                        <p class="text-sm font-medium text-white line-clamp-2">
+                                            Trump Announces Bitcoin Policy Stance - Market Reacts Instantly
+                                        </p>
+                                        <div class="flex items-center gap-2 mt-1">
+                                            <span class="px-2 py-1 border border-orange-500/50 rounded-full text-xs text-orange-300">BTC</span>
+                                            <span class="text-xs text-gray-500">3h ago</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="p-3 bg-gradient-to-r from-orange-950/50 to-red-950/50 rounded-lg border border-orange-500/20">
+                                <div class="flex items-start gap-2">
+                                    <svg class="h-4 w-4 text-yellow-400 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clip-rule="evenodd"></path>
+                                    </svg>
+                                    <div class="flex-1 min-w-0">
+                                        <p class="text-sm font-medium text-white line-clamp-2">
+                                            Vitalik Buterin Announces Ethereum 2.0 Upgrade Timeline
+                                        </p>
+                                        <div class="flex items-center gap-2 mt-1">
+                                            <span class="px-2 py-1 border border-orange-500/50 rounded-full text-xs text-orange-300">ETH</span>
+                                            <span class="px-2 py-1 border border-orange-500/50 rounded-full text-xs text-orange-300">UNI</span>
+                                            <span class="text-xs text-gray-500">5h ago</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

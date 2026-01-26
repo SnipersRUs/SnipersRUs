@@ -1,0 +1,213 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © SnipersRUs
+// Williams %R Divergence VWAP Indicator
+// White = Bullish | Purple = Bearish
+
+// @version=6
+indicator("Williams %R Divergence VWAP", shorttitle="WillR Div VWAP", overlay=false)
+
+// ============================================================================
+// INPUTS
+// ============================================================================
+
+// Williams %R Settings
+willrLength = input.int(14, "Williams %R Length", minval=1, group="Williams %R")
+obLevel = input.int(-20, "Overbought Level", maxval=0, group="Williams %R")
+osLevel = input.int(-80, "Oversold Level", maxval=0, group="Williams %R")
+
+// Divergence Settings
+pivotLookback = input.int(5, "Pivot Lookback", minval=1, group="Divergence Detection")
+divLookbackRange = input.int(60, "Divergence Lookback Range", minval=10, group="Divergence Detection")
+
+// Visual Settings
+bullColor = input.color(color.white, "Bullish Color", group="Colors")
+bearColor = input.color(#9C27B0, "Bearish Color (Purple)", group="Colors")
+neutralColor = input.color(color.gray, "Neutral Color", group="Colors")
+
+// VWAP Settings
+showBullVWAP = input.bool(true, "Show Bullish Divergence VWAP", group="VWAP")
+showBearVWAP = input.bool(true, "Show Bearish Divergence VWAP", group="VWAP")
+vwapLineWidth = input.int(2, "VWAP Line Width", minval=1, maxval=5, group="VWAP")
+
+// Alert Settings
+alertOnBullDiv = input.bool(true, "Alert on Bullish Divergence", group="Alerts")
+alertOnBearDiv = input.bool(true, "Alert on Bearish Divergence", group="Alerts")
+
+// ============================================================================
+// WILLIAMS %R CALCULATION
+// ============================================================================
+
+highestHigh = ta.highest(high, willrLength)
+lowestLow = ta.lowest(low, willrLength)
+willR = (highestHigh - close) / (highestHigh - lowestLow) * -100
+
+// Determine Williams %R zone
+isOverbought = willR >= obLevel
+isOversold = willR <= osLevel
+
+// ============================================================================
+// PIVOT DETECTION FOR DIVERGENCES
+// ============================================================================
+
+// Price pivots
+pricePivotLow = ta.pivotlow(low, pivotLookback, pivotLookback)
+pricePivotHigh = ta.pivothigh(high, pivotLookback, pivotLookback)
+
+// Williams %R pivots
+willrPivotLow = ta.pivotlow(willR, pivotLookback, pivotLookback)
+willrPivotHigh = ta.pivothigh(willR, pivotLookback, pivotLookback)
+
+// ============================================================================
+// DIVERGENCE DETECTION
+// ============================================================================
+
+// Store pivot values for comparison
+var float lastPriceLow = na
+var float lastWillrLow = na
+var int lastPriceLowBar = na
+
+var float lastPriceHigh = na
+var float lastWillrHigh = na
+var int lastPriceHighBar = na
+
+// Bullish Divergence: Price Lower Low + Williams %R Higher Low (in oversold)
+bullishDivergence = false
+if not na(pricePivotLow) and not na(willrPivotLow)
+    if not na(lastPriceLow) and not na(lastWillrLow)
+        barsBack = bar_index - lastPriceLowBar
+        if barsBack <= divLookbackRange and barsBack > 0
+            // Price made lower low, Williams %R made higher low
+            if low[pivotLookback] < lastPriceLow and willR[pivotLookback] > lastWillrLow
+                if willR[pivotLookback] <= osLevel or lastWillrLow <= osLevel
+                    bullishDivergence := true
+
+// Update last pivot low values
+if not na(pricePivotLow) and not na(willrPivotLow)
+    lastPriceLow := low[pivotLookback]
+    lastWillrLow := willR[pivotLookback]
+    lastPriceLowBar := bar_index - pivotLookback
+
+// Bearish Divergence: Price Higher High + Williams %R Lower High (in overbought)
+bearishDivergence = false
+if not na(pricePivotHigh) and not na(willrPivotHigh)
+    if not na(lastPriceHigh) and not na(lastWillrHigh)
+        barsBack = bar_index - lastPriceHighBar
+        if barsBack <= divLookbackRange and barsBack > 0
+            // Price made higher high, Williams %R made lower high
+            if high[pivotLookback] > lastPriceHigh and willR[pivotLookback] < lastWillrHigh
+                if willR[pivotLookback] >= obLevel or lastWillrHigh >= obLevel
+                    bearishDivergence := true
+
+// Update last pivot high values
+if not na(pricePivotHigh) and not na(willrPivotHigh)
+    lastPriceHigh := high[pivotLookback]
+    lastWillrHigh := willR[pivotLookback]
+    lastPriceHighBar := bar_index - pivotLookback
+
+// ============================================================================
+// DIVERGENCE-BASED VWAP CALCULATION
+// ============================================================================
+
+// Bullish Divergence VWAP - resets on each bullish divergence
+var float bullVwapSum = 0.0
+var float bullVolSum = 0.0
+var float bullVwap = na
+var bool bullVwapActive = false
+
+if bullishDivergence
+    // Reset VWAP on new bullish divergence
+    bullVwapSum := 0.0
+    bullVolSum := 0.0
+    bullVwapActive := true
+
+if bullVwapActive
+    typicalPrice = (high + low + close) / 3
+    bullVwapSum += typicalPrice * volume
+    bullVolSum += volume
+    bullVwap := bullVolSum > 0 ? bullVwapSum / bullVolSum : na
+
+// Bearish Divergence VWAP - resets on each bearish divergence
+var float bearVwapSum = 0.0
+var float bearVolSum = 0.0
+var float bearVwap = na
+var bool bearVwapActive = false
+
+if bearishDivergence
+    // Reset VWAP on new bearish divergence
+    bearVwapSum := 0.0
+    bearVolSum := 0.0
+    bearVwapActive := true
+
+if bearVwapActive
+    typicalPrice = (high + low + close) / 3
+    bearVwapSum += typicalPrice * volume
+    bearVolSum += volume
+    bearVwap := bearVolSum > 0 ? bearVwapSum / bearVolSum : na
+
+// ============================================================================
+// WILLIAMS %R COLORING
+// ============================================================================
+
+// Dynamic color based on zone and momentum
+willrColor = isOversold ? bullColor : isOverbought ? bearColor : neutralColor
+
+// Gradient based on position
+willrGradient = willR >= -50 ?
+    color.from_gradient(willR, -50, 0, neutralColor, bearColor) :
+    color.from_gradient(willR, -100, -50, bullColor, neutralColor)
+
+// ============================================================================
+// PLOTTING - WILLIAMS %R PANEL
+// ============================================================================
+
+// Background zones
+bgcolor(isOverbought ? color.new(bearColor, 90) : na)
+bgcolor(isOversold ? color.new(bullColor, 90) : na)
+
+// Williams %R line
+plot(willR, "Williams %R", color=willrGradient, linewidth=2)
+
+// Overbought/Oversold levels
+hline(obLevel, "Overbought", color=color.new(bearColor, 50), linestyle=hline.style_dashed)
+hline(osLevel, "Oversold", color=color.new(bullColor, 50), linestyle=hline.style_dashed)
+hline(-50, "Midline", color=color.new(neutralColor, 70), linestyle=hline.style_dotted)
+
+// Divergence markers
+plotshape(bullishDivergence, "Bullish Divergence", shape.triangleup, location.bottom, bullColor, size=size.small)
+plotshape(bearishDivergence, "Bearish Divergence", shape.triangledown, location.top, bearColor, size=size.small)
+
+// ============================================================================
+// VWAP DISPLAY (OVERLAY VERSION - Separate Indicator Needed)
+// ============================================================================
+
+// Note: VWAPs are calculated but need overlay=true to display on price chart
+// Create a separate overlay version or use the table display below
+
+// ============================================================================
+// INFO TABLE - Shows current VWAP values
+// ============================================================================
+
+var table infoTable = table.new(position.top_right, 2, 4, bgcolor=color.new(color.black, 80), border_width=1)
+
+if barstate.islast
+    table.cell(infoTable, 0, 0, "Williams %R", text_color=color.white, text_size=size.small)
+    table.cell(infoTable, 1, 0, str.tostring(willR, "#.##"), text_color=willrGradient, text_size=size.small)
+
+    table.cell(infoTable, 0, 1, "Bull Div VWAP", text_color=bullColor, text_size=size.small)
+    table.cell(infoTable, 1, 1, bullVwapActive ? str.tostring(bullVwap, "#.##") : "---", text_color=bullColor, text_size=size.small)
+
+    table.cell(infoTable, 0, 2, "Bear Div VWAP", text_color=bearColor, text_size=size.small)
+    table.cell(infoTable, 1, 2, bearVwapActive ? str.tostring(bearVwap, "#.##") : "---", text_color=bearColor, text_size=size.small)
+
+    // Status
+    string status = bullishDivergence ? "🟢 BULL DIV" : bearishDivergence ? "🟣 BEAR DIV" : isOversold ? "Oversold" : isOverbought ? "Overbought" : "Neutral"
+    table.cell(infoTable, 0, 3, "Status", text_color=color.white, text_size=size.small)
+    table.cell(infoTable, 1, 3, status, text_color=bullishDivergence ? bullColor : bearishDivergence ? bearColor : neutralColor, text_size=size.small)
+
+// ============================================================================
+// ALERTS
+// ============================================================================
+
+alertcondition(bullishDivergence, "Bullish Divergence", "Williams %R Bullish Divergence Detected")
+alertcondition(bearishDivergence, "Bearish Divergence", "Williams %R Bearish Divergence Detected")
+alertcondition(bullishDivergence or bearishDivergence, "Any Divergence", "Williams %R Divergence Detected")

@@ -1,0 +1,184 @@
+//@version=6
+indicator("Intuitive Buy/Sell Signal Pro", shorttitle="IBSS Pro", overlay=true, max_boxes_count=500, max_lines_count=500)
+
+// ──────────────────────────────────────────────────────────────────────
+// INPUT SETTINGS
+// ──────────────────────────────────────────────────────────────────────
+// Trend Settings
+ma_fast_length = input.int(12, title="Fast MA Length", minval=1)
+ma_slow_length = input.int(26, title="Slow MA Length", minval=1)
+trend_threshold = input.float(0.5, title="Trend Strength Threshold", minval=0.1, maxval=2.0, step=0.1)
+
+// Momentum Settings
+rsi_length = input.int(14, title="RSI Length", minval=1)
+rsi_oversold = input.int(30, title="RSI Oversold Level", minval=1, maxval=50)
+rsi_overbought = input.int(70, title="RSI Overbought Level", minval=50, maxval=100)
+rsi_use_crossover = input.bool(false, title="Use RSI Crossover (Strict)", tooltip="If false, uses zone-based signals which are more frequent")
+
+// Volume Settings
+volume_ma_length = input.int(20, title="Volume MA Length", minval=1)
+volume_multiplier = input.float(1.5, title="Volume Spike Multiplier", minval=1.0, maxval=5.0, step=0.1)
+
+// Volatility Settings
+atr_length = input.int(14, title="ATR Length", minval=1)
+atr_multiplier = input.float(2.0, title="ATR Stop Loss Multiplier", minval=0.5, maxval=5.0, step=0.1)
+
+// Signal Settings
+use_trend_filter = input.bool(true, title="Use Trend Filter", tooltip="Filters signals by MA trend alignment")
+use_volume_confirmation = input.bool(false, title="Use Volume Confirmation", tooltip="Requires volume spike for signals")
+use_atr_stops = input.bool(true, title="Use ATR-Based Stops")
+signal_cooldown = input.int(10, title="Signal Cooldown Bars", minval=0, maxval=50, tooltip="Minimum bars between signals")
+show_debug = input.bool(false, title="Show Debug Info", tooltip="Shows RSI and condition states")
+
+// ──────────────────────────────────────────────────────────────────────
+// CALCULATIONS
+// ──────────────────────────────────────────────────────────────────────
+// Moving Averages
+ma_fast = ta.ema(close, ma_fast_length)
+ma_slow = ta.ema(close, ma_slow_length)
+ma_trend = ma_fast > ma_slow ? 1 : -1
+
+// RSI
+rsi = ta.rsi(close, rsi_length)
+// RSI conditions - very restrictive for quality signals only
+// Crossover mode: exact crossover, Zone mode: very tight zone (2 points) with improvement
+rsi_bullish = rsi_use_crossover ? (rsi > rsi_oversold and rsi[1] <= rsi_oversold) : (rsi <= rsi_oversold + 2 and rsi > rsi[1])
+rsi_bearish = rsi_use_crossover ? (rsi < rsi_overbought and rsi[1] >= rsi_overbought) : (rsi >= rsi_overbought - 2 and rsi < rsi[1])
+
+// Volume Analysis
+volume_ma = ta.sma(volume, volume_ma_length)
+volume_spike = volume > volume_ma * volume_multiplier
+
+// ATR for Dynamic Stops
+atr = ta.atr(atr_length)
+atr_stop_long = close - atr * atr_multiplier
+atr_stop_short = close + atr * atr_multiplier
+
+// ──────────────────────────────────────────────────────────────────────
+// SIGNAL GENERATION
+// ──────────────────────────────────────────────────────────────────────
+// Buy Conditions
+buy_condition_1 = rsi_bullish
+buy_condition_2 = use_trend_filter ? ma_trend > 0 : true
+buy_condition_3 = use_volume_confirmation ? volume_spike : true
+
+// Sell Conditions
+sell_condition_1 = rsi_bearish
+sell_condition_2 = use_trend_filter ? ma_trend < 0 : true
+sell_condition_3 = use_volume_confirmation ? volume_spike : true
+
+// Generate Signals
+buy_signal_raw = buy_condition_1 and buy_condition_2 and buy_condition_3
+sell_signal_raw = sell_condition_1 and sell_condition_2 and sell_condition_3
+
+// Track Active Positions
+var bool in_long_position = false
+var bool in_short_position = false
+var float stop_loss_price = na
+var int last_buy_bar = 0
+var int last_sell_bar = 0
+
+// Apply cooldown to prevent too many signals
+buy_signal = buy_signal_raw and (bar_index - last_buy_bar >= signal_cooldown or last_buy_bar == 0)
+sell_signal = sell_signal_raw and (bar_index - last_sell_bar >= signal_cooldown or last_sell_bar == 0)
+
+// Line objects for stop loss lines
+var line long_stop_line = na
+var line short_stop_line = na
+
+// Update Position State
+if buy_signal and not in_long_position
+    in_long_position := true
+    in_short_position := false
+    stop_loss_price := use_atr_stops ? atr_stop_long : na
+    last_buy_bar := bar_index
+    // Delete old short stop line if it exists
+    if not na(short_stop_line)
+        line.delete(short_stop_line)
+        short_stop_line := na
+else if sell_signal and not in_short_position
+    in_long_position := false
+    in_short_position := true
+    stop_loss_price := use_atr_stops ? atr_stop_short : na
+    last_sell_bar := bar_index
+    // Delete old long stop line if it exists
+    if not na(long_stop_line)
+        line.delete(long_stop_line)
+        long_stop_line := na
+
+// Exit Conditions (for ATR stops)
+exit_long = in_long_position and close < stop_loss_price
+exit_short = in_short_position and close > stop_loss_price
+
+if exit_long or exit_short
+    in_long_position := false
+    in_short_position := false
+    stop_loss_price := na
+    // Delete stop loss lines
+    if not na(long_stop_line)
+        line.delete(long_stop_line)
+        long_stop_line := na
+    if not na(short_stop_line)
+        line.delete(short_stop_line)
+        short_stop_line := na
+
+// Update stop loss lines
+if use_atr_stops and in_long_position and not na(stop_loss_price)
+    if na(long_stop_line)
+        long_stop_line := line.new(bar_index - 1, stop_loss_price, bar_index, stop_loss_price, color=color.new(color.red, 50), style=line.style_dashed, width=1, extend=extend.right)
+    else
+        line.set_xy1(long_stop_line, bar_index - 1, stop_loss_price)
+        line.set_xy2(long_stop_line, bar_index, stop_loss_price)
+        line.set_extend(long_stop_line, extend=extend.right)
+
+if use_atr_stops and in_short_position and not na(stop_loss_price)
+    if na(short_stop_line)
+        short_stop_line := line.new(bar_index - 1, stop_loss_price, bar_index, stop_loss_price, color=color.new(color.green, 50), style=line.style_dashed, width=1, extend=extend.right)
+    else
+        line.set_xy1(short_stop_line, bar_index - 1, stop_loss_price)
+        line.set_xy2(short_stop_line, bar_index, stop_loss_price)
+        line.set_extend(short_stop_line, extend=extend.right)
+
+// ──────────────────────────────────────────────────────────────────────
+// PLOTTING
+// ──────────────────────────────────────────────────────────────────────
+// Moving Averages
+plot(ma_fast, color=color.new(color.blue, 0), title="Fast MA", linewidth=2)
+plot(ma_slow, color=color.new(color.orange, 0), title="Slow MA", linewidth=2)
+
+// Buy/Sell Signals - Small diamonds
+plotshape(buy_signal, style=shape.diamond, location=location.belowbar,
+          color=color.new(color.green, 0), size=size.tiny, title="Buy Signal")
+plotshape(sell_signal, style=shape.diamond, location=location.abovebar,
+          color=color.new(color.red, 0), size=size.tiny, title="Sell Signal")
+
+// Show RSI condition met (even if other filters block it) - for debugging
+plotshape(show_debug and rsi_bullish and not buy_signal, style=shape.circle, location=location.belowbar,
+          color=color.new(color.yellow, 0), size=size.tiny, title="RSI Bull (Blocked)")
+plotshape(show_debug and rsi_bearish and not sell_signal, style=shape.circle, location=location.abovebar,
+          color=color.new(color.orange, 0), size=size.tiny, title="RSI Bear (Blocked)")
+
+// Debug information
+if show_debug and barstate.islast
+    var label debug_label = label.new(bar_index, high, "", xloc=xloc.bar_index, style=label.style_label_down, color=color.new(color.blue, 80), textcolor=color.white, size=size.small)
+    debug_text = "RSI: " + str.tostring(math.round(rsi, 2)) + "\n"
+    debug_text += "RSI Bull: " + str.tostring(rsi_bullish) + "\n"
+    debug_text += "RSI Bear: " + str.tostring(rsi_bearish) + "\n"
+    debug_text += "Trend: " + str.tostring(ma_trend) + "\n"
+    debug_text += "Vol Spike: " + str.tostring(volume_spike) + "\n"
+    debug_text += "Buy Signal: " + str.tostring(buy_signal) + "\n"
+    debug_text += "Sell Signal: " + str.tostring(sell_signal)
+    label.set_text(debug_label, debug_text)
+    label.set_xy(debug_label, bar_index, high)
+
+// Background Colors for Trend
+bgcolor(use_trend_filter and ma_trend > 0 ? color.new(color.green, 95) : na, title="Bullish Trend")
+bgcolor(use_trend_filter and ma_trend < 0 ? color.new(color.red, 95) : na, title="Bearish Trend")
+
+// ──────────────────────────────────────────────────────────────────────
+// ALERTS
+// ──────────────────────────────────────────────────────────────────────
+alertcondition(buy_signal, title="Buy Signal", message="IBSS Pro: Buy Signal Detected")
+alertcondition(sell_signal, title="Sell Signal", message="IBSS Pro: Sell Signal Detected")
+alertcondition(exit_long, title="Long Position Exit", message="IBSS Pro: Long Position Exited")
+alertcondition(exit_short, title="Short Position Exit", message="IBSS Pro: Short Position Exited")

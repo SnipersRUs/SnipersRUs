@@ -1,0 +1,211 @@
+//@version=6
+indicator("Auto Channel + Triangle Detector", overlay=true, max_boxes_count=500, max_lines_count=500)
+
+//--- Inputs ---
+grp = "Settings"
+leftBars       = input.int(10, "Pivot Lookback Left", minval=1, group=grp)
+rightBars      = input.int(10, "Pivot Lookback Right", minval=1, group=grp)
+extendLen      = input.int(50, "Projection Length", minval=10, maxval=200, group=grp)
+showChannelFill = input.bool(true, "Show Channel Fill", group=grp)
+showTriangleFill = input.bool(true, "Show Triangle Fill", group=grp)
+historyChannels  = input.int(5, "Channel History", minval=1, maxval=50, group=grp)
+historyTriangles = input.int(5, "Triangle History", minval=1, maxval=50, group=grp)
+flatSlopePct     = input.float(0.0005, "Flat Slope % of Price", minval=0.0, step=0.0001, group=grp)
+showPivots       = input.bool(true, "Show Pivot Markers", group=grp)
+
+//--- Colors ---
+colBull = color.new(color.green, 0)
+colBear = color.new(color.red, 0)
+colFillBull = color.new(color.green, 85)
+colFillBear = color.new(color.red, 85)
+colTriNeutral = color.new(color.gray, 0)
+
+//--- Pivot Detection ---
+ph = ta.pivothigh(high, leftBars, rightBars)
+pl = ta.pivotlow(low, leftBars, rightBars)
+
+//--- State Variables for Bullish Channel (Based on Lows) ---
+var float pl_1_price = na
+var int   pl_1_bar   = na
+var float pl_2_price = na
+var int   pl_2_bar   = na
+
+//--- State Variables for Bearish Channel (Based on Highs) ---
+var float ph_1_price = na
+var int   ph_1_bar   = na
+var float ph_2_price = na
+var int   ph_2_bar   = na
+
+//--- History storage ---
+var line[] channelLines = array.new_line()
+var linefill[] channelFills = array.new_linefill()
+var line[] triangleLines = array.new_line()
+var linefill[] triangleFills = array.new_linefill()
+var label[] triangleLabels = array.new_label()
+
+//--- Helper: Calculate Slope ---
+getSlope(price1, bar1, price2, bar2) =>
+    (price2 - price1) / (bar2 - bar1)
+
+//--- Helper: Calculate Price at specific bar based on slope ---
+getPrice(startPrice, startBar, slope, targetBar) =>
+    startPrice + (slope * (targetBar - startBar))
+
+trimLines(linesArr, maxCount) =>
+    while array.size(linesArr) > maxCount
+        line.delete(array.shift(linesArr))
+
+trimFills(fillArr, maxCount) =>
+    while array.size(fillArr) > maxCount
+        linefill.delete(array.shift(fillArr))
+
+trimLabels(labelArr, maxCount) =>
+    while array.size(labelArr) > maxCount
+        label.delete(array.shift(labelArr))
+
+//==============================
+// BULLISH CHANNEL LOGIC
+//==============================
+if not na(pl)
+    // Shift logic: new low becomes pl_1, old pl_1 becomes pl_2
+    pl_2_price := pl_1_price
+    pl_2_bar   := pl_1_bar
+    pl_1_price := pl
+    pl_1_bar   := bar_index - rightBars
+
+    if not na(pl_2_price) and not na(pl_1_price)
+        float slope = getSlope(pl_2_price, pl_2_bar, pl_1_price, pl_1_bar)
+        int futureBar = bar_index + extendLen
+
+        int barsBetween = math.abs(pl_1_bar - pl_2_bar) + 1
+        float highestHigh = ta.highest(high, barsBetween)
+        int highestOffset = ta.highestbars(high, barsBetween)
+        int barOfMax = bar_index + highestOffset
+
+        float priceAtMaxBase = getPrice(pl_1_price, pl_1_bar, slope, barOfMax)
+        float channelWidth = highestHigh - priceAtMaxBase
+        float supFuture = getPrice(pl_1_price, pl_1_bar, slope, futureBar)
+        float resFuture = supFuture + channelWidth
+
+        line supLine = line.new(pl_2_bar, pl_2_price, futureBar, supFuture,
+             style=line.style_solid, color=colBull, width=2)
+        line resLine = line.new(barOfMax, highestHigh, futureBar, resFuture,
+             style=line.style_solid, color=colBull, width=2)
+        array.push(channelLines, supLine)
+        array.push(channelLines, resLine)
+        trimLines(channelLines, historyChannels * 2)
+
+        if showChannelFill
+            linefill chFill = linefill.new(supLine, resLine, colFillBull)
+            array.push(channelFills, chFill)
+            trimFills(channelFills, historyChannels)
+
+//==============================
+// BEARISH CHANNEL LOGIC
+//==============================
+if not na(ph)
+    // Shift logic: new high becomes ph_1, old ph_1 becomes ph_2
+    ph_2_price := ph_1_price
+    ph_2_bar   := ph_1_bar
+    ph_1_price := ph
+    ph_1_bar   := bar_index - rightBars
+
+    if not na(ph_2_price) and not na(ph_1_price)
+        float slope = getSlope(ph_2_price, ph_2_bar, ph_1_price, ph_1_bar)
+        int futureBar = bar_index + extendLen
+
+        int barsBetween = math.abs(ph_1_bar - ph_2_bar) + 1
+        float lowestLow = ta.lowest(low, barsBetween)
+        int lowestOffset = ta.lowestbars(low, barsBetween)
+        int barOfMin = bar_index + lowestOffset
+
+        float priceAtMinTop = getPrice(ph_1_price, ph_1_bar, slope, barOfMin)
+        float channelWidth = lowestLow - priceAtMinTop
+        float resFuture = getPrice(ph_1_price, ph_1_bar, slope, futureBar)
+        float supFuture = resFuture + channelWidth
+
+        line resLine = line.new(ph_2_bar, ph_2_price, futureBar, resFuture,
+             style=line.style_solid, color=colBear, width=2)
+        line supLine = line.new(barOfMin, lowestLow, futureBar, supFuture,
+             style=line.style_solid, color=colBear, width=2)
+        array.push(channelLines, resLine)
+        array.push(channelLines, supLine)
+        trimLines(channelLines, historyChannels * 2)
+
+        if showChannelFill
+            linefill chFill = linefill.new(resLine, supLine, colFillBear)
+            array.push(channelFills, chFill)
+            trimFills(channelFills, historyChannels)
+
+//==============================
+// TRIANGLE DETECTION
+//==============================
+var int lastTriPh1 = na
+var int lastTriPl1 = na
+
+bool triangleAnchorsReady = not na(ph_2_bar) and not na(ph_1_bar) and not na(pl_2_bar) and not na(pl_1_bar)
+bool triangleAnchorsChanged = (ph_1_bar != lastTriPh1) or (pl_1_bar != lastTriPl1)
+
+if triangleAnchorsReady and triangleAnchorsChanged
+    float slopeHigh = getSlope(ph_2_price, ph_2_bar, ph_1_price, ph_1_bar)
+    float slopeLow = getSlope(pl_2_price, pl_2_bar, pl_1_price, pl_1_bar)
+    int futureBar = bar_index + extendLen
+
+    int startBar = math.min(ph_2_bar, pl_2_bar)
+    float priceHighStart = getPrice(ph_2_price, ph_2_bar, slopeHigh, startBar)
+    float priceLowStart = getPrice(pl_2_price, pl_2_bar, slopeLow, startBar)
+    float priceHighEnd = getPrice(ph_2_price, ph_2_bar, slopeHigh, bar_index)
+    float priceLowEnd = getPrice(pl_2_price, pl_2_bar, slopeLow, bar_index)
+
+    float distStart = math.abs(priceHighStart - priceLowStart)
+    float distEnd = math.abs(priceHighEnd - priceLowEnd)
+    bool isConverging = distEnd < distStart and priceHighStart > priceLowStart
+
+    float flatSlope = close * flatSlopePct
+    bool flatHigh = math.abs(slopeHigh) <= flatSlope
+    bool flatLow = math.abs(slopeLow) <= flatSlope
+
+    bool validTriangle = isConverging and ((slopeLow > 0 and slopeHigh < 0) or (slopeLow > 0 and flatHigh) or (slopeHigh < 0 and flatLow))
+
+    if validTriangle
+        string triLabel = "Triangle"
+        color triColor = colTriNeutral
+
+        if slopeLow > 0 and flatHigh
+            triLabel := "Bullish Triangle"
+            triColor := colBull
+        else if slopeHigh < 0 and flatLow
+            triLabel := "Bearish Triangle"
+            triColor := colBear
+        else if slopeLow > 0 and slopeHigh < 0
+            if slopeLow >= math.abs(slopeHigh)
+                triLabel := "Bullish Triangle"
+                triColor := colBull
+            else
+                triLabel := "Bearish Triangle"
+                triColor := colBear
+
+        line triHigh = line.new(ph_2_bar, ph_2_price, futureBar, getPrice(ph_2_price, ph_2_bar, slopeHigh, futureBar),
+             style=line.style_solid, color=triColor, width=2)
+        line triLow = line.new(pl_2_bar, pl_2_price, futureBar, getPrice(pl_2_price, pl_2_bar, slopeLow, futureBar),
+             style=line.style_solid, color=triColor, width=2)
+
+        array.push(triangleLines, triHigh)
+        array.push(triangleLines, triLow)
+        trimLines(triangleLines, historyTriangles * 2)
+
+        if showTriangleFill
+            linefill triFill = linefill.new(triHigh, triLow, color.new(triColor, 85))
+            array.push(triangleFills, triFill)
+            trimFills(triangleFills, historyTriangles)
+
+        label triText = label.new(bar_index, high, triLabel, style=label.style_label_down, color=triColor, textcolor=color.white)
+        array.push(triangleLabels, triText)
+        trimLabels(triangleLabels, historyTriangles)
+
+        lastTriPh1 := ph_1_bar
+        lastTriPl1 := pl_1_bar
+
+// Plot current pivots for reference
+plotshape(showPivots and ph, "Pivot High", shape.triangledown, location.abovebar, color.red, size=size.tiny, offset=-rightBars)
+plotshape(showPivots and pl, "Pivot Low",  shape.triangleup,   location.belowbar, color.green, size=size.tiny, offset=-rightBars)

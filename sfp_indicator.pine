@@ -1,0 +1,340 @@
+// @version=6
+// SFP (Fair Value Gap) Indicator - FIXED
+// Detects and displays FVGs across multiple timeframes
+// Now with 3-candle FVG detection for better visibility
+
+indicator(title="SFP Indicator (Fixed)", shorttitle="SFP", overlay=true, max_boxes_count=500)
+
+// ============================================================================
+// INPUTS
+// ============================================================================
+
+// Detection method
+detection_method = input.string("3-Candle FVG", "Detection Method", options=["3-Candle FVG", "2-Candle Gap"], group="Detection")
+
+// Timeframe toggles
+show_15m = input.bool(true, "Show 15m SFPs", group="Timeframes")
+show_1h = input.bool(true, "Show 1h SFPs", group="Timeframes")
+show_4h = input.bool(true, "Show 4h SFPs", group="Timeframes")
+show_8h = input.bool(false, "Show 8h SFPs", group="Timeframes")
+show_daily = input.bool(false, "Show Daily SFPs", group="Timeframes")
+
+// Visual settings
+fill_opacity = input.int(20, "Fill Opacity", minval=0, maxval=100, group="Visual")
+line_width = input.int(1, "Line Width", minval=1, maxval=5, group="Visual")
+extend_lines = input.bool(true, "Extend Lines", group="Visual")
+
+// Colors
+color_bullish = input.color(color.new(color.green, 0), "Bullish SFP", group="Colors")
+color_bearish = input.color(color.new(color.red, 0), "Bearish SFP", group="Colors")
+
+// Alert settings
+alert_on_detect = input.bool(true, "Alert on SFP Detection", group="Alerts")
+alert_on_approach = input.bool(true, "Alert on Price Approach", group="Alerts")
+approach_distance = input.float(0.5, "Approach Distance %", minval=0.1, maxval=2.0, step=0.1, group="Alerts")
+
+// ============================================================================
+// FVG DETECTION FUNCTIONS
+// ============================================================================
+
+// 3-CANDLE FVG DETECTION (more common, better visibility)
+detect_fvg_3candle(timeframe_str) =>
+    // Get 3 consecutive bars from HTF
+    [h0, l0, c0] = request.security(syminfo.tickerid, timeframe_str, [high, low, close], lookahead=barmerge.lookahead_off)
+    [h1, l1] = request.security(syminfo.tickerid, timeframe_str, [high[1], low[1]], lookahead=barmerge.lookahead_off)
+    [h2, l2] = request.security(syminfo.tickerid, timeframe_str, [high[2], low[2]], lookahead=barmerge.lookahead_off)
+
+    // Get HTF time to detect new bars
+    htf_time = request.security(syminfo.tickerid, timeframe_str, time, lookahead=barmerge.lookahead_off)
+    prev_htf_time = request.security(syminfo.tickerid, timeframe_str, time[1], lookahead=barmerge.lookahead_off)
+    is_new_bar = not na(htf_time) and not na(prev_htf_time) and htf_time != prev_htf_time
+
+    // Bullish FVG: gap between candle[2].low and candle[0].high (candle[1] is the gap)
+    float bullish_gap_top = na
+    float bullish_gap_bottom = na
+    bullish_detected = false
+
+    if is_new_bar and not na(h0) and not na(l2) and l2 > h0
+        bullish_gap_top := l2
+        bullish_gap_bottom := h0
+        bullish_detected := true
+
+    // Bearish FVG: gap between candle[2].high and candle[0].low
+    float bearish_gap_top = na
+    float bearish_gap_bottom = na
+    bearish_detected = false
+
+    if is_new_bar and not na(l0) and not na(h2) and h2 < l0
+        bearish_gap_top := l0
+        bearish_gap_bottom := h2
+        bearish_detected := true
+
+    [bullish_detected, bullish_gap_top, bullish_gap_bottom, bearish_detected, bearish_gap_top, bearish_gap_bottom, htf_time]
+
+// 2-CANDLE GAP DETECTION (original method - rare)
+detect_fvg_2candle(timeframe_str) =>
+    // Get current and previous bar data from HTF
+    [htf_high, htf_low] = request.security(syminfo.tickerid, timeframe_str, [high, low], lookahead=barmerge.lookahead_off)
+    [prev_high, prev_low] = request.security(syminfo.tickerid, timeframe_str, [high[1], low[1]], lookahead=barmerge.lookahead_off)
+
+    // Get HTF time to detect new bars
+    htf_time = request.security(syminfo.tickerid, timeframe_str, time, lookahead=barmerge.lookahead_off)
+    prev_htf_time = request.security(syminfo.tickerid, timeframe_str, time[1], lookahead=barmerge.lookahead_off)
+    is_new_bar = not na(htf_time) and not na(prev_htf_time) and htf_time != prev_htf_time
+
+    // Bullish gap: previous high < current low
+    float bullish_gap_top = na
+    float bullish_gap_bottom = na
+    bullish_detected = false
+
+    if is_new_bar and not na(prev_high) and not na(htf_low) and prev_high < htf_low
+        bullish_gap_top := prev_high
+        bullish_gap_bottom := htf_low
+        bullish_detected := true
+
+    // Bearish gap: previous low > current high
+    float bearish_gap_top = na
+    float bearish_gap_bottom = na
+    bearish_detected = false
+
+    if is_new_bar and not na(prev_low) and not na(htf_high) and prev_low > htf_high
+        bearish_gap_top := prev_low
+        bearish_gap_bottom := htf_high
+        bearish_detected := true
+
+    [bullish_detected, bullish_gap_top, bullish_gap_bottom, bearish_detected, bearish_gap_top, bearish_gap_bottom, htf_time]
+
+// Wrapper function to use selected detection method
+detect_sfp(timeframe_str) =>
+    if detection_method == "3-Candle FVG"
+        detect_fvg_3candle(timeframe_str)
+    else
+        detect_fvg_2candle(timeframe_str)
+
+// ============================================================================
+// SFP TRACKING STRUCTURE
+// ============================================================================
+
+// Store active SFPs for each timeframe
+// Using time instead of bar_index to avoid "too far" errors
+var array<float> sfp_tops_15m = array.new<float>()
+var array<float> sfp_bottoms_15m = array.new<float>()
+var array<bool> sfp_bullish_15m = array.new<bool>()
+var array<int> sfp_times_15m = array.new<int>()
+
+var array<float> sfp_tops_1h = array.new<float>()
+var array<float> sfp_bottoms_1h = array.new<float>()
+var array<bool> sfp_bullish_1h = array.new<bool>()
+var array<int> sfp_times_1h = array.new<int>()
+
+var array<float> sfp_tops_4h = array.new<float>()
+var array<float> sfp_bottoms_4h = array.new<float>()
+var array<bool> sfp_bullish_4h = array.new<bool>()
+var array<int> sfp_times_4h = array.new<int>()
+
+var array<float> sfp_tops_8h = array.new<float>()
+var array<float> sfp_bottoms_8h = array.new<float>()
+var array<bool> sfp_bullish_8h = array.new<bool>()
+var array<int> sfp_times_8h = array.new<int>()
+
+var array<float> sfp_tops_daily = array.new<float>()
+var array<float> sfp_bottoms_daily = array.new<float>()
+var array<bool> sfp_bullish_daily = array.new<bool>()
+var array<int> sfp_times_daily = array.new<int>()
+
+// Helper function to manage SFP arrays
+manage_sfps(timeframe_str, sfp_tops, sfp_bottoms, sfp_bullish, sfp_times) =>
+    [bull_detected, bull_top, bull_bot, bear_detected, bear_top, bear_bot, htf_time] = detect_sfp(timeframe_str)
+
+    new_sfp_added = false
+
+    // Add new bullish SFP
+    if bull_detected and not na(bull_top) and not na(bull_bot) and not na(htf_time)
+        gap_exists = false
+        array_size = array.size(sfp_tops)
+        if array_size > 0
+            for i = 0 to array_size - 1
+                existing_top = array.get(sfp_tops, i)
+                existing_bot = array.get(sfp_bottoms, i)
+                if not na(existing_top) and not na(existing_bot)
+                    if math.abs(existing_top - bull_top) / bull_top < 0.001 and math.abs(existing_bot - bull_bot) / bull_bot < 0.001
+                        gap_exists := true
+                        break
+
+        if not gap_exists
+            array.push(sfp_tops, bull_top)
+            array.push(sfp_bottoms, bull_bot)
+            array.push(sfp_bullish, true)
+            array.push(sfp_times, htf_time)
+            new_sfp_added := true
+
+    // Add new bearish SFP
+    if bear_detected and not na(bear_top) and not na(bear_bot) and not na(htf_time)
+        gap_exists = false
+        array_size = array.size(sfp_tops)
+        if array_size > 0
+            for i = 0 to array_size - 1
+                existing_top = array.get(sfp_tops, i)
+                existing_bot = array.get(sfp_bottoms, i)
+                if not na(existing_top) and not na(existing_bot)
+                    if math.abs(existing_top - bear_top) / bear_top < 0.001 and math.abs(existing_bot - bear_bot) / bear_bot < 0.001
+                        gap_exists := true
+                        break
+
+        if not gap_exists
+            array.push(sfp_tops, bear_top)
+            array.push(sfp_bottoms, bear_bot)
+            array.push(sfp_bullish, false)
+            array.push(sfp_times, htf_time)
+            new_sfp_added := true
+
+    // Remove filled SFPs
+    i = array.size(sfp_tops) - 1
+    while i >= 0
+        gap_top = array.get(sfp_tops, i)
+        gap_bottom = array.get(sfp_bottoms, i)
+
+        is_filled = low <= gap_top and high >= gap_bottom
+
+        if is_filled
+            array.remove(sfp_tops, i)
+            array.remove(sfp_bottoms, i)
+            array.remove(sfp_bullish, i)
+            array.remove(sfp_times, i)
+
+        i -= 1
+
+    new_sfp_added
+
+// Update SFP arrays
+new_15m = manage_sfps("15", sfp_tops_15m, sfp_bottoms_15m, sfp_bullish_15m, sfp_times_15m)
+new_1h = manage_sfps("60", sfp_tops_1h, sfp_bottoms_1h, sfp_bullish_1h, sfp_times_1h)
+new_4h = manage_sfps("240", sfp_tops_4h, sfp_bottoms_4h, sfp_bullish_4h, sfp_times_4h)
+new_8h = manage_sfps("480", sfp_tops_8h, sfp_bottoms_8h, sfp_bullish_8h, sfp_times_8h)
+new_daily = manage_sfps("D", sfp_tops_daily, sfp_bottoms_daily, sfp_bullish_daily, sfp_times_daily)
+
+// ============================================================================
+// DRAW SFPs
+// ============================================================================
+
+var array<box> sfp_boxes_15m = array.new<box>()
+var array<box> sfp_boxes_1h = array.new<box>()
+var array<box> sfp_boxes_4h = array.new<box>()
+var array<box> sfp_boxes_8h = array.new<box>()
+var array<box> sfp_boxes_daily = array.new<box>()
+
+draw_sfps(sfp_tops, sfp_bottoms, sfp_bullish, sfp_times, sfp_boxes, show_tf, force_redraw) =>
+    if not show_tf
+        boxes_size = array.size(sfp_boxes)
+        if boxes_size > 0
+            for i = boxes_size - 1 to 0
+                box.delete(array.get(sfp_boxes, i))
+        array.clear(sfp_boxes)
+    else
+        tops_size = array.size(sfp_tops)
+        bottoms_size = array.size(sfp_bottoms)
+        bullish_size = array.size(sfp_bullish)
+        times_size = array.size(sfp_times)
+        array_size = math.min(math.min(tops_size, bottoms_size), math.min(bullish_size, times_size))
+
+        while array.size(sfp_boxes) > array_size
+            if array.size(sfp_boxes) > 0
+                last_box = array.pop(sfp_boxes)
+                if not na(last_box)
+                    box.delete(last_box)
+
+        if force_redraw or array.size(sfp_boxes) < array_size
+            boxes_size = array.size(sfp_boxes)
+            if boxes_size > 0
+                for i = boxes_size - 1 to 0
+                    existing_box = array.get(sfp_boxes, i)
+                    if not na(existing_box)
+                        box.delete(existing_box)
+            array.clear(sfp_boxes)
+
+            if array_size > 0 and tops_size == bottoms_size and bottoms_size == bullish_size and bullish_size == times_size
+                for i = 0 to array_size - 1
+                    gap_top = array.get(sfp_tops, i)
+                    gap_bottom = array.get(sfp_bottoms, i)
+                    is_bullish = array.get(sfp_bullish, i)
+                    gap_time = array.get(sfp_times, i)
+
+                    if not na(gap_top) and not na(gap_bottom) and not na(gap_time)
+                        box_color = is_bullish ? color_bullish : color_bearish
+
+                        // Use time instead of bar_index to avoid "too far" errors
+                        new_box = box.new(
+                             left=gap_time,
+                             top=gap_top,
+                             right=bar_index,
+                             bottom=gap_bottom,
+                             border_color=box_color,
+                             border_width=line_width,
+                             bgcolor=color.new(box_color, 100 - fill_opacity),
+                             extend=extend_lines ? extend.right : extend.none)
+                        array.push(sfp_boxes, new_box)
+
+force_redraw = barstate.islast or barstate.isfirst
+draw_sfps(sfp_tops_15m, sfp_bottoms_15m, sfp_bullish_15m, sfp_times_15m, sfp_boxes_15m, show_15m, force_redraw or new_15m)
+draw_sfps(sfp_tops_1h, sfp_bottoms_1h, sfp_bullish_1h, sfp_times_1h, sfp_boxes_1h, show_1h, force_redraw or new_1h)
+draw_sfps(sfp_tops_4h, sfp_bottoms_4h, sfp_bullish_4h, sfp_times_4h, sfp_boxes_4h, show_4h, force_redraw or new_4h)
+draw_sfps(sfp_tops_8h, sfp_bottoms_8h, sfp_bullish_8h, sfp_times_8h, sfp_boxes_8h, show_8h, force_redraw or new_8h)
+draw_sfps(sfp_tops_daily, sfp_bottoms_daily, sfp_bullish_daily, sfp_times_daily, sfp_boxes_daily, show_daily, force_redraw or new_daily)
+
+// ============================================================================
+// ALERTS
+// ============================================================================
+
+check_new_sfp(timeframe_str) =>
+    [bull_detected, bull_top, bull_bot, bear_detected, bear_top, bear_bot, htf_time] = detect_sfp(timeframe_str)
+    bull_detected or bear_detected
+
+check_approach_sfps(sfp_tops, sfp_bottoms) =>
+    approaching = false
+    if array.size(sfp_tops) > 0
+        for i = 0 to array.size(sfp_tops) - 1
+            gap_top = array.get(sfp_tops, i)
+            gap_bottom = array.get(sfp_bottoms, i)
+            if not na(gap_top) and not na(gap_bottom)
+                gap_mid = (gap_top + gap_bottom) / 2
+                distance_pct = math.abs(close - gap_mid) / close * 100
+                if distance_pct <= approach_distance
+                    approaching := true
+                    break
+    approaching
+
+new_sfp_15m = check_new_sfp("15")
+new_sfp_1h = check_new_sfp("60")
+new_sfp_4h = check_new_sfp("240")
+new_sfp_8h = check_new_sfp("480")
+new_sfp_daily = check_new_sfp("D")
+
+alert_15m_detect = show_15m and alert_on_detect and new_sfp_15m
+alert_1h_detect = show_1h and alert_on_detect and new_sfp_1h
+alert_4h_detect = show_4h and alert_on_detect and new_sfp_4h
+alert_8h_detect = show_8h and alert_on_detect and new_sfp_8h
+alert_daily_detect = show_daily and alert_on_detect and new_sfp_daily
+
+approach_check_15m = check_approach_sfps(sfp_tops_15m, sfp_bottoms_15m)
+approach_check_1h = check_approach_sfps(sfp_tops_1h, sfp_bottoms_1h)
+approach_check_4h = check_approach_sfps(sfp_tops_4h, sfp_bottoms_4h)
+approach_check_8h = check_approach_sfps(sfp_tops_8h, sfp_bottoms_8h)
+approach_check_daily = check_approach_sfps(sfp_tops_daily, sfp_bottoms_daily)
+
+approach_15m = show_15m and alert_on_approach and approach_check_15m
+approach_1h = show_1h and alert_on_approach and approach_check_1h
+approach_4h = show_4h and alert_on_approach and approach_check_4h
+approach_8h = show_8h and alert_on_approach and approach_check_8h
+approach_daily = show_daily and alert_on_approach and approach_check_daily
+
+alertcondition(alert_15m_detect, "15m SFP Detected", "15m SFP detected")
+alertcondition(alert_1h_detect, "1h SFP Detected", "1h SFP detected")
+alertcondition(alert_4h_detect, "4h SFP Detected", "4h SFP detected")
+alertcondition(alert_8h_detect, "8h SFP Detected", "8h SFP detected")
+alertcondition(alert_daily_detect, "Daily SFP Detected", "Daily SFP detected")
+
+alertcondition(approach_15m, "15m SFP Approach", "Price approaching 15m SFP")
+alertcondition(approach_1h, "1h SFP Approach", "Price approaching 1h SFP")
+alertcondition(approach_4h, "4h SFP Approach", "Price approaching 4h SFP")
+alertcondition(approach_8h, "8h SFP Approach", "Price approaching 8h SFP")
+alertcondition(approach_daily, "Daily SFP Approach", "Price approaching Daily SFP")

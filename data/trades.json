@@ -1,0 +1,83 @@
+{
+  "balance": 10120.0,
+  "open": [
+    {
+      "ts": "2025-09-24 00:54:47 EDT",
+      "symbol": "OP/USDT",
+      "side": "LONG",
+      "type": "SFP_LONG",
+      "entry": 0.6912,
+      "sl": 0.6801,
+      "tp1": 0.7050240000000001,
+      "tp2": 0.718848,
+      "invalidation": 0.6750951770104487,
+      "size": 1000.0,
+      "leverage": 3,
+      "unrealized_pct": 0.0,
+      "status": "OPEN",
+      "reason": "VWAP confluence + Bull SFP detected + MACD bullish + Downtrend + below VWAP + Volume spike",
+      "score": 85
+    },
+    {
+      "ts": "2025-09-24 00:54:47 EDT",
+      "symbol": "TIA/USDT",
+      "side": "LONG",
+      "type": "SFP_LONG",
+      "entry": 1.45,
+      "sl": 1.43,
+      "tp1": 1.4789999999999999,
+      "tp2": 1.508,
+      "invalidation": 1.4184678375725468,
+      "size": 1000.0,
+      "leverage": 3,
+      "unrealized_pct": 0.0,
+      "status": "OPEN",
+      "reason": "VWAP confluence + Bull SFP detected + MACD bearish + Downtrend + below VWAP + Volume spike",
+      "score": 85
+    }
+  ],
+  "closed": [
+    {
+      "ts": "2025-09-23 10:59:34 EDT",
+      "symbol": "SNX/USDT",
+      "side": "SHORT",
+      "type": "SFP_SHORT",
+      "entry": 0.6949,
+      "sl": 0.7257,
+      "tp1": 0.681002,
+      "tp2": 0.6671039999999999,
+      "invalidation": 0.7342294613505013,
+      "size": 1000.0,
+      "leverage": 3,
+      "unrealized_pct": 0.0,
+      "status": "TP1",
+      "reason": "Bear SFP detected + Uptrend + above VWAP + Volume spike",
+      "score": 55,
+      "exit": 0.681002,
+      "exit_ts": "2025-09-23 14:03:39 EDT",
+      "pnl": 59.99999999999986,
+      "pnl_pct": 5.999999999999986
+    },
+    {
+      "ts": "2025-09-24 00:54:48 EDT",
+      "symbol": "CRV/USDT",
+      "side": "LONG",
+      "type": "SFP_LONG",
+      "entry": 0.6686,
+      "sl": 0.6589,
+      "tp1": 0.681972,
+      "tp2": 0.695344,
+      "invalidation": 0.6535861528609952,
+      "size": 1000.0,
+      "leverage": 3,
+      "unrealized_pct": 0.0,
+      "status": "TP1",
+      "reason": "VWAP confluence + Bull SFP detected + MACD bullish + Downtrend + below VWAP + Volume spike",
+      "score": 85,
+      "exit": 0.681972,
+      "exit_ts": "2025-09-24 01:55:51 EDT",
+      "pnl": 60.000000000000234,
+      "pnl_pct": 6.000000000000023
+    }
+  ]
+}

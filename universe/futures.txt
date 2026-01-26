@@ -1,0 +1,5 @@
+ES=F
+NQ=F
+YM=F
+CL=F
+GC=F

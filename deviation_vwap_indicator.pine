@@ -1,0 +1,362 @@
+//@version=6
+indicator("Tactical Deviation", overlay=true, max_bars_back=5000)
+
+// ============================================================================
+// INPUTS
+// ============================================================================
+// VWAP Selection
+showDailyVWAP = input.bool(true, "Show Daily VWAP", group="VWAP Settings")
+showWeeklyVWAP = input.bool(false, "Show Weekly VWAP", group="VWAP Settings")
+showMonthlyVWAP = input.bool(false, "Show Monthly VWAP", group="VWAP Settings")
+
+// Deviation Bands
+showDev1 = input.bool(false, "Show ±1σ Bands", group="Deviation Bands")
+showDev2 = input.bool(true, "Show ±2σ Bands", group="Deviation Bands")
+showDev3 = input.bool(false, "Show ±3σ Bands", group="Deviation Bands")
+showFills = input.bool(false, "Show Fill Zones", group="Deviation Bands")
+dev1Mult = input.float(1.0, "1σ Multiplier", minval=0.1, maxval=5.0, group="Deviation Bands")
+dev2Mult = input.float(2.0, "2σ Multiplier", minval=0.1, maxval=5.0, group="Deviation Bands")
+dev3Mult = input.float(3.0, "3σ Multiplier", minval=0.1, maxval=5.0, group="Deviation Bands")
+
+// Dynamic Deviation Multipliers
+useDynamicMult = input.bool(false, "Use Dynamic Multipliers", group="Deviation Bands", tooltip="Adjusts deviation bands based on market volatility")
+atrLookback = input.int(14, "ATR Lookback for Volatility", minval=5, maxval=50, group="Deviation Bands")
+
+// Signal Settings
+showSignals = input.bool(true, "Show Signals", group="Signals")
+signalStrength = input.int(2, "Min Deviation Level (1=1σ, 2=2σ, 3=3σ)", minval=1, maxval=3, group="Signals")
+requirePivotReversal = input.bool(false, "Require Pivot Reversal (Stronger Signals)", group="Signals", tooltip="Only show signals when both pivot reversal AND extreme deviation occur")
+requireVolumeSpike = input.bool(true, "Require Volume Spike (Recommended)", group="Signals", tooltip="Only show signals with high volume spikes for better quality")
+volumeSpikeMultiplier = input.float(1.5, "Volume Spike Threshold", minval=1.0, maxval=5.0, group="Signals", tooltip="Volume must be this many times above average (1.5x = 50% above avg)")
+volumeLookback = input.int(20, "Volume Average Period", minval=10, maxval=50, group="Signals")
+
+// RSI Filter
+useRSIFilter = input.bool(false, "Use RSI Filter", group="Signals", tooltip="Requires RSI to be overbought/oversold to confirm signals")
+rsiLength = input.int(14, "RSI Length", minval=2, maxval=50, group="Signals")
+rsiOverbought = input.int(70, "RSI Overbought Level", minval=50, maxval=90, group="Signals")
+rsiOversold = input.int(30, "RSI Oversold Level", minval=10, maxval=50, group="Signals")
+
+// Pivot Detection
+pivotLookback = input.int(5, "Pivot Lookback", minval=3, maxval=20, group="Pivot Detection")
+pivotStrength = input.int(2, "Pivot Strength (bars on each side)", minval=1, maxval=10, group="Pivot Detection")
+
+// Confluence Settings
+requireConfluence = input.bool(false, "Require Multi-VWAP Confluence", group="Confluence")
+minVWAPsForSignal = input.int(2, "Min VWAPs for Confluence", minval=1, maxval=3, group="Confluence")
+
+// Visual Settings
+vwapLineWidth = input.int(2, "VWAP Line Width", minval=1, maxval=5, group="Visual")
+bandLineWidth = input.int(1, "Band Line Width", minval=1, maxval=3, group="Visual")
+fillOpacity = input.int(10, "Fill Opacity (%)", minval=0, maxval=100, group="Visual")
+
+// Colors
+dailyColor = input.color(color.new(#00D9FF, 0), "Daily VWAP Color", group="Colors")
+weeklyColor = input.color(color.new(#FFAA00, 0), "Weekly VWAP Color", group="Colors")
+monthlyColor = input.color(color.new(#9D4EDD, 0), "Monthly VWAP Color", group="Colors")
+
+// Display Options
+showInfoTable = input.bool(true, "Show Deviation Info Table", group="Display Options")
+
+// ============================================================================
+// CALCULATION FUNCTIONS
+// ============================================================================
+
+// Function for Dynamic Multipliers
+getDynamicMultiplier(baseMult) =>
+    atr = ta.atr(atrLookback)
+    atrPercent = atr / close * 100
+    scaleFactor = 1.0 + (atrPercent / 10.0)
+    baseMult * scaleFactor
+
+// Function for Volume-Weighted VWAP and StdDev
+calcVWAPandBands(resolution, mult1, mult2, mult3) =>
+    isNewPeriod = ta.change(time(resolution)) != 0
+    var float sumPV = 0.0
+    var float sumV = 0.0
+    var float sumPV2 = 0.0
+
+    if isNewPeriod
+        sumPV := hlc3 * volume
+        sumV := volume
+        sumPV2 := math.pow(hlc3, 2) * volume
+    else
+        sumPV += hlc3 * volume
+        sumV += volume
+        sumPV2 += math.pow(hlc3, 2) * volume
+
+    vwap = sumV > 0 ? sumPV / sumV : na
+    variance = sumV > 0 ? (sumPV2 / sumV) - math.pow(vwap, 2) : 0.0
+    stdDev = math.sqrt(math.max(variance, 0))
+
+    upper1 = vwap + (stdDev * mult1)
+    lower1 = vwap - (stdDev * mult1)
+    upper2 = vwap + (stdDev * mult2)
+    lower2 = vwap - (stdDev * mult2)
+    upper3 = vwap + (stdDev * mult3)
+    lower3 = vwap - (stdDev * mult3)
+
+    [vwap, stdDev, upper1, lower1, upper2, lower2, upper3, lower3]
+
+// ============================================================================
+// VWAP CALCULATIONS
+// ============================================================================
+// Get dynamic multipliers if enabled
+dMult1 = useDynamicMult ? getDynamicMultiplier(dev1Mult) : dev1Mult
+dMult2 = useDynamicMult ? getDynamicMultiplier(dev2Mult) : dev2Mult
+dMult3 = useDynamicMult ? getDynamicMultiplier(dev3Mult) : dev3Mult
+
+// Daily VWAP
+[dailyVWAP, dailyStdDev, dailyUpper1, dailyLower1, dailyUpper2, dailyLower2, dailyUpper3, dailyLower3] = calcVWAPandBands("1D", dMult1, dMult2, dMult3)
+
+// Weekly VWAP
+[weeklyVWAP, weeklyStdDev, weeklyUpper1, weeklyLower1, weeklyUpper2, weeklyLower2, weeklyUpper3, weeklyLower3] = calcVWAPandBands("1W", dMult1, dMult2, dMult3)
+
+// Monthly VWAP
+[monthlyVWAP, monthlyStdDev, monthlyUpper1, monthlyLower1, monthlyUpper2, monthlyLower2, monthlyUpper3, monthlyLower3] = calcVWAPandBands("1M", dMult1, dMult2, dMult3)
+
+// ============================================================================
+// DEVIATION CALCULATIONS
+// ============================================================================
+// Calculate current deviation level for each VWAP
+getDeviationLevel(price, vwap, stdDev, upper1, lower1, upper2, lower2, upper3, lower3) =>
+    if na(vwap) or stdDev == 0
+        [0, 0.0]
+    else
+        devPercent = ((price - vwap) / stdDev)
+        level = 0
+        if price >= upper3 or price <= lower3
+            level := 3
+        else if price >= upper2 or price <= lower2
+            level := 2
+        else if price >= upper1 or price <= lower1
+            level := 1
+
+        [level, devPercent]
+
+[dailyDevLevel, dailyDevPercent] = getDeviationLevel(close, dailyVWAP, dailyStdDev, dailyUpper1, dailyLower1, dailyUpper2, dailyLower2, dailyUpper3, dailyLower3)
+[weeklyDevLevel, weeklyDevPercent] = getDeviationLevel(close, weeklyVWAP, weeklyStdDev, weeklyUpper1, weeklyLower1, weeklyUpper2, weeklyLower2, weeklyUpper3, weeklyLower3)
+[monthlyDevLevel, monthlyDevPercent] = getDeviationLevel(close, monthlyVWAP, monthlyStdDev, monthlyUpper1, monthlyLower1, monthlyUpper2, monthlyLower2, monthlyUpper3, monthlyLower3)
+
+// Combined deviation score (confluence)
+totalDevScore = 0.0
+activeVWAPs = 0
+
+if not na(dailyVWAP) and showDailyVWAP
+    totalDevScore += math.abs(dailyDevPercent)
+    activeVWAPs += 1
+
+if not na(weeklyVWAP) and showWeeklyVWAP
+    totalDevScore += math.abs(weeklyDevPercent)
+    activeVWAPs += 1
+
+if not na(monthlyVWAP) and showMonthlyVWAP
+    totalDevScore += math.abs(monthlyDevPercent)
+    activeVWAPs += 1
+
+avgDevScore = activeVWAPs > 0 ? totalDevScore / activeVWAPs : 0
+
+// ============================================================================
+// PIVOT DETECTION
+// ============================================================================
+
+// Detect pivot highs and lows
+pivotHigh = ta.pivothigh(high, pivotLookback, pivotLookback)
+pivotLow = ta.pivotlow(low, pivotLookback, pivotLookback)
+
+// Stronger pivot detection (more bars on each side)
+strongPivotHigh = ta.pivothigh(high, pivotStrength, pivotStrength)
+strongPivotLow = ta.pivotlow(low, pivotStrength, pivotStrength)
+
+// Pivot reversal detection
+isPivotReversal = false
+pivotReversalDirection = 0  // 1 = bullish, -1 = bearish
+
+if not na(strongPivotLow) and close > strongPivotLow
+    isPivotReversal := true
+    pivotReversalDirection := 1
+
+if not na(strongPivotHigh) and close < strongPivotHigh
+    isPivotReversal := true
+    pivotReversalDirection := -1
+
+// ============================================================================
+// SIGNAL GENERATION
+// ============================================================================
+
+// RSI calculation
+rsi = ta.rsi(close, rsiLength)
+rsiOverboughtCondition = rsi >= rsiOverbought
+rsiOversoldCondition = rsi <= rsiOversold
+
+// Volume spike detection
+avgVolume = ta.sma(volume, volumeLookback)
+volumeSpike = volume > avgVolume * volumeSpikeMultiplier
+recentVolume = ta.sma(volume, 5)
+volumeMomentum = volume > recentVolume * 1.2
+hasVolumeConfirmation = not requireVolumeSpike or (volumeSpike or volumeMomentum)
+
+// Deviation-based signals
+isExtremeDeviation = false
+deviationDirection = 0  // 1 = oversold (below), -1 = overbought (above)
+
+// Check if price is at extreme deviation on any active VWAP
+dailyExtreme = showDailyVWAP and not na(dailyVWAP) and dailyDevLevel >= signalStrength
+weeklyExtreme = showWeeklyVWAP and not na(weeklyVWAP) and weeklyDevLevel >= signalStrength
+monthlyExtreme = showMonthlyVWAP and not na(monthlyVWAP) and monthlyDevLevel >= signalStrength
+
+// Count how many VWAPs show extreme deviation
+extremeCount = 0
+if dailyExtreme
+    extremeCount += 1
+    if deviationDirection == 0
+        deviationDirection := dailyDevPercent < 0 ? 1 : -1
+if weeklyExtreme
+    extremeCount += 1
+    if deviationDirection == 0
+        deviationDirection := weeklyDevPercent < 0 ? 1 : -1
+if monthlyExtreme
+    extremeCount += 1
+    if deviationDirection == 0
+        deviationDirection := monthlyDevPercent < 0 ? 1 : -1
+
+// Signal requires confluence if enabled
+if requireConfluence
+    isExtremeDeviation := extremeCount >= minVWAPsForSignal
+else
+    isExtremeDeviation := extremeCount >= 1
+
+// Signal generation: Base requirement is extreme deviation, optional enhancements
+// Long signal: Oversold (below VWAP) at extreme deviation
+isLongSignal = showSignals and isExtremeDeviation and deviationDirection == 1 and hasVolumeConfirmation
+
+// RSI filter for long signals
+if useRSIFilter
+    isLongSignal := isLongSignal and rsiOversoldCondition
+
+// Enhance signal quality if pivot reversal is enabled
+if requirePivotReversal
+    isLongSignal := isLongSignal and isPivotReversal and pivotReversalDirection == 1
+
+// Short signal: Overbought (above VWAP) at extreme deviation
+isShortSignal = showSignals and isExtremeDeviation and deviationDirection == -1 and hasVolumeConfirmation
+
+// RSI filter for short signals
+if useRSIFilter
+    isShortSignal := isShortSignal and rsiOverboughtCondition
+
+// Enhance signal quality if pivot reversal is enabled
+if requirePivotReversal
+    isShortSignal := isShortSignal and isPivotReversal and pivotReversalDirection == -1
+
+// ============================================================================
+// PLOTTING
+// ============================================================================
+
+// Daily VWAP
+plot(showDailyVWAP ? dailyVWAP : na, "Daily VWAP", color=dailyColor, linewidth=vwapLineWidth)
+dailyUpper1Plot = plot(showDailyVWAP and showDev1 ? dailyUpper1 : na, "Daily +1σ", color=color.new(dailyColor, 70), linewidth=bandLineWidth, style=plot.style_stepline)
+dailyLower1Plot = plot(showDailyVWAP and showDev1 ? dailyLower1 : na, "Daily -1σ", color=color.new(dailyColor, 70), linewidth=bandLineWidth, style=plot.style_stepline)
+dailyUpper2Plot = plot(showDailyVWAP and showDev2 ? dailyUpper2 : na, "Daily +2σ", color=color.new(dailyColor, 50), linewidth=bandLineWidth, style=plot.style_stepline)
+dailyLower2Plot = plot(showDailyVWAP and showDev2 ? dailyLower2 : na, "Daily -2σ", color=color.new(dailyColor, 50), linewidth=bandLineWidth, style=plot.style_stepline)
+dailyUpper3Plot = plot(showDailyVWAP and showDev3 ? dailyUpper3 : na, "Daily +3σ", color=color.new(dailyColor, 30), linewidth=bandLineWidth, style=plot.style_stepline)
+dailyLower3Plot = plot(showDailyVWAP and showDev3 ? dailyLower3 : na, "Daily -3σ", color=color.new(dailyColor, 30), linewidth=bandLineWidth, style=plot.style_stepline)
+
+// Weekly VWAP
+plot(showWeeklyVWAP ? weeklyVWAP : na, "Weekly VWAP", color=weeklyColor, linewidth=vwapLineWidth)
+weeklyUpper1Plot = plot(showWeeklyVWAP and showDev1 ? weeklyUpper1 : na, "Weekly +1σ", color=color.new(weeklyColor, 70), linewidth=bandLineWidth, style=plot.style_stepline)
+weeklyLower1Plot = plot(showWeeklyVWAP and showDev1 ? weeklyLower1 : na, "Weekly -1σ", color=color.new(weeklyColor, 70), linewidth=bandLineWidth, style=plot.style_stepline)
+weeklyUpper2Plot = plot(showWeeklyVWAP and showDev2 ? weeklyUpper2 : na, "Weekly +2σ", color=color.new(weeklyColor, 50), linewidth=bandLineWidth, style=plot.style_stepline)
+weeklyLower2Plot = plot(showWeeklyVWAP and showDev2 ? weeklyLower2 : na, "Weekly -2σ", color=color.new(weeklyColor, 50), linewidth=bandLineWidth, style=plot.style_stepline)
+weeklyUpper3Plot = plot(showWeeklyVWAP and showDev3 ? weeklyUpper3 : na, "Weekly +3σ", color=color.new(weeklyColor, 30), linewidth=bandLineWidth, style=plot.style_stepline)
+weeklyLower3Plot = plot(showWeeklyVWAP and showDev3 ? weeklyLower3 : na, "Weekly -3σ", color=color.new(weeklyColor, 30), linewidth=bandLineWidth, style=plot.style_stepline)
+
+// Monthly VWAP
+plot(showMonthlyVWAP ? monthlyVWAP : na, "Monthly VWAP", color=monthlyColor, linewidth=vwapLineWidth)
+monthlyUpper1Plot = plot(showMonthlyVWAP and showDev1 ? monthlyUpper1 : na, "Monthly +1σ", color=color.new(monthlyColor, 70), linewidth=bandLineWidth, style=plot.style_stepline)
+monthlyLower1Plot = plot(showMonthlyVWAP and showDev1 ? monthlyLower1 : na, "Monthly -1σ", color=color.new(monthlyColor, 70), linewidth=bandLineWidth, style=plot.style_stepline)
+monthlyUpper2Plot = plot(showMonthlyVWAP and showDev2 ? monthlyUpper2 : na, "Monthly +2σ", color=color.new(monthlyColor, 50), linewidth=bandLineWidth, style=plot.style_stepline)
+monthlyLower2Plot = plot(showMonthlyVWAP and showDev2 ? monthlyLower2 : na, "Monthly -2σ", color=color.new(monthlyColor, 50), linewidth=bandLineWidth, style=plot.style_stepline)
+monthlyUpper3Plot = plot(showMonthlyVWAP and showDev3 ? monthlyUpper3 : na, "Monthly +3σ", color=color.new(monthlyColor, 30), linewidth=bandLineWidth, style=plot.style_stepline)
+monthlyLower3Plot = plot(showMonthlyVWAP and showDev3 ? monthlyLower3 : na, "Monthly -3σ", color=color.new(monthlyColor, 30), linewidth=bandLineWidth, style=plot.style_stepline)
+
+// Fill between bands (optional, off by default)
+dailyUpper2Fill = showFills and showDailyVWAP and showDev2 ? dailyUpper2 : na
+dailyLower2Fill = showFills and showDailyVWAP and showDev2 ? dailyLower2 : na
+weeklyUpper2Fill = showFills and showWeeklyVWAP and showDev2 ? weeklyUpper2 : na
+weeklyLower2Fill = showFills and showWeeklyVWAP and showDev2 ? weeklyLower2 : na
+monthlyUpper2Fill = showFills and showMonthlyVWAP and showDev2 ? monthlyUpper2 : na
+monthlyLower2Fill = showFills and showMonthlyVWAP and showDev2 ? monthlyLower2 : na
+
+dailyUpper2FillPlot = plot(dailyUpper2Fill, "Daily Upper 2σ Fill", display=display.none)
+dailyLower2FillPlot = plot(dailyLower2Fill, "Daily Lower 2σ Fill", display=display.none)
+weeklyUpper2FillPlot = plot(weeklyUpper2Fill, "Weekly Upper 2σ Fill", display=display.none)
+weeklyLower2FillPlot = plot(weeklyLower2Fill, "Weekly Lower 2σ Fill", display=display.none)
+monthlyUpper2FillPlot = plot(monthlyUpper2Fill, "Monthly Upper 2σ Fill", display=display.none)
+monthlyLower2FillPlot = plot(monthlyLower2Fill, "Monthly Lower 2σ Fill", display=display.none)
+
+fill(dailyUpper2FillPlot, dailyLower2FillPlot, color=color.new(dailyColor, fillOpacity), title="Daily 2σ Zone")
+fill(weeklyUpper2FillPlot, weeklyLower2FillPlot, color=color.new(weeklyColor, fillOpacity), title="Weekly 2σ Zone")
+fill(monthlyUpper2FillPlot, monthlyLower2FillPlot, color=color.new(monthlyColor, fillOpacity), title="Monthly 2σ Zone")
+
+// High-Quality Signals - Size and color based on volume strength
+// Long signals with volume spike (normal size, bright green)
+plotshape(isLongSignal and volumeSpike, title="Long Signal - Volume Spike", style=shape.triangleup,
+         location=location.belowbar, color=color.new(#00FF00, 0), size=size.normal)
+
+// Long signals with volume momentum (small, lighter green)
+plotshape(isLongSignal and volumeMomentum and not volumeSpike, title="Long Signal - Volume Momentum", style=shape.triangleup,
+         location=location.belowbar, color=color.new(#88FF88, 0), size=size.small)
+
+// Long signals without volume (tiny, if volume requirement disabled)
+plotshape(isLongSignal and not volumeSpike and not volumeMomentum and not requireVolumeSpike, title="Long Signal", style=shape.triangleup,
+         location=location.belowbar, color=color.new(#88FF88, 0), size=size.tiny)
+
+// Short signals with volume spike (normal size, bright red)
+plotshape(isShortSignal and volumeSpike, title="Short Signal - Volume Spike", style=shape.triangledown,
+         location=location.abovebar, color=color.new(#FF0000, 0), size=size.normal)
+
+// Short signals with volume momentum (small, lighter red)
+plotshape(isShortSignal and volumeMomentum and not volumeSpike, title="Short Signal - Volume Momentum", style=shape.triangledown,
+         location=location.abovebar, color=color.new(#FF8888, 0), size=size.small)
+
+// Short signals without volume (tiny, if volume requirement disabled)
+plotshape(isShortSignal and not volumeSpike and not volumeMomentum and not requireVolumeSpike, title="Short Signal", style=shape.triangledown,
+         location=location.abovebar, color=color.new(#FF8888, 0), size=size.tiny)
+
+// ============================================================================
+// INFO TABLE
+// ============================================================================
+
+if showInfoTable and barstate.islast
+    var table infoTable = table.new(position.top_right, 2, 4, bgcolor=color.new(color.black, 80), border_width=1)
+
+    table.cell(infoTable, 0, 0, "VWAP", text_color=color.white, bgcolor=color.new(color.gray, 70))
+    table.cell(infoTable, 1, 0, "Deviation", text_color=color.white, bgcolor=color.new(color.gray, 70))
+
+    // Daily
+    dailyDevText = not na(dailyVWAP) ? str.tostring(dailyDevLevel) + "σ (" + str.tostring(math.round(dailyDevPercent, 2)) + ")" : "N/A"
+    dailyDevColor = dailyDevLevel >= 2 ? color.red : dailyDevLevel >= 1 ? color.orange : color.white
+    table.cell(infoTable, 0, 1, "Daily", text_color=color.white)
+    table.cell(infoTable, 1, 1, dailyDevText, text_color=dailyDevColor)
+
+    // Weekly
+    weeklyDevText = not na(weeklyVWAP) ? str.tostring(weeklyDevLevel) + "σ (" + str.tostring(math.round(weeklyDevPercent, 2)) + ")" : "N/A"
+    weeklyDevColor = weeklyDevLevel >= 2 ? color.red : weeklyDevLevel >= 1 ? color.orange : color.white
+    table.cell(infoTable, 0, 2, "Weekly", text_color=color.white)
+    table.cell(infoTable, 1, 2, weeklyDevText, text_color=weeklyDevColor)
+
+    // Monthly
+    monthlyDevText = not na(monthlyVWAP) ? str.tostring(monthlyDevLevel) + "σ (" + str.tostring(math.round(monthlyDevPercent, 2)) + ")" : "N/A"
+    monthlyDevColor = monthlyDevLevel >= 2 ? color.red : monthlyDevLevel >= 1 ? color.orange : color.white
+    table.cell(infoTable, 0, 3, "Monthly", text_color=color.white)
+    table.cell(infoTable, 1, 3, monthlyDevText, text_color=monthlyDevColor)
+
+// ============================================================================
+// ALERTS
+// ============================================================================
+
+if isLongSignal
+    alert("Tactical Deviation: HIGH-QUALITY LONG - Extreme deviation + Volume confirmation", alert.freq_once_per_bar)
+
+if isShortSignal
+    alert("Tactical Deviation: HIGH-QUALITY SHORT - Extreme deviation + Volume confirmation", alert.freq_once_per_bar)

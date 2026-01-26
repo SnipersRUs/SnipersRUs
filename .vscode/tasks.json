@@ -1,0 +1,53 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Install Dependencies",
+      "type": "shell",
+      "command": "/Library/Frameworks/Python.framework/Versions/3.13/bin/python3 -m pip install -r src/requirements.txt",
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "Run MM Bot",
+      "type": "shell",
+      "command": "/Library/Frameworks/Python.framework/Versions/3.13/bin/python3 src/run_mm_bot.py",
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "Test Discord",
+      "type": "shell",
+      "command": "/Library/Frameworks/Python.framework/Versions/3.13/bin/python3 src/test_discord.py",
+      "group": "test",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "Format Code",
+      "type": "shell",
+      "command": "/Library/Frameworks/Python.framework/Versions/3.13/bin/python3 -m black src/",
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      }
+    }
+  ]
+}

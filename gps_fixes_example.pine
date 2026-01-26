@@ -1,0 +1,236 @@
+// ========================================
+// CRITICAL FIXES FOR GPS INDICATOR
+// ========================================
+// These are examples of fixes for the most critical issues
+
+// ========== FIX 1: Risk Lines (Memory Leak Fix) ==========
+// OLD CODE (creates infinite lines):
+// if showRiskLevels and not na(stopLoss)
+//     line.new(bar_index[1], stopLoss, bar_index, stopLoss, ...)
+
+// NEW CODE (fixed):
+var line stopLossLine = na
+var line target1Line = na
+var line target2Line = na
+
+if showRiskLevels and (plotBull or plotBear)
+    // Delete old lines first
+    if not na(stopLossLine)
+        line.delete(stopLossLine)
+    if not na(target1Line)
+        line.delete(target1Line)
+    if not na(target2Line)
+        line.delete(target2Line)
+
+    // Create new persistent lines
+    if plotBull
+        stopLossLine := line.new(bar_index, stopLoss, bar_index + 200, stopLoss, color=color.new(color.red, 0), width=1, style=line.style_dashed, extend=extend.right)
+        target1Line := line.new(bar_index, target1, bar_index + 200, target1, color=color.new(color.green, 0), width=1, style=line.style_dashed, extend=extend.right)
+        target2Line := line.new(bar_index, target2, bar_index + 200, target2, color=color.new(color.lime, 0), width=1, style=line.style_dashed, extend=extend.right)
+    else if plotBear
+        stopLossLine := line.new(bar_index, stopLoss, bar_index + 200, stopLoss, color=color.new(color.red, 0), width=1, style=line.style_dashed, extend=extend.right)
+        target1Line := line.new(bar_index, target1, bar_index + 200, target1, color=color.new(color.green, 0), width=1, style=line.style_dashed, extend=extend.right)
+        target2Line := line.new(bar_index, target2, bar_index + 200, target2, color=color.new(color.lime, 0), width=1, style=line.style_dashed, extend=extend.right)
+
+// ========== FIX 2: Trail Lines Cleanup ==========
+// OLD CODE (creates infinite lines):
+// if showTrails
+//     if plotBull
+//         if not na(lastBullY)
+//             line.new(x1=lastBullX, y1=lastBullY, x2=bar_index, y2=low, ...)
+
+// NEW CODE (fixed with cleanup):
+var line[] trailLines = array.new<line>()
+
+// Maximum number of trail lines to keep
+MAX_TRAIL_LINES = 50
+
+if showTrails
+    if plotBull
+        if not na(lastBullY)
+            newLine = line.new(x1=lastBullX, y1=lastBullY, x2=bar_index, y2=low, color=color.lime, width=1)
+            array.push(trailLines, newLine)
+            // Keep only last MAX_TRAIL_LINES
+            if array.size(trailLines) > MAX_TRAIL_LINES
+                line.delete(array.shift(trailLines))
+        lastBullY := low
+        lastBullX := bar_index
+
+    if plotBear
+        if not na(lastBearY)
+            newLine = line.new(x1=lastBearX, y1=lastBearY, x2=bar_index, y2=high, color=color.red, width=1)
+            array.push(trailLines, newLine)
+            if array.size(trailLines) > MAX_TRAIL_LINES
+                line.delete(array.shift(trailLines))
+        lastBearY := high
+        lastBearX := bar_index
+
+// ========== FIX 3: Previous Period GP Calculation ==========
+// OLD CODE (may cause issues):
+// pdHigh = request.security(syminfo.tickerid, "D", high[1])
+
+// NEW CODE (fixed):
+// Option A: Use explicit lookback
+pdHigh_raw = request.security(syminfo.tickerid, "D", high, lookahead=barmerge.lookahead_off)
+pdHigh = pdHigh_raw[1]  // Shift AFTER security call
+
+// Option B: Better approach - get previous day's high directly
+isNewDay = ta.change(dayofweek) != 0 or ta.change(dayofmonth) != 0
+var float prevDayHigh = na
+var float prevDayLow = na
+
+if isNewDay
+    prevDayHigh := pdHigh_raw[1]
+    prevDayLow := request.security(syminfo.tickerid, "D", low, lookahead=barmerge.lookahead_off)[1]
+
+pdHigh := na(prevDayHigh) ? pdHigh_raw : prevDayHigh
+pdLow := na(prevDayLow) ? request.security(syminfo.tickerid, "D", low, lookahead=barmerge.lookahead_off) : prevDayLow
+
+// Then calculate GP:
+pdGpHigh = pdHigh - (pdHigh - pdLow) * 0.618
+pdGpLow  = pdHigh - (pdHigh - pdLow) * 0.65
+
+// ========== FIX 4: Signal Grade Default Value ==========
+// OLD CODE:
+// signalGrade = ""
+// if passesBullFilters or passesBearFilters
+//     if aplusBull or aplusBear...
+//         signalGrade := "A+"
+
+// NEW CODE (always assign a grade):
+signalGrade = ""
+if passesBullFilters or passesBearFilters
+    if aplusBull or aplusBear or (confluenceScore >= 75 and (twoOf3_bull or twoOf3_bear))
+        signalGrade := "A+"
+    else if confluenceScore >= 65 and confluenceFactors >= 4
+        signalGrade := "A"
+    else
+        signalGrade := "B"  // Default to B if passes filters
+else if (bullConfirmations >= 1 or bearConfirmations >= 1) and confluenceScore >= minConfluence * 0.8
+    signalGrade := "C"  // Weak signal
+
+// ========== FIX 5: Optimize GP Visibility Checks ==========
+// OLD CODE (redundant calculations):
+// nearOrOverBullGP = isNear(dGpLow) or isNear(wGpLow) or isNear(mGpLow) or low < dGpLow or low < wGpLow or low < mGpLow
+
+// NEW CODE (optimized):
+// Calculate once per bar
+var bool cachedNearBullGP = false
+var bool cachedNearBearGP = false
+
+// Cache calculations
+nearDGP = isNear(dGpLow) or isNear(dGpHigh)
+nearWGP = isNear(wGpLow) or isNear(wGpHigh)
+nearMGP = isNear(mGpLow) or isNear(mGpHigh)
+
+overBullGP = low < dGpLow or low < wGpLow or low < mGpLow
+overBearGP = high > dGpHigh or high > wGpHigh or high > mGpHigh
+
+nearOrOverBullGP := nearDGP or nearWGP or nearMGP or overBullGP
+nearOrOverBearGP := nearDGP or nearWGP or nearMGP or overBearGP
+
+strictNearDGP = strictNear(dGpLow) or strictNear(dGpHigh)
+strictNearWGP = strictNear(wGpLow) or strictNear(wGpHigh)
+strictNearMGP = strictNear(mGpLow) or strictNear(mGpHigh)
+
+nearStrictBullGP := strictNearDGP or strictNearWGP or strictNearMGP or overBullGP
+nearStrictBearGP := strictNearDGP or strictNearWGP or strictNearMGP or overBearGP
+
+// ========== FIX 6: Add Input Validation ==========
+// Add at the top after inputs:
+if obTightenPct > 15
+    runtime.error("OB Tighten % should be 5-9 for optimal results. Current: " + str.tostring(obTightenPct))
+
+if minConfluence < 30 or minConfluence > 100
+    runtime.error("Min Confluence Score must be between 30-100")
+
+if timeframe.isintraday and timeframe.multiplier < 60
+    runtime.warning("GPS designed for daily+ timeframes. Results may vary on lower timeframes.")
+
+// ========== FIX 7: Make Risk Multipliers Configurable ==========
+// Add to inputs:
+grp6 = "Risk Management"
+stopLossATRMult = input.float(1.5, "Stop Loss: ATR Multiplier", minval=0.5, step=0.1, group=grp6)
+target1ATRMult = input.float(2.5, "Target 1: ATR Multiplier", minval=1.0, step=0.1, group=grp6)
+target2ATRMult = input.float(4.0, "Target 2: ATR Multiplier", minval=2.0, step=0.1, group=grp6)
+
+// Then in risk calculation:
+if plotBull
+    stopLoss := low - (atr * stopLossATRMult)
+    target1 := close + (atr * target1ATRMult)
+    target2 := close + (atr * target2ATRMult)
+
+if plotBear
+    stopLoss := high + (atr * stopLossATRMult)
+    target1 := close - (atr * target1ATRMult)
+    target2 := close - (atr * target2ATRMult)
+
+// ========== FIX 8: Better Divergence Detection ==========
+// OLD CODE only checks on crossover - may miss divergences
+// NEW CODE (continuous tracking):
+
+var float lastBullWt = na
+var float lastBullPrice = na
+var float lastBearWt = na
+var float lastBearPrice = na
+var int   lastBullBar = na
+var int   lastBearBar = na
+
+// Track potential divergences continuously
+potentialBullDiv = false
+potentialBearDiv = false
+
+// Update tracking on crossovers
+if ta.crossover(wt1, wt2) and wt1 < -10
+    if not na(lastBullPrice) and bar_index - lastBullBar > 6
+        if low < lastBullPrice and wt1 > lastBullWt and rsi < 45
+            potentialBullDiv := true
+
+    lastBullWt := wt1
+    lastBullPrice := low
+    lastBullBar := bar_index
+
+if ta.crossunder(wt1, wt2) and wt1 > 10
+    if not na(lastBearPrice) and bar_index - lastBearBar > 6
+        if high > lastBearPrice and wt1 < lastBearWt and rsi > 55
+            potentialBearDiv := true
+
+    lastBearWt := wt1
+    lastBearPrice := high
+    lastBearBar := bar_index
+
+// Also check for divergences on swing formations (not just crossovers)
+if not na(lastBullPrice) and bar_index - lastBullBar > 6 and ta.crossover(wt1, wt2)
+    if low < lastBullPrice and wt1 > lastBullWt and rsi < 45
+        potentialBullDiv := true
+
+regularBullDiv := potentialBullDiv
+regularBearDiv := potentialBearDiv
+
+// ========== FIX 9: Optimize Confluence Calculation ==========
+// Cache expensive operations
+var float cachedConfluenceScore = 0.0
+var int cachedConfluenceFactors = 0
+
+// Only recalculate if relevant conditions changed
+if barstate.isconfirmed  // Calculate once per confirmed bar
+    cachedConfluenceFactors := 0
+    cachedConfluenceScore := 0.0
+
+    if isNear(dGpLow) or isNear(dGpHigh)
+        cachedConfluenceScore += 20
+        cachedConfluenceFactors += 1
+    // ... rest of confluence logic
+
+    cachedConfluenceScore := cachedConfluenceFactors > 0 ? math.min(100, cachedConfluenceScore) : 0
+
+confluenceScore := cachedConfluenceScore
+confluenceFactors := cachedConfluenceFactors
+
+
+
+
+
+
+
+

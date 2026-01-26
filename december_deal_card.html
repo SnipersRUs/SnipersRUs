@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>December Deal - SnipersRUs</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .card {
+            background: linear-gradient(145deg, #8b5cf6 0%, #6d28d9 50%, #5b21b6 100%);
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 800px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3),
+                        0 0 0 2px rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 35px;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+            padding-bottom: 20px;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+            background: linear-gradient(45deg, #fff, #e0e7ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .deal-badge {
+            background: linear-gradient(45deg, #fbbf24, #f59e0b);
+            color: #1f2937;
+            padding: 15px 30px;
+            border-radius: 50px;
+            font-weight: bold;
+            font-size: 1.2em;
+            margin: 20px 0;
+            display: inline-block;
+            box-shadow: 0 5px 15px rgba(251, 191, 36, 0.4);
+        }
+
+        .section {
+            margin-bottom: 30px;
+        }
+
+        .section-title {
+            font-size: 1.4em;
+            margin-bottom: 15px;
+            padding: 10px 15px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            border-left: 4px solid #fbbf24;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .tier-card {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+        }
+
+        .tier-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .tier-name {
+            font-size: 1.3em;
+            font-weight: bold;
+            color: #fbbf24;
+        }
+
+        .price-comparison {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .old-price {
+            text-decoration: line-through;
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 1.1em;
+        }
+
+        .new-price {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #fbbf24;
+        }
+
+        .save-badge {
+            background: rgba(34, 197, 94, 0.3);
+            color: #86efac;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            font-weight: bold;
+        }
+
+        .features {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .features li {
+            padding: 8px 0;
+            padding-left: 25px;
+            position: relative;
+        }
+
+        .features li::before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: #86efac;
+            font-weight: bold;
+        }
+
+        .cta-button {
+            display: inline-block;
+            background: linear-gradient(45deg, #fbbf24, #f59e0b);
+            color: #1f2937;
+            padding: 15px 30px;
+            border-radius: 10px;
+            text-decoration: none;
+            font-weight: bold;
+            font-size: 1.1em;
+            margin: 10px 5px;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(251, 191, 36, 0.4);
+        }
+
+        .cta-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(251, 191, 36, 0.6);
+        }
+
+        .highlight-box {
+            background: rgba(251, 191, 36, 0.2);
+            border: 2px solid #fbbf24;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 2px solid rgba(255, 255, 255, 0.2);
+            opacity: 0.9;
+            font-size: 0.9em;
+        }
+
+        @media (max-width: 600px) {
+            .card {
+                padding: 25px;
+            }
+
+            .header h1 {
+                font-size: 2em;
+            }
+
+            .price-comparison {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="header">
+            <h1>🎯 DECEMBER DEAL</h1>
+            <div class="deal-badge">LIMITED TIME - END OF MONTH ONLY!</div>
+            <p>Welcome in the new people! Here's our INSANE December deal! 🚀</p>
+        </div>
+
+        <div class="section">
+            <div class="section-title">💰 MEMBERSHIP TIERS</div>
+
+            <div class="tier-card">
+                <div class="tier-header">
+                    <div class="tier-name">🔹 Headhunter</div>
+                </div>
+                <div class="price-comparison">
+                    <span class="new-price">$20/month</span>
+                </div>
+                <ul class="features">
+                    <li>1-2 trades and analysis almost every day</li>
+                    <li>Full access to trading indicators library</li>
+                    <li>Daily market analysis and trade ideas</li>
+                    <li>Member-only channels</li>
+                    <li>Cloudfare indicator included</li>
+                </ul>
+            </div>
+
+            <div class="tier-card">
+                <div class="tier-header">
+                    <div class="tier-name">🔹 Bounty Seeker</div>
+                </div>
+                <div class="price-comparison">
+                    <span class="old-price">$60/month</span>
+                    <span class="new-price">$40/month</span>
+                    <span class="save-badge">SAVE $20/month!</span>
+                </div>
+                <div class="highlight-box">
+                    <strong>🔥 DEAL: Lock in $40/month FOREVER!</strong>
+                </div>
+                <ul class="features">
+                    <li>Everything in Headhunters, PLUS:</li>
+                    <li>All access to me personally</li>
+                    <li>Ask me questions anytime when I'm available</li>
+                    <li>See all trades I'm watching and taking</li>
+                    <li>My personal trades shared in real-time</li>
+                    <li>Cloudfare indicator included</li>
+                </ul>
+                <a href="https://upgrade.chat/734621342069948446" class="cta-button">Get Bounty Seeker ($40/month)</a>
+            </div>
+
+            <div class="tier-card">
+                <div class="tier-header">
+                    <div class="tier-name">🔹 Lifetime Membership</div>
+                </div>
+                <div class="price-comparison">
+                    <span class="old-price">$333 (one-time)</span>
+                    <span class="new-price">$222 (one-time)</span>
+                    <span class="save-badge">SAVE $111!</span>
+                </div>
+                <div class="highlight-box">
+                    <strong>🔥 DEAL: Best value - 6 months of Bounty Seeker at regular price, then FREE forever!</strong>
+                </div>
+                <ul class="features">
+                    <li>Permanent Bounty Hunter role status</li>
+                    <li>Complete access to ALL current and future content</li>
+                    <li>Never pay another monthly fee</li>
+                    <li>Best value for serious traders</li>
+                    <li>Cloudfare indicator included</li>
+                </ul>
+                <a href="https://upgrade.chat/734621342069948446" class="cta-button">Get Lifetime ($222)</a>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">⚡ WHY THIS DEAL IS INSANE</div>
+            <div class="highlight-box">
+                <ul class="features">
+                    <li>Lock in $40/month for Bounty Seeker FOREVER (33% OFF)</li>
+                    <li>Lifetime at $222 = 6 months of Bounty Seeker at regular price</li>
+                    <li>After 6 months, you're getting FREE access forever</li>
+                    <li>Best deal we've ever offered</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p><strong>This deal ends December 31st. Don't miss out! 🚀</strong></p>
+            <p style="margin-top: 10px;">Ready to start executing precision trades? Join SnipersRUs today!</p>
+            <p style="margin-top: 10px; font-size: 0.85em;">Questions? DM me or ask in the server!</p>
+            <p style="margin-top: 10px; font-size: 0.85em;">DYOR | NFA | Stack sats fam! 💎🙌</p>
+        </div>
+    </div>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

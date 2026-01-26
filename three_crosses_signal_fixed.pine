@@ -1,0 +1,83 @@
+//@version=6
+indicator("Three Crosses Signal v6 [Bull/Bear]", shorttitle="3Cross v6", overlay=true, max_boxes_count=500, max_labels_count=500)
+
+// --- INPUTS ---
+// MTF Confirmation Inputs
+useMtf = input.bool(true, "Use MTF Confirmation", group="MTF Confirmation")
+mtfTimeframe = input.timeframe("60", "Confirmation Timeframe", group="MTF Confirmation")
+mtfMaLength = input.int(50, "Confirmation MA Length", group="MTF Confirmation")
+
+// Bullish Pattern Inputs
+bullShow = input.bool(true, "Show Bullish Pattern (Three White Soldiers)", group="Bullish Settings")
+bullColor = input.color(color.new(color.green, 0), "Bullish Color", group="Bullish Settings")
+bullLabelColor = input.color(color.white, "Bullish Label Color", group="Bullish Settings")
+
+// Bearish Pattern Inputs
+bearShow = input.bool(true, "Show Bearish Pattern (Three Black Crows)", group="Bearish Settings")
+bearColor = input.color(color.new(color.red, 0), "Bearish Color", group="Bearish Settings")
+bearLabelColor = input.color(color.white, "Bearish Label Color", group="Bearish Settings")
+
+// --- PATTERN CRITERIA ---
+// Define the size of the candle body relative to the wick.
+bodyThreshold = input.float(60.0, "Body Strength % (Min)", minval=0.0, maxval=100.0, step=1.0, tooltip="Minimum body size as a percentage of the total candle range (high - low).")
+
+// --- MTF CONFIRMATION LOGIC ---
+// Get the trend direction on the higher timeframe
+mtfMa = request.security(syminfo.tickerid, mtfTimeframe, ta.sma(close, mtfMaLength), lookahead=barmerge.lookahead_on)
+isBullishTrendMtf = close > mtfMa
+isBearishTrendMtf = close < mtfMa
+
+// --- PATTERN DETECTION LOGIC ---
+
+// Function to calculate if a candle is a "strong" marubozu-type candle
+isStrongMarubozu(i) =>
+    candleRange = high[i] - low[i]
+    body = math.abs(close[i] - open[i])
+    bodySize = (body / candleRange) * 100
+    bodySize > bodyThreshold
+
+// Bullish Pattern: Three White Soldiers
+bullCondition = false
+if isStrongMarubozu(2) and close[2] > open[2] // 1st candle is a strong green marubozu
+    if isStrongMarubozu(1) and close[1] > open[1] and open[1] > open[2] and close[1] > close[2] // 2nd candle is strong green, opens higher, closes higher
+        if isStrongMarubozu(0) and close[0] > open[0] and open[0] > open[1] and close[0] > close[1] // 3rd candle is strong green, opens higher, closes higher
+            bullCondition := true
+
+// Bearish Pattern: Three Black Crows
+bearCondition = false
+if isStrongMarubozu(2) and close[2] < open[2] // 1st candle is a strong red marubozu
+    if isStrongMarubozu(1) and close[1] < open[1] and open[1] < open[2] and close[1] < close[2] // 2nd candle is strong red, opens lower, closes lower
+        if isStrongMarubozu(0) and close[0] < open[0] and open[0] < open[1] and close[0] < close[1] // 3rd candle is strong red, opens lower, closes lower
+            bearCondition := true
+
+// --- FINAL CONFIRMED CONDITIONS ---
+finalBullCondition = bullCondition and (not useMtf or isBullishTrendMtf)
+finalBearCondition = bearCondition and (not useMtf or isBearishTrendMtf)
+
+// --- PLOTTING AND ALERTS ---
+
+// Calculate ATR for label positioning
+atrValue = ta.atr(10)
+
+// Plot Bullish Signal
+var label bullLabel = na
+if finalBullCondition and bullShow
+    if not na(bullLabel)
+        label.delete(bullLabel)
+    bullLabel := label.new(bar_index, low[2] - atrValue * 0.5, "Bullish\nThree White Soldiers", style=label.style_label_up, color=bullColor, textcolor=bullLabelColor, size=size.small)
+    if barstate.isconfirmed
+        alert("Bullish Three Crosses Signal on " + syminfo.tickerid, alert.freq_once_per_bar_close)
+
+// Plot Bearish Signal
+var label bearLabel = na
+if finalBearCondition and bearShow
+    if not na(bearLabel)
+        label.delete(bearLabel)
+    bearLabel := label.new(bar_index, high[2] + atrValue * 0.5, "Bearish\nThree Black Crows", style=label.style_label_down, color=bearColor, textcolor=bearLabelColor, size=size.small)
+    if barstate.isconfirmed
+        alert("Bearish Three Crosses Signal on " + syminfo.tickerid, alert.freq_once_per_bar_close)
+
+// Plot shapes at global scope (must be outside conditional blocks)
+// Plot on current bar when pattern completes (pattern uses bars [2], [1], [0], completes on [0])
+plotshape(finalBullCondition and bullShow ? bar_index : na, title="Bullish Arrow", style=shape.triangleup, location=location.belowbar, color=bullColor, size=size.small)
+plotshape(finalBearCondition and bearShow ? bar_index : na, title="Bearish Arrow", style=shape.triangledown, location=location.abovebar, color=bearColor, size=size.small)

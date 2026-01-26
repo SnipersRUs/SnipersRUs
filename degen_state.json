@@ -1,0 +1,16 @@
+{
+  "paper": {
+    "start": 10000.0,
+    "balance": 10000.0,
+    "trades": [],
+    "stats": {
+      "wins": 0,
+      "losses": 0,
+      "pnl": 0.0
+    },
+    "cooldown_until": 0,
+    "scan_period_start": 1762067451.9246268,
+    "trades_this_scan": 0
+  },
+  "last_valid": {}
+}

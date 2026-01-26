@@ -1,0 +1,54 @@
+PivotX - Exhaustion & Pivot Detection
+
+PivotX identifies when major buying or selling pressure has exhausted and when significant market reversals are likely. Think of it as your market "exhaustion detector."
+
+WHAT IT DOES:
+• Detects Selling Exhaustion - When sellers can't push price lower, buyers step in (Green X below price)
+• Detects Buying Exhaustion - When buyers can't push price higher, sellers step in (Red X above price)
+• Marks Major Pivot Points - Key support/resistance levels where price reversed (Yellow diamonds)
+
+HOW IT WORKS:
+PivotX uses multiple signals to confirm exhaustion:
+✓ Volume patterns (trading activity slowing after big moves)
+✓ Price stabilization (price stops moving in one direction)
+✓ Absorption patterns (high volume with minimal price movement)
+✓ Support/Resistance confirmation (price bouncing off key levels)
+
+VISUAL SIGNALS:
+🟢 Green X (Below) = Selling exhausted, buyers stepping in → Potential UP reversal
+🔴 Red X (Above) = Buying exhausted, sellers stepping in → Potential DOWN reversal
+💎 Yellow Diamonds = Major pivot points (support/resistance)
+📏 Neon Lines = Support (green) and Resistance (red) levels
+
+BEST FOR:
+• Swing trading reversals
+• Identifying trend exhaustion
+• Finding key support/resistance levels
+• Counter-trend entries
+
+SETTINGS:
+• Lookback Period: Bars to analyze (default: 20)
+• Volume Threshold: Min volume spike (default: 1.5x)
+• Exhaustion Periods: Bars to check (default: 3)
+• Pivot Strength: Confirmation bars (default: 3)
+
+PRO TIPS:
+1. Wait for confirmation - Multiple signals reduce false signals
+2. Combine with price action for stronger setups
+3. Pivot lines often act as future support/resistance
+4. Works on all timeframes (higher = more reliable)
+
+⚠️ This is a tool, not financial advice. Always use proper risk management and stop losses.
+
+Like and share if helpful! 🚀
+
+
+
+
+
+
+
+
+
+
+

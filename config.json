@@ -1,0 +1,7 @@
+{
+  "DISCORD_WEBHOOK": "",
+  "SCAN_INTERVAL_SEC": 1800,
+  "SCAN_INTERVAL_AFTER_TRADES_SEC": 7200,
+  "MESSAGE_COOLDOWN_SEC": 300,
+  "EXCHANGES": ["mexc", "bybit", "bitget"]
+}

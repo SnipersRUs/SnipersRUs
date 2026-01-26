@@ -1,0 +1,104 @@
+Cloudfare 2.0 - Advanced Multi-Timeframe Trend & Reversal Indicator
+
+WHAT MAKES THIS UNIQUE & ORIGINAL:
+
+1. DYNAMIC BREATHING CLOUD SYSTEM
+Unlike static support/resistance clouds, Cloudfare 2.0 features a living cloud that adapts in real-time based on:
+- Volume expansion/contraction
+- Money Flow Index (MFI) strength
+- On-Balance Volume (OBV) order flow
+- Liquidity flush detection
+- Sine wave breathing effect for natural market rhythm
+
+2. BRIGHTNESS-BASED SIGNAL STRENGTH (PROPRIETARY ALGORITHM)
+All reversal signals use a unique brightness system where:
+- Brighter diamonds = Stronger, more probable moves
+- Strength calculated from volume, RSI extremity, momentum, and pattern quality
+- Instant visual feedback for signal quality assessment
+
+3. TINY SIGNAL MARKERS FOR CLEAN CHARTS
+All signals displayed as tiny diamonds/X markers (size.tiny) to minimize clutter while maintaining visibility. Design philosophy prioritizes price action over indicator noise.
+
+4. MULTI-TIMEFRAME VWAP WITH CROSS-STYLE PLOTTING
+6 essential VWAP timeframes (1H, 2H, 6H, 4D, 9D, Weekly) displayed as thin cross markers for precise level identification without obscuring price action. Optimized selection focuses on most commonly used timeframes for intraday and swing trading.
+
+5. INTELLIGENT HIGH/LOW SWEEP DETECTION
+Advanced algorithm focusing on quality sweeps:
+- 35-bar lookback with volume confirmation (1.2x avg)
+- ATR-based move significance (1.0x ATR)
+- Major level break confirmation
+- Anti-spam filtering (20-bar spacing)
+
+6. ORIGINAL REVERSAL SIGNAL LOGIC
+Proprietary reversal detection combining:
+- Candlestick pattern recognition
+- Volume surge confirmation (1.5x average)
+- RSI extremity zones (<40 bulls, >60 bears)
+- Momentum alignment
+
+7. TREND SCORING SYSTEM (0-10 SCALE)
+Multi-factor classification evaluating price vs MAs, MA relationships, momentum, and patterns. Provides clear trend context for all signals.
+
+8. SESSION-BASED ANALYSIS
+Optional Asian, New York, and Current Session boxes tracking session high/low ranges with transparent visualization. Current Session box (yellow) updates in real-time showing today's trading range.
+
+KEY FEATURES:
+✓ Brightness-based reversal signals (brighter = stronger)
+✓ Divergence detection (always bright, high confidence)
+✓ Confirmed trend signals
+✓ High/Low liquidity sweeps (X markers)
+✓ 6 Essential VWAP timeframes with cross-style plotting (1H, 2H, 6H, 4D, 9D, Weekly)
+✓ Dynamic cloud with real-time adaptation
+✓ Comprehensive alert system (all signals + VWAP breaks)
+✓ Session tracking (Asian, NY & Current Session)
+✓ Current Session box (yellow) with real-time updates
+✓ Fully customizable colors and settings
+✓ Optimized for TradingView's 64-plot limit
+
+DEFAULTS:
+- Reversal, Divergence, and Confirmed signals: ON
+- 4D and Weekly VWAPs: ON
+- All other features: Optional/toggleable
+- All signals: Tiny size for clean charts
+
+HOW IT DIFFERS:
+• No static levels - cloud adapts dynamically
+• Visual strength feedback via brightness system
+• Clean design prioritizing price action
+• Multi-factor analysis (volume + RSI + momentum + patterns)
+• Quality-focused with anti-spam filtering
+• 6 Essential VWAP timeframes optimized for trading
+• Session awareness for institutional flow
+
+TECHNICAL:
+- Pine Script v6
+- Optimized for 64-plot limit (currently 17 plots - well under limit)
+- Efficient real-time calculations
+- Compatible with all timeframes
+- All VWAP toggles functional and independent
+
+UPDATES IN 2.0:
+- Complete signal system redesign with brightness algorithm
+- Optimized plot count to stay under 64-plot limit
+- Enhanced sweep detection
+- Brighter cloud visualization
+- New York session tracking
+- Current Session box (yellow, real-time updates)
+- Cross-style VWAP plotting
+- All signals tiny size
+- Fixed 4-Day VWAP reset logic
+
+RECENT FIXES & OPTIMIZATIONS:
+✓ Plot limit optimization: Reduced to 17 plots (well under 64 limit)
+✓ VWAP selection optimized: Focused on 6 essential timeframes (1H, 2H, 6H, 4D, 9D, Weekly)
+✓ 4-Day VWAP fixed: Now properly resets every 4 days (not daily)
+✓ All VWAP toggles restored and functional
+✓ All signal types working correctly (Reversal, Divergence, Confirmed, Sweeps)
+✓ Brightness system fully operational (brighter = stronger signals)
+✓ Comprehensive alert system for all signals and VWAP breaks
+✓ Current Session box added: Yellow box showing today's trading range with real-time updates
+✓ Shorttitle optimized: Fixed to meet TradingView's 10-character limit
+
+This indicator represents original work combining multiple technical analysis concepts into a unified system. The brightness-based signal strength algorithm, dynamic cloud breathing system, and multi-factor reversal detection are proprietary implementations unique to Cloudfare 2.0.
+
+Use with proper risk management. Past performance doesn't guarantee future results.

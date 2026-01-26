@@ -1,0 +1,63 @@
+//@version=6
+indicator("Intuitive Reversal Overlay", overlay=true, shorttitle="IRO")
+
+// --- Inputs ---
+trendLen = input.int(21, "Trend Length (EMA)", minval=1)
+noiseMult = input.float(0.5, "Noise Threshold (ATR Mult)", minval=0.1, step=0.1)
+showNoise = input.bool(true, "Show Noise Candles")
+
+// --- Colors ---
+col_bull = input.color(color.white, "Bullish Color")
+col_bear = input.color(color.purple, "Bearish Color")
+col_caution = input.color(color.yellow, "Caution/Reversal Zone")
+col_noise = input.color(color.gray, "Noise Color")
+
+// --- Calculations ---
+// Trend definition using Exponential Moving Average
+emaTrend = ta.ema(close, trendLen)
+trendUp = close > emaTrend
+trendDown = close <= emaTrend
+
+// Noise detection: Compare body size to Average True Range
+atr = ta.atr(14)
+bodySize = math.abs(close - open)
+isNoise = bodySize < (atr * noiseMult)
+
+// Candle Direction
+isBullishCandle = close > open
+isBearishCandle = close <= open
+
+// --- Logic Tree ---
+
+// Default: Transparant (will be overriden)
+var color candleColor = na
+var color borderColor = na
+var bool isHollow = false
+
+if isNoise and showNoise
+    // Logic 1: Noise Candles (Gray, Hollow)
+    candleColor := color.new(col_noise, 100) // 100% opacity = transparent body (Hollow)
+    borderColor := col_noise
+else
+    if trendUp
+        if isBullishCandle
+            // Logic 2: Uptrend + Bullish Candle = Strong Trend (Solid White)
+            candleColor := col_bull
+            borderColor := col_bull
+        else
+            // Logic 3: Uptrend + Bearish Candle = CAUTION (Solid Yellow)
+            candleColor := col_caution
+            borderColor := col_caution
+    else // Trend is Down
+        if isBearishCandle
+            // Logic 4: Downtrend + Bearish Candle = Strong Trend (Solid Purple)
+            candleColor := col_bear
+            borderColor := col_bear
+        else
+            // Logic 5: Downtrend + Bullish Candle = CAUTION (Solid Yellow)
+            candleColor := col_caution
+            borderColor := col_caution
+
+// --- Plotting ---
+// We use plotcandle to draw our custom candles on top of the chart
+plotcandle(open, high, low, close, title="IRO Candles", color=candleColor, wickcolor=borderColor, bordercolor=borderColor)

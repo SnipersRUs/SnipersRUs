@@ -1,0 +1,295 @@
+//@version=6
+indicator("Weekly Pattern Cycles - Crypto", overlay=true, max_labels_count=500, max_lines_count=100)
+
+// ========================================
+// WEEKLY PATTERN CYCLES INDICATOR
+// ========================================
+// Tracks day-of-week patterns in crypto markets
+// Crypto-specific: Weekend effects, Monday opens, Friday closes
+// ========================================
+
+// === INPUT GROUPS ===
+grpDisplay = "📊 Display Settings"
+grpVWAP = "📈 Weekly VWAPs"
+grpPatterns = "📅 Day Patterns"
+grpAlerts = "🔔 Alerts"
+
+// === DISPLAY INPUTS ===
+showDayLabels = input.bool(true, "Show Day Labels", group=grpDisplay)
+showWeekendZones = input.bool(true, "Show Weekend Zones", group=grpDisplay)
+showBackground = input.bool(true, "Show Day Background Colors", group=grpDisplay)
+showStats = input.bool(true, "Show Day Statistics", group=grpDisplay)
+
+// === VWAP INPUTS ===
+showWeeklyVWAP = input.bool(true, "Show Weekly VWAP", group=grpVWAP, tooltip="VWAP that resets each Monday")
+showWeekendVWAP = input.bool(false, "Show Weekend VWAP", group=grpVWAP, tooltip="VWAP for Saturday-Sunday only")
+
+// === PATTERN INPUTS ===
+highlightMonday = input.bool(true, "Highlight Monday", group=grpPatterns, tooltip="Monday often shows high volatility")
+highlightFriday = input.bool(true, "Highlight Friday", group=grpPatterns, tooltip="Friday shows risk-off behavior")
+highlightWeekend = input.bool(true, "Highlight Weekend", group=grpPatterns, tooltip="Weekend shows low liquidity, high volatility potential")
+highlightSunday = input.bool(true, "Highlight Sunday Evening", group=grpPatterns, tooltip="Sunday evening (Asian open) often bullish")
+
+// === ALERT INPUTS ===
+alertOnMonday = input.bool(false, "Alert: Monday Open", group=grpAlerts)
+alertOnFriday = input.bool(false, "Alert: Friday Close", group=grpAlerts)
+alertOnWeekend = input.bool(false, "Alert: Weekend Start", group=grpAlerts)
+
+// === COLORS ===
+grpColors = "🎨 Colors"
+mondayColor = input.color(color.new(color.blue, 0), "Monday", group=grpColors)
+tuesdayColor = input.color(color.new(color.gray, 0), "Tuesday", group=grpColors)
+wednesdayColor = input.color(color.new(color.gray, 0), "Wednesday", group=grpColors)
+thursdayColor = input.color(color.new(color.gray, 0), "Thursday", group=grpColors)
+fridayColor = input.color(color.new(color.orange, 0), "Friday", group=grpColors)
+saturdayColor = input.color(color.new(color.purple, 0), "Saturday", group=grpColors)
+sundayColor = input.color(color.new(color.yellow, 0), "Sunday", group=grpColors)
+weekendColor = input.color(color.new(color.new(#FF6B9D, 0), 90), "Weekend Zone", group=grpColors)
+
+// === DAY OF WEEK DETECTION ===
+// dayofweek: 1=Monday, 2=Tuesday, 3=Wednesday, 4=Thursday, 5=Friday, 6=Saturday, 7=Sunday
+currentDay = dayofweek
+isMonday = currentDay == 1
+isTuesday = currentDay == 2
+isWednesday = currentDay == 3
+isThursday = currentDay == 4
+isFriday = currentDay == 5
+isSaturday = currentDay == 6
+isSunday = currentDay == 7
+isWeekend = isSaturday or isSunday
+isWeekday = not isWeekend
+
+// Check for day change
+dayChange = ta.change(currentDay)
+day_changed = not na(dayChange) and dayChange != 0
+
+// === WEEKLY VWAP (Resets Monday) ===
+var float weeklyVWAPSum = 0.0
+var float weeklyVolumeSum = 0.0
+var int lastWeeklyVWAPBar = -1
+
+isWeeklyVWAPReset = day_changed and isMonday and (bar_index != lastWeeklyVWAPBar)
+if isWeeklyVWAPReset
+    lastWeeklyVWAPBar := bar_index
+    weeklyVWAPSum := close * volume
+    weeklyVolumeSum := volume
+else if day_changed
+    weeklyVWAPSum := weeklyVWAPSum + close * volume
+    weeklyVolumeSum := weeklyVolumeSum + volume
+
+weeklyVWAP = weeklyVolumeSum > 0 ? weeklyVWAPSum / weeklyVolumeSum : na
+
+// === WEEKEND VWAP (Saturday-Sunday only) ===
+var float weekendVWAPSum = 0.0
+var float weekendVolumeSum = 0.0
+var int lastWeekendVWAPBar = -1
+var bool wasWeekend = false
+
+isWeekendStart = day_changed and isSaturday and not wasWeekend
+isWeekendEnd = day_changed and isMonday  // Monday ends the weekend period
+
+if isWeekendStart
+    lastWeekendVWAPBar := bar_index
+    weekendVWAPSum := close * volume
+    weekendVolumeSum := volume
+    wasWeekend := true
+else if isWeekendEnd
+    wasWeekend := false
+    weekendVWAPSum := 0.0
+    weekendVolumeSum := 0.0
+else if isWeekend and day_changed
+    weekendVWAPSum := weekendVWAPSum + close * volume
+    weekendVolumeSum := weekendVolumeSum + volume
+
+weekendVWAP = weekendVolumeSum > 0 ? weekendVWAPSum / weekendVolumeSum : na
+
+// === DAY STATISTICS (Track per day) ===
+var float[] mondayReturns = array.new<float>()
+var float[] tuesdayReturns = array.new<float>()
+var float[] wednesdayReturns = array.new<float>()
+var float[] thursdayReturns = array.new<float>()
+var float[] fridayReturns = array.new<float>()
+var float[] saturdayReturns = array.new<float>()
+var float[] sundayReturns = array.new<float>()
+
+var float prevClose = na
+
+// Calculate daily return on day change
+if day_changed and not na(prevClose)
+    dailyReturn = (close - prevClose) / prevClose * 100
+
+    if isMonday
+        array.push(mondayReturns, dailyReturn)
+    else if isTuesday
+        array.push(tuesdayReturns, dailyReturn)
+    else if isWednesday
+        array.push(wednesdayReturns, dailyReturn)
+    else if isThursday
+        array.push(thursdayReturns, dailyReturn)
+    else if isFriday
+        array.push(fridayReturns, dailyReturn)
+    else if isSaturday
+        array.push(saturdayReturns, dailyReturn)
+    else if isSunday
+        array.push(sundayReturns, dailyReturn)
+
+if day_changed
+    prevClose := close
+
+// Calculate average returns (keep last 100 samples)
+getAvgReturn(returns) =>
+    if array.size(returns) == 0
+        na
+    else
+        sum = 0.0
+        count = math.min(array.size(returns), 100)
+        for i = 0 to count - 1
+            sum += array.get(returns, array.size(returns) - 1 - i)
+        sum / count
+
+mondayAvgReturn = getAvgReturn(mondayReturns)
+tuesdayAvgReturn = getAvgReturn(tuesdayReturns)
+wednesdayAvgReturn = getAvgReturn(wednesdayReturns)
+thursdayAvgReturn = getAvgReturn(thursdayReturns)
+fridayAvgReturn = getAvgReturn(fridayReturns)
+saturdayAvgReturn = getAvgReturn(saturdayReturns)
+sundayAvgReturn = getAvgReturn(sundayReturns)
+
+// === VISUALIZATION ===
+// Background colors - use conditional expressions (bgcolor must be in global scope)
+bgColor = showBackground and day_changed ? (isMonday and highlightMonday ? color.new(mondayColor, 97) : isFriday and highlightFriday ? color.new(fridayColor, 97) : isSaturday and highlightWeekend ? color.new(saturdayColor, 97) : isSunday and highlightWeekend ? color.new(sundayColor, 97) : na) : na
+
+bgcolor(bgColor)
+
+// Weekend zone background - use conditional expression
+bgcolor(showWeekendZones and isWeekend ? color.new(weekendColor, 95) : na)
+
+// Day labels
+if showDayLabels and day_changed
+    dayName = isMonday ? "MON" : isTuesday ? "TUE" : isWednesday ? "WED" : isThursday ? "THU" : isFriday ? "FRI" : isSaturday ? "SAT" : "SUN"
+
+    labelColor = isMonday ? mondayColor : isTuesday ? tuesdayColor : isWednesday ? wednesdayColor : isThursday ? thursdayColor : isFriday ? fridayColor : isSaturday ? saturdayColor : sundayColor
+
+    labelText = dayName
+    if isWeekend
+        labelText += " (Weekend)"
+    if isMonday
+        labelText += " Open"
+    if isFriday
+        labelText += " Close"
+
+    label.new(bar_index, low, labelText, style=label.style_label_up, color=labelColor, textcolor=color.white, size=size.small)
+
+// === VWAP PLOTS ===
+plot(showWeeklyVWAP ? weeklyVWAP : na, "Weekly VWAP", color=color.new(color.blue, 0), linewidth=2, style=plot.style_line)
+plot(showWeekendVWAP and isWeekend ? weekendVWAP : na, "Weekend VWAP", color=color.new(color.purple, 0), linewidth=1, style=plot.style_linebr)
+
+// === ALERTS ===
+if alertOnMonday and day_changed and isMonday
+    alert("Monday Open - Watch for volatility spike", alert.freq_once_per_bar)
+
+if alertOnFriday and day_changed and isFriday
+    alert("Friday Close - Risk-off behavior expected", alert.freq_once_per_bar)
+
+if alertOnWeekend and day_changed and isSaturday
+    alert("Weekend Started - Low liquidity, high volatility potential", alert.freq_once_per_bar)
+
+// === STATISTICS TABLE ===
+var table statsTable = na
+if showStats and barstate.islast
+    if na(statsTable)
+        statsTable := table.new(position.top_right, 3, 9, bgcolor=color.new(color.black, 85), border_width=1)
+
+    // Headers
+    table.cell(statsTable, 0, 0, "Day", text_color=color.white, text_size=size.small, bgcolor=color.new(color.gray, 50))
+    table.cell(statsTable, 1, 0, "Avg Return", text_color=color.white, text_size=size.small, bgcolor=color.new(color.gray, 50))
+    table.cell(statsTable, 2, 0, "Samples", text_color=color.white, text_size=size.small, bgcolor=color.new(color.gray, 50))
+
+    // Monday
+    mondaySamples = math.min(array.size(mondayReturns), 100)
+    mondayReturn = not na(mondayAvgReturn) ? str.tostring(mondayAvgReturn, "#.##") + "%" : "N/A"
+    table.cell(statsTable, 0, 1, "Monday", text_color=mondayColor, text_size=size.tiny)
+    table.cell(statsTable, 1, 1, mondayReturn, text_color=color.white, text_size=size.tiny)
+    table.cell(statsTable, 2, 1, str.tostring(mondaySamples), text_color=color.white, text_size=size.tiny)
+
+    // Tuesday
+    tuesdaySamples = math.min(array.size(tuesdayReturns), 100)
+    tuesdayReturn = not na(tuesdayAvgReturn) ? str.tostring(tuesdayAvgReturn, "#.##") + "%" : "N/A"
+    table.cell(statsTable, 0, 2, "Tuesday", text_color=tuesdayColor, text_size=size.tiny)
+    table.cell(statsTable, 1, 2, tuesdayReturn, text_color=color.white, text_size=size.tiny)
+    table.cell(statsTable, 2, 2, str.tostring(tuesdaySamples), text_color=color.white, text_size=size.tiny)
+
+    // Wednesday
+    wednesdaySamples = math.min(array.size(wednesdayReturns), 100)
+    wednesdayReturn = not na(wednesdayAvgReturn) ? str.tostring(wednesdayAvgReturn, "#.##") + "%" : "N/A"
+    table.cell(statsTable, 0, 3, "Wednesday", text_color=wednesdayColor, text_size=size.tiny)
+    table.cell(statsTable, 1, 3, wednesdayReturn, text_color=color.white, text_size=size.tiny)
+    table.cell(statsTable, 2, 3, str.tostring(wednesdaySamples), text_color=color.white, text_size=size.tiny)
+
+    // Thursday
+    thursdaySamples = math.min(array.size(thursdayReturns), 100)
+    thursdayReturn = not na(thursdayAvgReturn) ? str.tostring(thursdayAvgReturn, "#.##") + "%" : "N/A"
+    table.cell(statsTable, 0, 4, "Thursday", text_color=thursdayColor, text_size=size.tiny)
+    table.cell(statsTable, 1, 4, thursdayReturn, text_color=color.white, text_size=size.tiny)
+    table.cell(statsTable, 2, 4, str.tostring(thursdaySamples), text_color=color.white, text_size=size.tiny)
+
+    // Friday
+    fridaySamples = math.min(array.size(fridayReturns), 100)
+    fridayReturn = not na(fridayAvgReturn) ? str.tostring(fridayAvgReturn, "#.##") + "%" : "N/A"
+    table.cell(statsTable, 0, 5, "Friday", text_color=fridayColor, text_size=size.tiny)
+    table.cell(statsTable, 1, 5, fridayReturn, text_color=color.white, text_size=size.tiny)
+    table.cell(statsTable, 2, 5, str.tostring(fridaySamples), text_color=color.white, text_size=size.tiny)
+
+    // Saturday
+    saturdaySamples = math.min(array.size(saturdayReturns), 100)
+    saturdayReturn = not na(saturdayAvgReturn) ? str.tostring(saturdayAvgReturn, "#.##") + "%" : "N/A"
+    table.cell(statsTable, 0, 6, "Saturday", text_color=saturdayColor, text_size=size.tiny)
+    table.cell(statsTable, 1, 6, saturdayReturn, text_color=color.white, text_size=size.tiny)
+    table.cell(statsTable, 2, 6, str.tostring(saturdaySamples), text_color=color.white, text_size=size.tiny)
+
+    // Sunday
+    sundaySamples = math.min(array.size(sundayReturns), 100)
+    sundayReturn = not na(sundayAvgReturn) ? str.tostring(sundayAvgReturn, "#.##") + "%" : "N/A"
+    table.cell(statsTable, 0, 7, "Sunday", text_color=sundayColor, text_size=size.tiny)
+    table.cell(statsTable, 1, 7, sundayReturn, text_color=color.white, text_size=size.tiny)
+    table.cell(statsTable, 2, 7, str.tostring(sundaySamples), text_color=color.white, text_size=size.tiny)
+
+    // Best/Worst day
+    allReturns = array.new<float>()
+    allDays = array.new<string>()
+    if not na(mondayAvgReturn)
+        array.push(allReturns, mondayAvgReturn)
+        array.push(allDays, "Monday")
+    if not na(tuesdayAvgReturn)
+        array.push(allReturns, tuesdayAvgReturn)
+        array.push(allDays, "Tuesday")
+    if not na(wednesdayAvgReturn)
+        array.push(allReturns, wednesdayAvgReturn)
+        array.push(allDays, "Wednesday")
+    if not na(thursdayAvgReturn)
+        array.push(allReturns, thursdayAvgReturn)
+        array.push(allDays, "Thursday")
+    if not na(fridayAvgReturn)
+        array.push(allReturns, fridayAvgReturn)
+        array.push(allDays, "Friday")
+    if not na(saturdayAvgReturn)
+        array.push(allReturns, saturdayAvgReturn)
+        array.push(allDays, "Saturday")
+    if not na(sundayAvgReturn)
+        array.push(allReturns, sundayAvgReturn)
+        array.push(allDays, "Sunday")
+
+    if array.size(allReturns) > 0
+        bestIdx = 0
+        worstIdx = 0
+        for i = 1 to array.size(allReturns) - 1
+            if array.get(allReturns, i) > array.get(allReturns, bestIdx)
+                bestIdx := i
+            if array.get(allReturns, i) < array.get(allReturns, worstIdx)
+                worstIdx := i
+
+        bestDay = array.get(allDays, bestIdx)
+        worstDay = array.get(allDays, worstIdx)
+        table.cell(statsTable, 0, 8, "Best: " + bestDay, text_color=color.lime, text_size=size.tiny, bgcolor=color.new(color.lime, 90))
+        table.cell(statsTable, 1, 8, str.tostring(array.get(allReturns, bestIdx), "#.##") + "%", text_color=color.lime, text_size=size.tiny, bgcolor=color.new(color.lime, 90))
+        table.cell(statsTable, 2, 8, "Worst: " + worstDay, text_color=color.red, text_size=size.tiny, bgcolor=color.new(color.red, 90))

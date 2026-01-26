@@ -1,0 +1,1020 @@
+
+// @version=6
+indicator("Piv X", shorttitle="Piv X", overlay=true, max_labels_count=500, max_lines_count=500, max_boxes_count=500, max_bars_back=2000)
+
+// ============================================================================
+// INPUTS
+// ============================================================================
+grpPivotDetection = "🔍 Pivot Detection"
+grpMarketStructure = "📊 Market Structure"
+grpFilters = "🛡️ Filters"
+grpVisuals = "🎨 Visuals"
+grpAlerts = "🔔 Alerts"
+grpIBSS = "📈 IBSS Pro Signals"
+grpVWAP = "📏 VWAPs"
+grpZones = "📦 Pivot Zones"
+grpPivotQuality = "✅ Pivot Quality"
+
+// Pivot Detection Inputs
+atr_multiplier = input.float(0.8, "ATR Pivot Strength Multiplier", minval=0.1, maxval=2.0, step=0.1, group=grpPivotDetection, tooltip="Multiplier for ATR to determine dynamic pivot lookback. Higher values = fewer, more significant pivots.")
+volume_threshold = input.float(1.5, "Volume Spike Threshold", minval=1.0, maxval=5.0, step=0.1, group=grpPivotDetection)
+exhaustion_periods = input.int(3, "Exhaustion Lookback", minval=2, maxval=10, group=grpPivotDetection)
+min_price_move = input.float(2.0, "Min Price Move % for Exhaustion", minval=0.5, maxval=10.0, step=0.5, group=grpPivotDetection)
+min_pivot_significance = input.float(0.3, "Min Pivot Significance (ATR)", minval=0.1, maxval=2.0, step=0.1, group=grpPivotDetection, tooltip="Minimum ATR distance from surrounding bars. Higher = only significant pivots.")
+require_volume_confirmation = input.bool(true, "Require Volume Confirmation", group=grpPivotDetection, tooltip="Only show pivots with volume spike confirmation")
+
+// Pivot Quality Inputs
+use_rsi_divergence = input.bool(true, "Use RSI Divergence", group=grpPivotQuality)
+use_sfp = input.bool(true, "Use Swing Failure Pattern (SFP)", group=grpPivotQuality)
+use_liquidity_sweep = input.bool(true, "Use Liquidity Sweep", group=grpPivotQuality)
+use_candle_confirm = input.bool(true, "Use Candle Reversal Confirm", group=grpPivotQuality)
+use_key_level_align = input.bool(true, "Use Key Level Alignment", group=grpPivotQuality)
+use_fvg_fill = input.bool(true, "Use FVG Fill", group=grpPivotQuality)
+use_session_filter = input.bool(false, "Use Session Weighting", group=grpPivotQuality)
+use_mtf_pivot_conf = input.bool(true, "Use HTF Pivot Confluence", group=grpPivotQuality)
+key_level_atr_tolerance = input.float(0.3, "Key Level ATR Tolerance", minval=0.1, maxval=2.0, step=0.1, group=grpPivotQuality)
+mtf_pivot_tf = input.timeframe("240", "HTF Pivot Timeframe", group=grpPivotQuality)
+mtf_pivot_strength = input.int(3, "HTF Pivot Strength", minval=1, maxval=20, group=grpPivotQuality)
+mtf_pivot_atr_tolerance = input.float(0.5, "HTF Pivot ATR Tolerance", minval=0.1, maxval=3.0, step=0.1, group=grpPivotQuality)
+session_tz = input.string("Etc/UTC", "Session Timezone", group=grpPivotQuality)
+session_london = input.session("0700-1000", "London Session", group=grpPivotQuality)
+session_ny = input.session("1300-1600", "New York Session", group=grpPivotQuality)
+
+// Market Structure Inputs
+mss_enabled = input.bool(true, "Show Market Structure Shift (MSS)", group=grpMarketStructure)
+fib_enabled = input.bool(false, "Auto-Draw Fibonacci", group=grpMarketStructure)
+
+// Filter Inputs
+mtf_enabled = input.bool(true, "Enable HTF Trend Filter", group=grpFilters)
+htf_res = input.timeframe("240", "Higher Timeframe", group=grpFilters, tooltip="Higher timeframe in minutes (240 = 4H, 60 = 1H, etc.)")
+htf_ma_len = input.int(50, "HTF MA Length", minval=10, maxval=200, group=grpFilters)
+atr_confirm_enabled = input.bool(false, "Enable ATR Confirmation", group=grpFilters, tooltip="When enabled, requires price confirmation before showing pivots (adds lag). Disable for real-time detection.")
+atr_confirm_mult = input.float(0.2, "ATR Confirmation Multiplier", minval=0.1, maxval=1.0, step=0.1, group=grpFilters, tooltip="Price must close beyond Pivot +/- (ATR * this multiplier) to confirm.")
+real_time_mode = input.bool(true, "Real-Time Mode", group=grpFilters, tooltip="Show pivots immediately as they form (no confirmation delay). Disable for confirmed-only pivots.")
+
+// Visual Inputs
+show_zones = input.bool(true, "Show Pivot Zones", group=grpVisuals)
+show_labels = input.bool(true, "Show Pivot Labels", group=grpVisuals)
+zone_extend_bars = input.int(50, "Zone Extension (bars)", minval=10, maxval=200, group=grpVisuals)
+zone_use_stretch_filter = input.bool(false, "Zone Stretch Filter (Mean Reversion)", group=grpZones, tooltip="When enabled, only show zones if price is stretched from HTF mean.")
+
+// VWAP Inputs
+show_bottom_vwap = input.bool(true, "Show Bottom VWAP", group=grpVWAP)
+show_top_vwap = input.bool(true, "Show Top VWAP", group=grpVWAP)
+extreme_vwap_lookback = input.int(50, "Bottom/Top VWAP Lookback", minval=10, maxval=500, group=grpVWAP, tooltip="Number of bars to find the absolute lowest low / highest high for anchoring.")
+extreme_vwap_source = input.source(hlc3, "Bottom/Top VWAP Source", group=grpVWAP)
+
+vwap_source = input.source(hlc3, "VWAP Source", group=grpVWAP)
+show_4d_vwap = input.bool(false, "Show 4D VWAP", group=grpVWAP)
+show_9d_vwap = input.bool(false, "Show 9D VWAP", group=grpVWAP)
+show_4h_vwap = input.bool(false, "Show 4H VWAP", group=grpVWAP)
+show_8h_vwap = input.bool(false, "Show 8H VWAP", group=grpVWAP)
+show_weekly_vwap = input.bool(true, "Show Weekly VWAP", group=grpVWAP)
+show_monthly_vwap = input.bool(false, "Show Monthly VWAP", group=grpVWAP)
+show_yearly_vwap = input.bool(true, "Show Yearly VWAP", group=grpVWAP)
+show_prev_weekly_vwap = input.bool(false, "Show Previous Weekly VWAP", group=grpVWAP)
+show_prev_monthly_vwap = input.bool(false, "Show Previous Monthly VWAP", group=grpVWAP)
+show_prev_yearly_vwap = input.bool(false, "Show Previous Yearly VWAP", group=grpVWAP)
+
+// Color Inputs
+c_bull = input.color(color.new(color.green, 20), "Bullish Color", group=grpVisuals)
+c_bear = input.color(color.new(color.purple, 20), "Bearish Color", group=grpVisuals)
+c_mss = input.color(color.new(color.blue, 40), "MSS Line Color", group=grpVisuals)
+c_fib = input.color(color.gray, "Fibonacci Color", group=grpVisuals)
+c_golden_pocket = input.color(color.new(color.yellow, 0), "Golden Pocket (0.618) Color", group=grpVisuals)
+c_bottom_vwap = input.color(color.new(color.lime, 0), "Bottom VWAP Color", group=grpVWAP)
+c_top_vwap = input.color(color.new(color.red, 0), "Top VWAP Color", group=grpVWAP)
+c_weekly_vwap = input.color(color.new(color.orange, 0), "Weekly VWAP", group=grpVWAP)
+c_monthly_vwap = input.color(color.new(color.purple, 0), "Monthly VWAP", group=grpVWAP)
+c_yearly_vwap = input.color(color.new(color.white, 0), "Yearly VWAP", group=grpVWAP)
+c_prev_weekly_vwap = input.color(color.new(color.orange, 60), "Prev Weekly VWAP", group=grpVWAP)
+c_prev_monthly_vwap = input.color(color.new(color.purple, 60), "Prev Monthly VWAP", group=grpVWAP)
+c_prev_yearly_vwap = input.color(color.new(color.white, 60), "Prev Yearly VWAP", group=grpVWAP)
+c_4d_vwap = input.color(color.new(color.teal, 0), "4D VWAP", group=grpVWAP)
+c_9d_vwap = input.color(color.new(color.blue, 0), "9D VWAP", group=grpVWAP)
+c_4h_vwap = input.color(color.new(color.aqua, 0), "4H VWAP", group=grpVWAP)
+c_8h_vwap = input.color(color.new(color.fuchsia, 0), "8H VWAP", group=grpVWAP)
+
+// Alert Inputs
+alert_pivot_high = input.bool(true, "Alert on Pivot High", group=grpAlerts)
+alert_pivot_low = input.bool(true, "Alert on Pivot Low", group=grpAlerts)
+alert_major_zones = input.bool(true, "Alert on Major Pivot Zones", group=grpAlerts)
+alert_mss = input.bool(true, "Alert on Market Structure Shift (CHoCH)", group=grpAlerts)
+alert_exhaustion = input.bool(true, "Alert on Exhaustion Signals", group=grpAlerts)
+alert_fib_levels = input.bool(false, "Alert on Fibonacci Level Touches", group=grpAlerts)
+
+// IBSS Pro Inputs
+ibss_enabled = input.bool(true, "Enable IBSS Pro Signals", group=grpIBSS)
+// Trend Settings
+ibss_ma_fast_length = input.int(12, title="Fast MA Length", minval=1, group=grpIBSS)
+ibss_ma_slow_length = input.int(26, title="Slow MA Length", minval=1, group=grpIBSS)
+ibss_trend_threshold = input.float(0.5, title="Trend Strength Threshold", minval=0.1, maxval=2.0, step=0.1, group=grpIBSS)
+// Momentum Settings
+ibss_rsi_length = input.int(14, title="RSI Length", minval=1, group=grpIBSS)
+ibss_rsi_oversold = input.int(30, title="RSI Oversold Level", minval=1, maxval=50, group=grpIBSS)
+ibss_rsi_overbought = input.int(70, title="RSI Overbought Level", minval=50, maxval=100, group=grpIBSS)
+ibss_rsi_use_crossover = input.bool(false, title="Use RSI Crossover (Strict)", tooltip="If false, uses zone-based signals which are more frequent", group=grpIBSS)
+// Volume Settings (reuse PivotX volume settings or separate)
+ibss_volume_ma_length = input.int(20, title="Volume MA Length", minval=1, group=grpIBSS)
+ibss_volume_multiplier = input.float(1.5, title="Volume Spike Multiplier", minval=1.0, maxval=5.0, step=0.1, group=grpIBSS)
+// Volatility Settings (reuse PivotX ATR or separate)
+ibss_atr_length = input.int(14, title="ATR Length", minval=1, group=grpIBSS)
+ibss_atr_multiplier = input.float(2.0, title="ATR Stop Loss Multiplier", minval=0.5, maxval=5.0, step=0.1, group=grpIBSS)
+// Signal Settings
+ibss_use_trend_filter = input.bool(true, title="Use Trend Filter", tooltip="Filters signals by MA trend alignment", group=grpIBSS)
+ibss_use_volume_confirmation = input.bool(false, title="Use Volume Confirmation", tooltip="Requires volume spike for signals", group=grpIBSS)
+ibss_use_atr_stops = input.bool(true, title="Use ATR-Based Stops", group=grpIBSS)
+ibss_signal_cooldown = input.int(10, title="Signal Cooldown Bars", minval=0, maxval=50, tooltip="Minimum bars between signals", group=grpIBSS)
+ibss_show_debug = input.bool(false, title="Show Debug Info", tooltip="Shows RSI and condition states", group=grpIBSS)
+ibss_show_ma = input.bool(true, title="Show Moving Averages", group=grpIBSS)
+ibss_show_ma_cloud = input.bool(true, title="Show MA Cloud", group=grpIBSS)
+ibss_show_bg = input.bool(false, title="Show Background Trend Overlay", group=grpIBSS)
+
+
+// ============================================================================
+// CALCULATIONS
+// ============================================================================
+
+// --- Timeframe Filter ---
+// All timeframes supported (1-minute enabled)
+is_1min = timeframe.period == "1"
+
+// Determine if we're on a lower timeframe that needs stricter filtering
+is_5m = timeframe.period == "5"
+is_15m = timeframe.period == "15"
+is_1h = timeframe.period == "60" or timeframe.period == "1H"
+is_lower_tf = timeframe.in_seconds() <= 300  // 5 minutes or less (3m, 5m)
+is_higher_tf = timeframe.in_seconds() >= 900  // 15 minutes or higher
+
+// A+ Setup Timeframes (5m, 15m, 1h)
+is_aplus_tf = is_5m or is_15m or is_1h
+
+// --- Core Calculations ---
+atr = ta.atr(14)
+avg_vol = ta.sma(volume, 20)
+vol_spike = volume > avg_vol * volume_threshold
+
+// --- IBSS Pro Calculations ---
+// Moving Averages
+ibss_ma_fast = ibss_enabled ? ta.ema(close, ibss_ma_fast_length) : na
+ibss_ma_slow = ibss_enabled ? ta.ema(close, ibss_ma_slow_length) : na
+ibss_ma_trend = ibss_enabled ? (ibss_ma_fast > ibss_ma_slow ? 1 : -1) : 0
+
+// MA Crossover Detection for Scalp Signals
+ibss_ma_cross_bullish = ibss_enabled and not na(ibss_ma_fast) and not na(ibss_ma_slow) and not na(ibss_ma_fast[1]) and not na(ibss_ma_slow[1]) and ibss_ma_fast > ibss_ma_slow and ibss_ma_fast[1] <= ibss_ma_slow[1]
+ibss_ma_cross_bearish = ibss_enabled and not na(ibss_ma_fast) and not na(ibss_ma_slow) and not na(ibss_ma_fast[1]) and not na(ibss_ma_slow[1]) and ibss_ma_fast < ibss_ma_slow and ibss_ma_fast[1] >= ibss_ma_slow[1]
+
+// RSI
+ibss_rsi = ibss_enabled ? ta.rsi(close, ibss_rsi_length) : na
+// RSI conditions - very restrictive for quality signals only
+ibss_rsi_bullish = ibss_enabled and (ibss_rsi_use_crossover ? (ibss_rsi > ibss_rsi_oversold and ibss_rsi[1] <= ibss_rsi_oversold) : (ibss_rsi <= ibss_rsi_oversold + 2 and ibss_rsi > ibss_rsi[1]))
+ibss_rsi_bearish = ibss_enabled and (ibss_rsi_use_crossover ? (ibss_rsi < ibss_rsi_overbought and ibss_rsi[1] >= ibss_rsi_overbought) : (ibss_rsi >= ibss_rsi_overbought - 2 and ibss_rsi < ibss_rsi[1]))
+
+// --- Pivot Quality Helpers ---
+// Candle reversal patterns
+body = math.abs(close - open)
+candle_range = high - low
+upper_wick = high - math.max(close, open)
+lower_wick = math.min(close, open) - low
+
+bull_pin = candle_range > 0 and lower_wick >= body * 2 and (close - low) / candle_range >= 0.7
+bear_pin = candle_range > 0 and upper_wick >= body * 2 and (high - close) / candle_range >= 0.7
+
+bull_engulf = close > open and close[1] < open[1] and close >= open[1] and open <= close[1]
+bear_engulf = close < open and close[1] > open[1] and close <= open[1] and open >= close[1]
+
+bull_reversal_candle = bull_pin or bull_engulf
+bear_reversal_candle = bear_pin or bear_engulf
+
+// Session weighting
+in_london = not na(time(timeframe.period, session_london, session_tz))
+in_ny = not na(time(timeframe.period, session_ny, session_tz))
+in_key_session = in_london or in_ny
+
+// Key levels (previous day/week)
+prev_day_high = request.security(syminfo.tickerid, "D", high[1], lookahead=barmerge.lookahead_off)
+prev_day_low = request.security(syminfo.tickerid, "D", low[1], lookahead=barmerge.lookahead_off)
+prev_week_high = request.security(syminfo.tickerid, "W", high[1], lookahead=barmerge.lookahead_off)
+prev_week_low = request.security(syminfo.tickerid, "W", low[1], lookahead=barmerge.lookahead_off)
+
+// HTF pivot confluence
+htf_ph = request.security(syminfo.tickerid, mtf_pivot_tf, ta.pivothigh(high, mtf_pivot_strength, mtf_pivot_strength), lookahead=barmerge.lookahead_off)
+htf_pl = request.security(syminfo.tickerid, mtf_pivot_tf, ta.pivotlow(low, mtf_pivot_strength, mtf_pivot_strength), lookahead=barmerge.lookahead_off)
+
+// Volume Analysis (can reuse PivotX volume or use separate)
+ibss_volume_ma = ibss_enabled ? ta.sma(volume, ibss_volume_ma_length) : na
+ibss_volume_spike = ibss_enabled and volume > ibss_volume_ma * ibss_volume_multiplier
+
+// ATR for Dynamic Stops (can reuse PivotX ATR or use separate)
+ibss_atr = ibss_enabled ? ta.atr(ibss_atr_length) : na
+ibss_atr_stop_long = ibss_enabled and not na(ibss_atr) ? close - ibss_atr * ibss_atr_multiplier : na
+ibss_atr_stop_short = ibss_enabled and not na(ibss_atr) ? close + ibss_atr * ibss_atr_multiplier : na
+
+// Buy Conditions
+ibss_buy_condition_1 = ibss_rsi_bullish
+ibss_buy_condition_2 = ibss_use_trend_filter ? ibss_ma_trend > 0 : true
+ibss_buy_condition_3 = ibss_use_volume_confirmation ? ibss_volume_spike : true
+
+// Sell Conditions
+ibss_sell_condition_1 = ibss_rsi_bearish
+ibss_sell_condition_2 = ibss_use_trend_filter ? ibss_ma_trend < 0 : true
+ibss_sell_condition_3 = ibss_use_volume_confirmation ? ibss_volume_spike : true
+
+// Generate Signals
+ibss_buy_signal_raw = ibss_enabled and ibss_buy_condition_1 and ibss_buy_condition_2 and ibss_buy_condition_3
+ibss_sell_signal_raw = ibss_enabled and ibss_sell_condition_1 and ibss_sell_condition_2 and ibss_sell_condition_3
+
+// Declare zone tracking variables (will be updated later after pivots are calculated)
+var bool in_long_zone = false
+var bool in_short_zone = false
+
+// Track Active Positions
+var bool ibss_in_long_position = false
+var bool ibss_in_short_position = false
+var float ibss_stop_loss_price = na
+var int ibss_last_buy_bar = 0
+var int ibss_last_sell_bar = 0
+
+// Apply cooldown and zone filter to prevent too many signals
+// Only trigger IBSS signals when price is in an active pivot zone (for mean reversion scalps)
+ibss_buy_signal = ibss_buy_signal_raw and in_long_zone and (bar_index - ibss_last_buy_bar >= ibss_signal_cooldown or ibss_last_buy_bar == 0)
+ibss_sell_signal = ibss_sell_signal_raw and in_short_zone and (bar_index - ibss_last_sell_bar >= ibss_signal_cooldown or ibss_last_sell_bar == 0)
+
+// Line objects for stop loss lines
+var line ibss_long_stop_line = na
+var line ibss_short_stop_line = na
+
+// Update Position State
+if ibss_buy_signal and not ibss_in_long_position
+    ibss_in_long_position := true
+    ibss_in_short_position := false
+    ibss_stop_loss_price := ibss_use_atr_stops ? ibss_atr_stop_long : na
+    ibss_last_buy_bar := bar_index
+    // Delete old short stop line if it exists
+    if not na(ibss_short_stop_line)
+        line.delete(ibss_short_stop_line)
+        ibss_short_stop_line := na
+else if ibss_sell_signal and not ibss_in_short_position
+    ibss_in_long_position := false
+    ibss_in_short_position := true
+    ibss_stop_loss_price := ibss_use_atr_stops ? ibss_atr_stop_short : na
+    ibss_last_sell_bar := bar_index
+    // Delete old long stop line if it exists
+    if not na(ibss_long_stop_line)
+        line.delete(ibss_long_stop_line)
+        ibss_long_stop_line := na
+
+// Exit Conditions (for ATR stops)
+ibss_exit_long = ibss_in_long_position and close < ibss_stop_loss_price
+ibss_exit_short = ibss_in_short_position and close > ibss_stop_loss_price
+
+if ibss_exit_long or ibss_exit_short
+    ibss_in_long_position := false
+    ibss_in_short_position := false
+    ibss_stop_loss_price := na
+    // Delete stop loss lines
+    if not na(ibss_long_stop_line)
+        line.delete(ibss_long_stop_line)
+        ibss_long_stop_line := na
+    if not na(ibss_short_stop_line)
+        line.delete(ibss_short_stop_line)
+        ibss_short_stop_line := na
+
+// Update stop loss lines
+if ibss_use_atr_stops and ibss_in_long_position and not na(ibss_stop_loss_price)
+    if na(ibss_long_stop_line)
+        ibss_long_stop_line := line.new(bar_index - 1, ibss_stop_loss_price, bar_index, ibss_stop_loss_price, color=color.new(color.red, 50), style=line.style_dashed, width=1, extend=extend.right)
+    else
+        line.set_xy1(ibss_long_stop_line, bar_index - 1, ibss_stop_loss_price)
+        line.set_xy2(ibss_long_stop_line, bar_index, ibss_stop_loss_price)
+        line.set_extend(ibss_long_stop_line, extend=extend.right)
+
+if ibss_use_atr_stops and ibss_in_short_position and not na(ibss_stop_loss_price)
+    if na(ibss_short_stop_line)
+        ibss_short_stop_line := line.new(bar_index - 1, ibss_stop_loss_price, bar_index, ibss_stop_loss_price, color=color.new(color.green, 50), style=line.style_dashed, width=1, extend=extend.right)
+    else
+        line.set_xy1(ibss_short_stop_line, bar_index - 1, ibss_stop_loss_price)
+        line.set_xy2(ibss_short_stop_line, bar_index, ibss_stop_loss_price)
+        line.set_extend(ibss_short_stop_line, extend=extend.right)
+
+// --- Dynamic Pivot Strength (Optimized for 5m, 15m, 1h A+ Setups) ---
+// Make pivot strength adaptive to timeframe - cap to prevent "too far back" errors
+// Use a more reasonable calculation that works across all timeframes
+pivot_strength_raw = math.max(2, math.round(atr / syminfo.mintick * atr_multiplier))
+
+// Optimized pivot strength for quality pivots only
+// Increased minimums to filter out noise and focus on significant pivots
+base_min_strength = is_1min ? 5 : is_5m ? 4 : is_15m ? 3 : is_1h ? 3 : (is_lower_tf ? 6 : 3)
+base_max_strength = is_1min ? 15 : is_5m ? 15 : is_15m ? 18 : is_1h ? 25 : (is_lower_tf ? 20 : (timeframe.isintraday ? 25 : 50))
+
+// Real-time mode still allows some flexibility but maintains quality
+min_strength = real_time_mode ? math.max(3, base_min_strength - 1) : base_min_strength
+max_strength = real_time_mode ? math.max(8, base_max_strength - 2) : base_max_strength
+
+pivot_strength = math.max(min_strength, math.min(pivot_strength_raw, max_strength))
+
+// Use consistent strength (no reduction in real-time mode for quality)
+rt_pivot_strength = pivot_strength
+safe_pivot_strength = math.max(1, math.min(rt_pivot_strength, bar_index))
+
+ph = ta.pivothigh(high, safe_pivot_strength, safe_pivot_strength)
+pl = ta.pivotlow(low, safe_pivot_strength, safe_pivot_strength)
+
+// Track RSI at pivots for divergence
+var float last_ph_rsi = na
+var float prev_ph_rsi = na
+var float last_pl_rsi = na
+var float prev_pl_rsi = na
+
+// Filter pivots by significance - only show pivots that matter
+// Check if pivot is significantly different from recent price action
+// Ensure we have valid pivot strength before calculating
+sma_length = not na(rt_pivot_strength) and rt_pivot_strength > 0 ? math.max(1, math.round(rt_pivot_strength * 2)) : 10
+safe_sma_length = math.max(1, math.min(sma_length, bar_index + 1))
+recent_high_avg = ta.sma(high, safe_sma_length)
+recent_low_avg = ta.sma(low, safe_sma_length)
+min_required_distance = atr * min_pivot_significance
+
+ph_significant = not na(ph) and not na(recent_high_avg) and ph >= recent_high_avg + min_required_distance
+pl_significant = not na(pl) and not na(recent_low_avg) and pl <= recent_low_avg - min_required_distance
+
+// Apply volume confirmation if required
+ph_volume_ok = not require_volume_confirmation or vol_spike
+pl_volume_ok = not require_volume_confirmation or vol_spike
+
+// Final pivots - only significant ones that pass all filters
+ph_final = ph_significant and ph_volume_ok ? ph : na
+pl_final = pl_significant and pl_volume_ok ? pl : na
+
+// --- Higher Timeframe Trend Filter ---
+// Calculate HTF EMA values separately to avoid issues
+htf_ema = mtf_enabled ? request.security(syminfo.tickerid, htf_res, ta.ema(close, htf_ma_len), lookahead=barmerge.lookahead_on) : close
+htf_ema_prev = htf_ema[1]
+htf_trend_up = mtf_enabled ? htf_ema > htf_ema_prev : true
+htf_trend_down = mtf_enabled ? htf_ema < htf_ema_prev : true
+
+// --- Market Structure Tracking ---
+var float last_ph = na
+var float last_pl = na
+var float prev_ph = na
+var float prev_pl = na
+var int last_ph_bar = na
+var int last_pl_bar = na
+var bool bullish_struct = true
+var bool bearish_struct = true
+
+// Alert tracking variables
+var bool prev_ph_detected = false
+var bool prev_pl_detected = false
+var bool prev_major_pl = false
+var bool prev_major_ph = false
+var bool prev_choch_up = false
+var bool prev_choch_down = false
+var bool prev_sell_exhaustion = false
+var bool prev_buy_exhaustion = false
+
+// Use final pivots
+if not na(ph_final)
+    prev_ph := last_ph
+    last_ph := ph_final
+    prev_ph_rsi := last_ph_rsi
+    last_ph_rsi := ibss_rsi[safe_pivot_strength]
+    // Calculate bar index (real-time mode uses fewer bars, so pivot appears closer to current)
+    last_ph_bar := math.max(0, bar_index - rt_pivot_strength)
+    bearish_struct := false // New PH breaks bearish structure
+if not na(pl_final)
+    prev_pl := last_pl
+    last_pl := pl_final
+    prev_pl_rsi := last_pl_rsi
+    last_pl_rsi := ibss_rsi[safe_pivot_strength]
+    // Calculate bar index (real-time mode uses fewer bars, so pivot appears closer to current)
+    last_pl_bar := math.max(0, bar_index - rt_pivot_strength)
+    bullish_struct := false // New PL breaks bullish structure
+
+// --- Market Structure Shift (CHoCH) Detection ---
+var line mss_line = na
+var label mss_label = na
+mss_detected = false
+
+choch_up = bullish_struct and not na(last_ph) and not na(prev_ph) and not na(last_pl) and not na(prev_pl) and last_ph > prev_ph and last_pl > prev_pl
+choch_down = bearish_struct and not na(last_ph) and not na(prev_ph) and not na(last_pl) and not na(prev_pl) and last_ph < prev_ph and last_pl < prev_pl
+
+if mss_enabled and choch_up
+    mss_detected := true
+    if not na(mss_line) and not na(mss_label)
+        line.delete(mss_line)
+        label.delete(mss_label)
+    mss_line := line.new(last_pl_bar, last_pl, bar_index, last_pl, color=c_mss, width=2, style=line.style_dashed)
+    mss_label := label.new(last_pl_bar, last_pl, "CHoCH", style=label.style_label_up, color=color.white, textcolor=color.blue, size=size.small)
+if mss_enabled and choch_down
+    mss_detected := true
+    if not na(mss_line) and not na(mss_label)
+        line.delete(mss_line)
+        label.delete(mss_label)
+    mss_line := line.new(last_ph_bar, last_ph, bar_index, last_ph, color=c_mss, width=2, style=line.style_dashed)
+    mss_label := label.new(last_ph_bar, last_ph, "CHoCH", style=label.style_label_down, color=color.white, textcolor=color.blue, size=size.small)
+
+// --- Exhaustion Detection (Simplified and Integrated) ---
+// Calculate ta.rising and ta.falling unconditionally to avoid series string errors
+price_rising = ta.rising(close, 1)
+price_falling = ta.falling(close, 1)
+
+// Detect recent selloff (price drop from past to now)
+is_selloff = false
+if bar_index >= exhaustion_periods
+    price_change_pct = ((close - close[exhaustion_periods]) / close[exhaustion_periods]) * 100
+    if price_change_pct <= -min_price_move
+        is_selloff := true
+
+// Detect recent rally (price increase from past to now)
+is_rally = false
+if bar_index >= exhaustion_periods
+    price_change_pct = ((close - close[exhaustion_periods]) / close[exhaustion_periods]) * 100
+    if price_change_pct >= min_price_move
+        is_rally := true
+
+sell_exhaustion = is_selloff and vol_spike and not price_rising
+buy_exhaustion = is_rally and vol_spike and not price_falling
+
+// --- Pivot Quality Signals (evaluated on pivot bars) ---
+bear_sfp = not na(prev_ph) and high > prev_ph and close < prev_ph and close < open
+bull_sfp = not na(prev_pl) and low < prev_pl and close > prev_pl and close > open
+bear_sweep = not na(prev_ph) and high > prev_ph and close < prev_ph
+bull_sweep = not na(prev_pl) and low < prev_pl and close > prev_pl
+
+bear_sfp_pivot = bear_sfp[safe_pivot_strength]
+bull_sfp_pivot = bull_sfp[safe_pivot_strength]
+bear_sweep_pivot = bear_sweep[safe_pivot_strength]
+bull_sweep_pivot = bull_sweep[safe_pivot_strength]
+
+bear_candle_pivot = bear_reversal_candle[safe_pivot_strength]
+bull_candle_pivot = bull_reversal_candle[safe_pivot_strength]
+
+key_level_ph = (math.abs(last_ph - prev_day_high) <= atr * key_level_atr_tolerance) or (math.abs(last_ph - prev_week_high) <= atr * key_level_atr_tolerance)
+key_level_pl = (math.abs(last_pl - prev_day_low) <= atr * key_level_atr_tolerance) or (math.abs(last_pl - prev_week_low) <= atr * key_level_atr_tolerance)
+
+// FVG detection and fill
+bull_fvg = low[1] > high[2]
+bear_fvg = high[1] < low[2]
+bull_fvg_fill = bull_fvg and low <= high[2]
+bear_fvg_fill = bear_fvg and high >= low[2]
+
+bull_fvg_fill_pivot = bull_fvg_fill[safe_pivot_strength]
+bear_fvg_fill_pivot = bear_fvg_fill[safe_pivot_strength]
+
+in_session_pivot = in_key_session[safe_pivot_strength]
+
+mtf_ph_conf = not na(htf_ph) and math.abs(last_ph - htf_ph) <= atr * mtf_pivot_atr_tolerance
+mtf_pl_conf = not na(htf_pl) and math.abs(last_pl - htf_pl) <= atr * mtf_pivot_atr_tolerance
+
+// RSI Divergence
+bear_rsi_div = not na(prev_ph) and not na(last_ph) and not na(prev_ph_rsi) and not na(last_ph_rsi) and last_ph > prev_ph and last_ph_rsi < prev_ph_rsi
+bull_rsi_div = not na(prev_pl) and not na(last_pl) and not na(prev_pl_rsi) and not na(last_pl_rsi) and last_pl < prev_pl and last_pl_rsi > prev_pl_rsi
+
+// --- ATR Confirmation ---
+// In real-time mode, show pivots immediately without confirmation
+// ATR confirmation is optional and only adds a "confirmed" label
+atr_confirmed_pl = not na(pl_final) and (not atr_confirm_enabled or close > pl_final + (atr * atr_confirm_mult))
+atr_confirmed_ph = not na(ph_final) and (not atr_confirm_enabled or close < ph_final - (atr * atr_confirm_mult))
+
+// --- Multi-Timeframe Confirmation for A+ Setups (5m, 15m, 1h) ---
+// Get higher timeframe pivots for confirmation (only if not in real-time mode)
+htf_5m_ph = (real_time_mode or is_5m) ? na : (is_15m or is_1h ? request.security(syminfo.tickerid, "5", ph_final, lookahead=barmerge.lookahead_on) : na)
+htf_5m_pl = (real_time_mode or is_5m) ? na : (is_15m or is_1h ? request.security(syminfo.tickerid, "5", pl_final, lookahead=barmerge.lookahead_on) : na)
+htf_15m_ph = (real_time_mode or not is_1h) ? na : request.security(syminfo.tickerid, "15", ph_final, lookahead=barmerge.lookahead_on)
+htf_15m_pl = (real_time_mode or not is_1h) ? na : request.security(syminfo.tickerid, "15", pl_final, lookahead=barmerge.lookahead_on)
+
+// --- Confluence Score for Major Reversal Zones ---
+// Enhanced scoring system for mean reversion scalps
+var int pl_confluence_score = 0
+var int ph_confluence_score = 0
+
+// Calculate distance from HTF MA for mean reversion detection
+dist_from_htf_ma = mtf_enabled ? (close - htf_ema) / atr : 0
+is_stretched_down = mtf_enabled and htf_trend_up and dist_from_htf_ma < -2.5  // More than 2.5 ATR below mean
+is_stretched_up = mtf_enabled and htf_trend_down and dist_from_htf_ma > 2.5   // More than 2.5 ATR above mean
+
+// A+ Setup Scoring System (keep existing for compatibility)
+aplus_score_pl = 0
+aplus_score_ph = 0
+
+// Calculate Confluence Score for Pivot Low
+if not na(pl_final)
+    pl_confluence_score := 0
+    // Base Pivot (10 pts)
+    pl_confluence_score += 10
+    // Volume Confirmation (15 pts)
+    if vol_spike
+        pl_confluence_score += 15
+    // HTF Trend Alignment (20 pts)
+    if not mtf_enabled or htf_trend_up
+        pl_confluence_score += 20
+    // RSI Oversold/Divergence (25 pts) - New Condition
+    if ibss_enabled and ibss_rsi <= ibss_rsi_oversold
+        pl_confluence_score += 25
+    // Mean Reversion Zone - Price stretched from HTF MA (20 pts) - New Condition
+    if is_stretched_down
+        pl_confluence_score += 20
+    // Sell Exhaustion (10 pts)
+    if sell_exhaustion
+        pl_confluence_score += 10
+    // ATR Confirmation (10 pts)
+    if atr_confirmed_pl
+        pl_confluence_score += 10
+    // Multi-timeframe confirmation (20 pts)
+    if is_15m and not na(htf_5m_pl)
+        pl_confluence_score += 20
+    else if is_1h and (not na(htf_15m_pl) or not na(htf_5m_pl))
+        pl_confluence_score += 20
+    // Pivot Quality Signals
+    if use_rsi_divergence and bull_rsi_div
+        pl_confluence_score += 15
+    if use_sfp and bull_sfp_pivot
+        pl_confluence_score += 15
+    if use_liquidity_sweep and bull_sweep_pivot
+        pl_confluence_score += 10
+    if use_candle_confirm and bull_candle_pivot
+        pl_confluence_score += 10
+    if use_key_level_align and key_level_pl
+        pl_confluence_score += 10
+    if use_fvg_fill and bull_fvg_fill_pivot
+        pl_confluence_score += 10
+    if use_session_filter and in_session_pivot
+        pl_confluence_score += 10
+    if use_mtf_pivot_conf and mtf_pl_conf
+        pl_confluence_score += 15
+
+// Calculate A+ score for Pivot Low (keep for compatibility)
+if is_aplus_tf and not na(pl_final) and (real_time_mode or atr_confirmed_pl)
+    aplus_score_pl := pl_confluence_score
+
+// Calculate Confluence Score for Pivot High
+if not na(ph_final)
+    ph_confluence_score := 0
+    // Base Pivot (10 pts)
+    ph_confluence_score += 10
+    // Volume Confirmation (15 pts)
+    if vol_spike
+        ph_confluence_score += 15
+    // HTF Trend Alignment (20 pts)
+    if not mtf_enabled or htf_trend_down
+        ph_confluence_score += 20
+    // RSI Overbought/Divergence (25 pts) - New Condition
+    if ibss_enabled and ibss_rsi >= ibss_rsi_overbought
+        ph_confluence_score += 25
+    // Mean Reversion Zone - Price stretched from HTF MA (20 pts) - New Condition
+    if is_stretched_up
+        ph_confluence_score += 20
+    // Buy Exhaustion (10 pts)
+    if buy_exhaustion
+        ph_confluence_score += 10
+    // ATR Confirmation (10 pts)
+    if atr_confirmed_ph
+        ph_confluence_score += 10
+    // Multi-timeframe confirmation (20 pts)
+    if is_15m and not na(htf_5m_ph)
+        ph_confluence_score += 20
+    else if is_1h and (not na(htf_15m_ph) or not na(htf_5m_ph))
+        ph_confluence_score += 20
+    // Pivot Quality Signals
+    if use_rsi_divergence and bear_rsi_div
+        ph_confluence_score += 15
+    if use_sfp and bear_sfp_pivot
+        ph_confluence_score += 15
+    if use_liquidity_sweep and bear_sweep_pivot
+        ph_confluence_score += 10
+    if use_candle_confirm and bear_candle_pivot
+        ph_confluence_score += 10
+    if use_key_level_align and key_level_ph
+        ph_confluence_score += 10
+    if use_fvg_fill and bear_fvg_fill_pivot
+        ph_confluence_score += 10
+    if use_session_filter and in_session_pivot
+        ph_confluence_score += 10
+    if use_mtf_pivot_conf and mtf_ph_conf
+        ph_confluence_score += 15
+
+// Calculate A+ score for Pivot High (keep for compatibility)
+if is_aplus_tf and not na(ph_final) and (real_time_mode or atr_confirmed_ph)
+    aplus_score_ph := ph_confluence_score
+
+// A+ Setup Detection (Score >= 80 for A+, or real-time mode shows immediately)
+is_aplus_pl = is_aplus_tf and (real_time_mode ? not na(pl_final) : aplus_score_pl >= 80)
+is_aplus_ph = is_aplus_tf and (real_time_mode ? not na(ph_final) : aplus_score_ph >= 80)
+
+// --- Final Pivot Conditions ---
+// Declare variables first to ensure they're in scope (not var, so recalculated each bar)
+bool major_pl = false
+bool major_ph = false
+
+// Real-time mode: show pivots immediately without confirmation delay
+// Confirmed mode: require ATR confirmation
+// Mean Reversion Filter: Only show pivots when price is stretched (for scalping)
+if real_time_mode
+    // Real-time: show pivots as soon as detected
+    major_pl := not na(pl_final) and (not mtf_enabled or htf_trend_up) and (not zone_use_stretch_filter or is_stretched_down)
+    major_ph := not na(ph_final) and (not mtf_enabled or htf_trend_down) and (not zone_use_stretch_filter or is_stretched_up)
+else
+    // Confirmed mode: require ATR confirmation
+    major_pl := not na(pl_final) and atr_confirmed_pl and (not mtf_enabled or htf_trend_up) and (not zone_use_stretch_filter or is_stretched_down)
+    major_ph := not na(ph_final) and atr_confirmed_ph and (not mtf_enabled or htf_trend_down) and (not zone_use_stretch_filter or is_stretched_up)
+
+// --- Bottom VWAP (anchored to absolute lowest low in lookback) ---
+// Find the bar offset of the lowest low in the lookback window
+lowest_low_val = ta.lowest(low, extreme_vwap_lookback)
+lowest_low_offset = ta.barssince(low == lowest_low_val and low == ta.lowest(low, extreme_vwap_lookback))
+bottom_vwap_reset = lowest_low_offset == 0
+
+var float bottom_vwap_cum_pv = na
+var float bottom_vwap_cum_vol = na
+
+if bottom_vwap_reset
+    bottom_vwap_cum_pv := extreme_vwap_source * volume
+    bottom_vwap_cum_vol := volume
+else if not na(bottom_vwap_cum_vol)
+    bottom_vwap_cum_pv += extreme_vwap_source * volume
+    bottom_vwap_cum_vol += volume
+
+bottom_vwap = not na(bottom_vwap_cum_vol) and bottom_vwap_cum_vol > 0 ? bottom_vwap_cum_pv / bottom_vwap_cum_vol : na
+
+// --- Top VWAP (anchored to absolute highest high in lookback) ---
+highest_high_val = ta.highest(high, extreme_vwap_lookback)
+highest_high_offset = ta.barssince(high == highest_high_val and high == ta.highest(high, extreme_vwap_lookback))
+top_vwap_reset = highest_high_offset == 0
+
+var float top_vwap_cum_pv = na
+var float top_vwap_cum_vol = na
+
+if top_vwap_reset
+    top_vwap_cum_pv := extreme_vwap_source * volume
+    top_vwap_cum_vol := volume
+else if not na(top_vwap_cum_vol)
+    top_vwap_cum_pv += extreme_vwap_source * volume
+    top_vwap_cum_vol += volume
+
+top_vwap = not na(top_vwap_cum_vol) and top_vwap_cum_vol > 0 ? top_vwap_cum_pv / top_vwap_cum_vol : na
+
+// --- Anchored Period VWAPs ---
+f_anchored_vwap(reset, src) =>
+    var float cum_pv = na
+    var float cum_vol = na
+    var float prev_vwap = na
+    if reset
+        prev_vwap := not na(cum_vol) and cum_vol > 0 ? cum_pv / cum_vol : prev_vwap
+        cum_pv := src * volume
+        cum_vol := volume
+    else if not na(cum_vol)
+        cum_pv += src * volume
+        cum_vol += volume
+    curr_vwap = not na(cum_vol) and cum_vol > 0 ? cum_pv / cum_vol : na
+    [curr_vwap, prev_vwap]
+
+reset_4d = ta.change(time("4D")) != 0
+reset_9d = ta.change(time("9D")) != 0
+reset_4h = ta.change(time("240")) != 0
+reset_8h = ta.change(time("480")) != 0
+reset_weekly = ta.change(time("W")) != 0
+reset_monthly = ta.change(time("M")) != 0
+reset_yearly = ta.change(time("12M")) != 0
+
+[vwap_4d, prev_4d_vwap] = f_anchored_vwap(reset_4d, vwap_source)
+[vwap_9d, prev_9d_vwap] = f_anchored_vwap(reset_9d, vwap_source)
+[vwap_4h, prev_4h_vwap] = f_anchored_vwap(reset_4h, vwap_source)
+[vwap_8h, prev_8h_vwap] = f_anchored_vwap(reset_8h, vwap_source)
+[vwap_weekly, prev_weekly_vwap] = f_anchored_vwap(reset_weekly, vwap_source)
+[vwap_monthly, prev_monthly_vwap] = f_anchored_vwap(reset_monthly, vwap_source)
+[vwap_yearly, prev_yearly_vwap] = f_anchored_vwap(reset_yearly, vwap_source)
+
+// --- Track Active Pivot Zones for IBSS Entry Triggers ---
+// Track active pivot zones for IBSS entry triggers (moved here so major_pl/ph and last_pl/ph are defined)
+var float active_pl_zone_top = na
+var float active_pl_zone_bottom = na
+var float active_ph_zone_top = na
+var float active_ph_zone_bottom = na
+
+// Update active zones when a new major pivot is found
+if major_pl and not na(last_pl)
+    active_pl_zone_top := last_pl + (atr * 0.3)
+    active_pl_zone_bottom := last_pl - (atr * 0.3)
+    active_ph_zone_top := na
+    active_ph_zone_bottom := na
+else if major_ph and not na(last_ph)
+    active_ph_zone_top := last_ph + (atr * 0.3)
+    active_ph_zone_bottom := last_ph - (atr * 0.3)
+    active_pl_zone_top := na
+    active_pl_zone_bottom := na
+
+// Check if price is in the zone (for mean reversion scalps) - update the variables
+in_long_zone := not na(active_pl_zone_top) and close < active_pl_zone_top and close > active_pl_zone_bottom
+in_short_zone := not na(active_ph_zone_top) and close < active_ph_zone_top and close > active_ph_zone_bottom
+
+// --- Fibonacci Drawing ---
+var line[] fib_lines = array.new_line()
+
+if fib_enabled and major_ph and not na(last_pl)
+    for eachLine in fib_lines
+        line.delete(eachLine)
+    array.clear(fib_lines)
+    // Only show key Fibonacci levels: 0.236, 0.382, 0.5, 0.618 (golden pocket), 0.786
+    levels = array.new<float>()
+    array.push(levels, 0.236)  // Shallow retracement
+    array.push(levels, 0.382)  // Moderate retracement
+    array.push(levels, 0.5)    // 50% psychological level
+    array.push(levels, 0.618)  // Golden ratio (golden pocket)
+    array.push(levels, 0.786)  // Deep retracement
+    for level in levels
+        y = last_pl - (last_pl - ph) * level
+        // Use special color for Golden Pocket (0.618), default color for others
+        line_color = level == 0.618 ? c_golden_pocket : c_fib
+        line_width = level == 0.618 ? 2 : 1  // Make GP slightly thicker
+        array.push(fib_lines, line.new(last_ph_bar, y, bar_index + zone_extend_bars, y, color=line_color, width=line_width, extend=extend.right))
+
+if fib_enabled and major_pl and not na(last_ph)
+    for eachLine in fib_lines
+        line.delete(eachLine)
+    array.clear(fib_lines)
+    // Only show key Fibonacci levels: 0.236, 0.382, 0.5, 0.618 (golden pocket), 0.786
+    levels = array.new<float>()
+    array.push(levels, 0.236)  // Shallow retracement
+    array.push(levels, 0.382)  // Moderate retracement
+    array.push(levels, 0.5)    // 50% psychological level
+    array.push(levels, 0.618)  // Golden ratio (golden pocket)
+    array.push(levels, 0.786)  // Deep retracement
+    for level in levels
+        y = last_ph + (pl - last_ph) * level
+        // Use special color for Golden Pocket (0.618), default color for others
+        line_color = level == 0.618 ? c_golden_pocket : c_fib
+        line_width = level == 0.618 ? 2 : 1  // Make GP slightly thicker
+        array.push(fib_lines, line.new(last_pl_bar, y, bar_index + zone_extend_bars, y, color=line_color, width=line_width, extend=extend.right))
+
+
+// ============================================================================
+// VISUALIZATION
+// ============================================================================
+
+// --- Pivot Zones ---
+var box pl_zone = na
+var box ph_zone = na
+
+// Zone labels (box.set_lefttext doesn't exist, so we use separate labels)
+var label pl_zone_label = na
+var label ph_zone_label = na
+
+if show_zones and major_pl
+    if not na(pl_zone)
+        box.delete(pl_zone)
+    // Better zone positioning: use ATR-based zone around the pivot, with tighter bounds
+    zone_top = last_pl + (atr * 0.3)  // Tighter zone above pivot
+    zone_bottom = last_pl - (atr * 0.3)  // Tighter zone below pivot
+
+    // Dynamic zone coloring based on confluence score (score is out of 100+)
+    zone_opacity = math.min(70, math.round(pl_confluence_score * 0.7))  // Max 70% opacity
+    zone_bg_color_pl = color.new(color.green, 100 - zone_opacity)
+    zone_border_color = pl_confluence_score > 70 ? color.new(color.yellow, 0) : c_bull
+    zone_border_width = pl_confluence_score > 70 ? 2 : 1
+
+    pl_zone := box.new(last_pl_bar, zone_bottom, bar_index + zone_extend_bars, zone_top, border_color=zone_border_color, bgcolor=zone_bg_color_pl, border_width=zone_border_width)
+
+    // Create Golden Zone for high-score pivots (tighter scalp zone)
+    if pl_confluence_score > 70
+        golden_zone_top = last_pl + (atr * 0.15)  // Tighter 0.15 ATR zone
+        golden_zone_bottom = last_pl - (atr * 0.15)
+        box.new(last_pl_bar, golden_zone_bottom, bar_index + zone_extend_bars, golden_zone_top, border_color=color.new(color.yellow, 0), bgcolor=color.new(color.yellow, 90), border_width=2)
+
+    if not na(pl_zone_label)
+        label.delete(pl_zone_label)
+    zone_label_text = "PL Zone (Score: " + str.tostring(pl_confluence_score) + ")"
+    zone_label_color = pl_confluence_score > 70 ? color.new(color.yellow, 0) : color.new(color.green, 50)
+    pl_zone_label := label.new(last_pl_bar, last_pl, zone_label_text, style=label.style_label_left, color=zone_label_color, textcolor=color.white, size=size.small)
+
+if show_zones and major_ph
+    if not na(ph_zone)
+        box.delete(ph_zone)
+    // Better zone positioning: use ATR-based zone around the pivot, with tighter bounds
+    zone_top = last_ph + (atr * 0.3)  // Tighter zone above pivot
+    zone_bottom = last_ph - (atr * 0.3)  // Tighter zone below pivot
+
+    // Dynamic zone coloring based on confluence score (score is out of 100+)
+    zone_opacity = math.min(70, math.round(ph_confluence_score * 0.7))  // Max 70% opacity
+    zone_bg_color_ph = color.new(color.purple, 100 - zone_opacity)
+    zone_border_color = ph_confluence_score > 70 ? color.new(color.yellow, 0) : c_bear
+    zone_border_width = ph_confluence_score > 70 ? 2 : 1
+
+    ph_zone := box.new(last_ph_bar, zone_bottom, bar_index + zone_extend_bars, zone_top, border_color=zone_border_color, bgcolor=zone_bg_color_ph, border_width=zone_border_width)
+
+    // Create Golden Zone for high-score pivots (tighter scalp zone)
+    if ph_confluence_score > 70
+        golden_zone_top = last_ph + (atr * 0.15)  // Tighter 0.15 ATR zone
+        golden_zone_bottom = last_ph - (atr * 0.15)
+        box.new(last_ph_bar, golden_zone_bottom, bar_index + zone_extend_bars, golden_zone_top, border_color=color.new(color.yellow, 0), bgcolor=color.new(color.yellow, 90), border_width=2)
+
+    if not na(ph_zone_label)
+        label.delete(ph_zone_label)
+    zone_label_text = "PH Zone (Score: " + str.tostring(ph_confluence_score) + ")"
+    zone_label_color = ph_confluence_score > 70 ? color.new(color.yellow, 0) : color.new(color.purple, 50)
+    ph_zone_label := label.new(last_ph_bar, last_ph, zone_label_text, style=label.style_label_left, color=zone_label_color, textcolor=color.white, size=size.small)
+
+// --- Pivot Signals (Diamonds) ---
+// Show pivot signals as small diamonds for all detected pivots
+// Special A+ signals use yellow color, regular pivots use white/purple
+plotshape(show_labels and not na(pl_final), style=shape.diamond, location=location.belowbar,
+          color=is_aplus_pl ? color.new(color.yellow, 0) : color.white, size=size.tiny, title="Pivot Low")
+plotshape(show_labels and not na(ph_final), style=shape.diamond, location=location.abovebar,
+          color=is_aplus_ph ? color.new(color.yellow, 0) : c_bear, size=size.tiny, title="Pivot High")
+
+// --- Bottom/Top VWAPs (anchored to absolute low/high) ---
+plot(show_bottom_vwap ? bottom_vwap : na, color=c_bottom_vwap, title="Bottom VWAP", linewidth=1, style=plot.style_cross)
+plot(show_top_vwap ? top_vwap : na, color=c_top_vwap, title="Top VWAP", linewidth=1, style=plot.style_cross)
+
+// --- Period VWAPs ---
+plot(show_4d_vwap ? vwap_4d : na, color=c_4d_vwap, title="4D VWAP", linewidth=1, style=plot.style_cross)
+plot(show_9d_vwap ? vwap_9d : na, color=c_9d_vwap, title="9D VWAP", linewidth=1, style=plot.style_cross)
+plot(show_4h_vwap ? vwap_4h : na, color=c_4h_vwap, title="4H VWAP", linewidth=1, style=plot.style_cross)
+plot(show_8h_vwap ? vwap_8h : na, color=c_8h_vwap, title="8H VWAP", linewidth=1, style=plot.style_cross)
+plot(show_weekly_vwap ? vwap_weekly : na, color=c_weekly_vwap, title="Weekly VWAP", linewidth=1, style=plot.style_cross)
+plot(show_monthly_vwap ? vwap_monthly : na, color=c_monthly_vwap, title="Monthly VWAP", linewidth=1, style=plot.style_cross)
+plot(show_yearly_vwap ? vwap_yearly : na, color=c_yearly_vwap, title="Yearly VWAP", linewidth=1, style=plot.style_cross)
+plot(show_prev_weekly_vwap ? prev_weekly_vwap : na, color=c_prev_weekly_vwap, title="Prev Weekly VWAP", linewidth=1, style=plot.style_cross)
+plot(show_prev_monthly_vwap ? prev_monthly_vwap : na, color=c_prev_monthly_vwap, title="Prev Monthly VWAP", linewidth=1, style=plot.style_cross)
+plot(show_prev_yearly_vwap ? prev_yearly_vwap : na, color=c_prev_yearly_vwap, title="Prev Yearly VWAP", linewidth=1, style=plot.style_cross)
+
+// --- IBSS Pro Visualization ---
+// Moving Averages - Intertwined colors: Fast MA white when bullish (above Slow), purple when bearish (below Slow)
+// Slow MA purple when bullish (below Fast), white when bearish (above Fast)
+ibss_ma_fast_color = ibss_ma_trend > 0 ? color.white : color.new(color.purple, 0)  // White when above Slow, purple when below
+ibss_ma_slow_color = ibss_ma_trend > 0 ? color.new(color.purple, 0) : color.white  // Purple when below Fast, white when above
+ibss_fast_plot = plot(ibss_show_ma and ibss_enabled ? ibss_ma_fast : na, color=ibss_ma_fast_color, title="IBSS Fast MA", linewidth=1)
+ibss_slow_plot = plot(ibss_show_ma and ibss_enabled ? ibss_ma_slow : na, color=ibss_ma_slow_color, title="IBSS Slow MA", linewidth=2)
+fill(ibss_fast_plot, ibss_slow_plot, color=ibss_show_ma_cloud and ibss_enabled ? (ibss_ma_trend > 0 ? color.new(color.white, 85) : color.new(color.purple, 85)) : na, title="IBSS MA Cloud")
+
+// Buy/Sell Signals - Small diamonds
+plotshape(ibss_buy_signal, style=shape.diamond, location=location.belowbar,
+          color=color.new(color.green, 0), size=size.tiny, title="IBSS Buy Signal")
+plotshape(ibss_sell_signal, style=shape.diamond, location=location.abovebar,
+          color=color.new(color.red, 0), size=size.tiny, title="IBSS Sell Signal")
+
+// MA Crossover Circles for Scalp Signals
+plotshape(ibss_ma_cross_bullish, style=shape.circle, location=location.belowbar,
+          color=color.new(color.lime, 0), size=size.tiny, title="MA Bullish Cross ⚡")
+plotshape(ibss_ma_cross_bearish, style=shape.circle, location=location.abovebar,
+          color=color.new(color.orange, 0), size=size.tiny, title="MA Bearish Cross ⚡")
+
+// Show RSI condition met (even if other filters block it) - for debugging
+plotshape(ibss_show_debug and ibss_rsi_bullish and not ibss_buy_signal, style=shape.circle, location=location.belowbar,
+          color=color.new(color.yellow, 0), size=size.tiny, title="IBSS RSI Bull (Blocked)")
+plotshape(ibss_show_debug and ibss_rsi_bearish and not ibss_sell_signal, style=shape.circle, location=location.abovebar,
+          color=color.new(color.orange, 0), size=size.tiny, title="IBSS RSI Bear (Blocked)")
+
+// Debug information
+if ibss_show_debug and ibss_enabled and barstate.islast
+    var label ibss_debug_label = label.new(bar_index, high, "", xloc=xloc.bar_index, style=label.style_label_down, color=color.new(color.blue, 80), textcolor=color.white, size=size.small)
+    ibss_debug_text = "IBSS RSI: " + str.tostring(math.round(ibss_rsi, 2)) + "\n"
+    ibss_debug_text += "RSI Bull: " + str.tostring(ibss_rsi_bullish) + "\n"
+    ibss_debug_text += "RSI Bear: " + str.tostring(ibss_rsi_bearish) + "\n"
+    ibss_debug_text += "Trend: " + str.tostring(ibss_ma_trend) + "\n"
+    ibss_debug_text += "Vol Spike: " + str.tostring(ibss_volume_spike) + "\n"
+    ibss_debug_text += "Buy Signal: " + str.tostring(ibss_buy_signal) + "\n"
+    ibss_debug_text += "Sell Signal: " + str.tostring(ibss_sell_signal)
+    label.set_text(ibss_debug_label, ibss_debug_text)
+    label.set_xy(ibss_debug_label, bar_index, high)
+
+// Background Colors for Trend (off by default)
+bgcolor(ibss_enabled and ibss_show_bg and ibss_use_trend_filter and ibss_ma_trend > 0 ? color.new(color.green, 95) : na, title="IBSS Bullish Trend")
+bgcolor(ibss_enabled and ibss_show_bg and ibss_use_trend_filter and ibss_ma_trend < 0 ? color.new(color.red, 95) : na, title="IBSS Bearish Trend")
+
+// Visual Context for Mean Reversion Mode - Highlight when price is stretched
+bgcolor(is_stretched_down ? color.new(color.green, 95) : na, title="Stretched Down - Scalp Long Zone")
+bgcolor(is_stretched_up ? color.new(color.purple, 95) : na, title="Stretched Up - Scalp Short Zone")
+
+// ============================================================================
+// ALERTS
+// ============================================================================
+
+// Alert: Pivot High Detection (Real-time)
+if alert_pivot_high and not na(ph_final) and not prev_ph_detected
+    rt_label = real_time_mode ? " ⚡ REAL-TIME" : ""
+    alert("🔴 PivotX Pro: Pivot High detected at " + str.tostring(ph_final, "#.##") + rt_label, alert.freq_once_per_bar)
+    prev_ph_detected := true
+if na(ph_final)
+    prev_ph_detected := false
+
+// Alert: Pivot Low Detection (Real-time)
+if alert_pivot_low and not na(pl_final) and not prev_pl_detected
+    rt_label = real_time_mode ? " ⚡ REAL-TIME" : ""
+    alert("🟢 PivotX Pro: Pivot Low detected at " + str.tostring(pl_final, "#.##") + rt_label, alert.freq_once_per_bar)
+    prev_pl_detected := true
+if na(pl_final)
+    prev_pl_detected := false
+
+// Alert: Major Pivot Zones
+if alert_major_zones and major_pl and not prev_major_pl
+    alert("🟢 PivotX Pro: Major Pivot Low Zone at " + str.tostring(last_pl, "#.##"), alert.freq_once_per_bar)
+    prev_major_pl := true
+if not major_pl
+    prev_major_pl := false
+
+if alert_major_zones and major_ph and not prev_major_ph
+    alert("🔴 PivotX Pro: Major Pivot High Zone at " + str.tostring(last_ph, "#.##"), alert.freq_once_per_bar)
+    prev_major_ph := true
+if not major_ph
+    prev_major_ph := false
+
+// Alert: Market Structure Shift (CHoCH)
+if alert_mss and mss_enabled and choch_up and not prev_choch_up
+    alert("📈 PivotX Pro: Bullish CHoCH (Change of Character) - Market Structure Shift Up", alert.freq_once_per_bar)
+    prev_choch_up := true
+if not choch_up
+    prev_choch_up := false
+
+if alert_mss and mss_enabled and choch_down and not prev_choch_down
+    alert("📉 PivotX Pro: Bearish CHoCH (Change of Character) - Market Structure Shift Down", alert.freq_once_per_bar)
+    prev_choch_down := true
+if not choch_down
+    prev_choch_down := false
+
+// Alert: Exhaustion Signals
+if alert_exhaustion and sell_exhaustion and not prev_sell_exhaustion
+    alert("🟢 PivotX Pro: Selling Exhaustion Detected - Potential Reversal Up", alert.freq_once_per_bar)
+    prev_sell_exhaustion := true
+if not sell_exhaustion
+    prev_sell_exhaustion := false
+
+if alert_exhaustion and buy_exhaustion and not prev_buy_exhaustion
+    alert("🔴 PivotX Pro: Buying Exhaustion Detected - Potential Reversal Down", alert.freq_once_per_bar)
+    prev_buy_exhaustion := true
+if not buy_exhaustion
+    prev_buy_exhaustion := false
+
+// Alert: Fibonacci Level Touches (if enabled)
+if alert_fib_levels and fib_enabled and major_ph and not na(last_pl)
+    fib_range = last_pl - ph
+    fib_236 = last_pl - fib_range * 0.236
+    fib_382 = last_pl - fib_range * 0.382
+    fib_50 = last_pl - fib_range * 0.5
+    fib_618 = last_pl - fib_range * 0.618
+    fib_786 = last_pl - fib_range * 0.786
+
+    tolerance = atr * 0.1
+    if math.abs(close - fib_618) <= tolerance
+        alert("📊 PivotX Pro: Price touching Golden Pocket (0.618) at " + str.tostring(fib_618, "#.##"), alert.freq_once_per_bar)
+    else if math.abs(close - fib_50) <= tolerance
+        alert("📊 PivotX Pro: Price touching 50% retracement at " + str.tostring(fib_50, "#.##"), alert.freq_once_per_bar)
+    else if math.abs(close - fib_382) <= tolerance
+        alert("📊 PivotX Pro: Price touching 0.382 retracement at " + str.tostring(fib_382, "#.##"), alert.freq_once_per_bar)
+    else if math.abs(close - fib_786) <= tolerance
+        alert("📊 PivotX Pro: Price touching 0.786 retracement at " + str.tostring(fib_786, "#.##"), alert.freq_once_per_bar)
+    else if math.abs(close - fib_236) <= tolerance
+        alert("📊 PivotX Pro: Price touching 0.236 retracement at " + str.tostring(fib_236, "#.##"), alert.freq_once_per_bar)
+
+if alert_fib_levels and fib_enabled and major_pl and not na(last_ph)
+    fib_range = pl - last_ph
+    fib_236 = last_ph + fib_range * 0.236
+    fib_382 = last_ph + fib_range * 0.382
+    fib_50 = last_ph + fib_range * 0.5
+    fib_618 = last_ph + fib_range * 0.618
+    fib_786 = last_ph + fib_range * 0.786
+
+    tolerance = atr * 0.1
+    if math.abs(close - fib_618) <= tolerance
+        alert("📊 PivotX Pro: Price touching Golden Pocket (0.618) at " + str.tostring(fib_618, "#.##"), alert.freq_once_per_bar)
+    else if math.abs(close - fib_50) <= tolerance
+        alert("📊 PivotX Pro: Price touching 50% retracement at " + str.tostring(fib_50, "#.##"), alert.freq_once_per_bar)
+    else if math.abs(close - fib_382) <= tolerance
+        alert("📊 PivotX Pro: Price touching 0.382 retracement at " + str.tostring(fib_382, "#.##"), alert.freq_once_per_bar)
+    else if math.abs(close - fib_786) <= tolerance
+        alert("📊 PivotX Pro: Price touching 0.786 retracement at " + str.tostring(fib_786, "#.##"), alert.freq_once_per_bar)
+    else if math.abs(close - fib_236) <= tolerance
+        alert("📊 PivotX Pro: Price touching 0.236 retracement at " + str.tostring(fib_236, "#.##"), alert.freq_once_per_bar)
+
+// ============================================================================
+// A+ SETUP ALERTS (5m, 15m, 1h)
+// ============================================================================
+
+var bool prev_aplus_pl = false
+var bool prev_aplus_ph = false
+
+// Alert: A+ Pivot Low Setup
+if is_aplus_pl and not prev_aplus_pl
+    tf_label = is_5m ? "5m" : (is_15m ? "15m" : "1h")
+    alert("⭐ A+ SETUP: Pivot Low on " + tf_label + " at " + str.tostring(last_pl, "#.##") + " (Score: " + str.tostring(aplus_score_pl) + "/100)", alert.freq_once_per_bar)
+    prev_aplus_pl := true
+if not is_aplus_pl
+    prev_aplus_pl := false
+
+// Alert: A+ Pivot High Setup
+if is_aplus_ph and not prev_aplus_ph
+    tf_label = is_5m ? "5m" : (is_15m ? "15m" : "1h")
+    alert("⭐ A+ SETUP: Pivot High on " + tf_label + " at " + str.tostring(last_ph, "#.##") + " (Score: " + str.tostring(aplus_score_ph) + "/100)", alert.freq_once_per_bar)
+    prev_aplus_ph := true
+if not is_aplus_ph
+    prev_aplus_ph := false
+
+// ============================================================================
+// IBSS PRO ALERTS
+// ============================================================================
+alertcondition(ibss_buy_signal, title="IBSS Buy Signal", message="IBSS Pro: Buy Signal Detected")
+alertcondition(ibss_sell_signal, title="IBSS Sell Signal", message="IBSS Pro: Sell Signal Detected")
+alertcondition(ibss_exit_long, title="IBSS Long Position Exit", message="IBSS Pro: Long Position Exited")
+alertcondition(ibss_exit_short, title="IBSS Short Position Exit", message="IBSS Pro: Short Position Exited")
+alertcondition(ibss_ma_cross_bullish, title="IBSS MA Bullish Cross", message="IBSS Pro: MA Bullish Crossover - Potential Scalp Long")
+alertcondition(ibss_ma_cross_bearish, title="IBSS MA Bearish Cross", message="IBSS Pro: MA Bearish Crossover - Potential Scalp Short")
