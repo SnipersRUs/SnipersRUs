@@ -1,0 +1,42 @@
+# SnipersRUs Hero Video
+
+This is a placeholder for the hero video asset.
+
+**Video Description:**
+- 10-15 seconds
+- Animated trading charts scrolling
+- Price candles with glow effects
+- Logo and "SNIPERS R-US" text animations
+- Professional dark background
+
+**Content:**
+- Opening: "SNIPERS R-US" logo with fade-in
+- Charts: BTC/ETH/XRP price action (green candles rising, red candles falling)
+- Close-up: Professional trading dashboard with glowing indicators
+- End: Logo pulse with tagline "The Sniper Philosophy"
+
+**Audio:**
+- Upbeat electronic/ambient trading music (no vocals)
+- Subtle sound effects for transitions
+
+**Video specs:**
+- Resolution: 1920x1080
+- Aspect ratio: 16:9
+- Format: MP4 with H.264
+- Style: Dark, neon accents, professional trading aesthetic
+- Duration: 10-15 seconds
+
+**For production:**
+Replace this with an actual video file using screen recording or video editing software.
+The animation should show:
+1. Logo fade in (0-2s)
+2. Three trading candles (BTC green, ETH green, XRP red)
+3. Chart scrolling effect
+4. "SNIPERS R-US" text appearing
+5. Glowing indicator highlights
+6. Price action (arrows up/down)
+7. Tagline: "The Sniper Philosophy" fade in
+8. End with logo pulse
+
+**File location when ready:**
+`~/Documents/github/SnipersRUs/assets/hero-intro.mp4`

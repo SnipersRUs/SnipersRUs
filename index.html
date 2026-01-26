@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Snipers-R-Us | The Sniper Suite</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Inter:wght@300;400;600;800&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+    <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+    <!-- Optional for icons if needed -->
+</head>
+
+<body>
+
+    <!-- Navigation -->
+    <nav>
+        <div class="nav-brand">SNIPERS-R-US</div>
+        <div class="nav-links">
+            <a href="#">Sniper Suite</a>
+            <a href="#indicators">Rules</a>
+            <a href="#paper-trading">Paper Trade</a>
+            <a href="#membership">Membership</a>
+            <a href="#">Arcade</a>
+            <a href="#indicators">Indicators</a>
+        </div>
+        </div>
+        <div style="display: flex; align-items: center;">
+            <a href="#" class="btn-nav-action">Join Discord</a>
+            <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle Theme">
+                <span id="themeIcon">🌙</span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Hero / Video Animation Section -->
+    <section id="hero-animation"></section>
+
+    <!-- LIVE SCANNER SECTION -->
+    <section class="live-scanner-section">
+        <div class="container">
+            <div class="section-header">
+                <h2>LIVE SCANNER</h2>
+                <p style="color:var(--text-gray)">Real-time market intelligence powered by OKX</p>
+            </div>
+
+            <div class="scanner-grid">
+                <!-- Left Column: Price & Chart -->
+                <div class="scanner-left">
+                    <!-- Scanner Meta -->
+                    <div class="scanner-meta">
+                        <div class="pair-switch" id="pairSwitch">
+                            <div class="pair-pill active" data-symbol="BTC">
+                                <span class="pair-icon btc">₿</span> BTC
+                            </div>
+                            <div class="pair-pill" data-symbol="ETH">
+                                <span class="pair-icon eth">Ξ</span> ETH
+                            </div>
+                            <div class="pair-pill" data-symbol="XRP">
+                                <span class="pair-icon xrp">✕</span> XRP
+                            </div>
+                            <div class="pair-pill" data-symbol="SOL">
+                                <span class="pair-icon sol">S</span> SOL
+                            </div>
+                        </div>
+
+                        <div class="meta-item">
+                            Next Scan: <strong id="nextScanTimer">--:--</strong>
+                        </div>
+
+                        <div class="meta-item">
+                            Status: <span id="connectionStatus" style="color:var(--accent-green)">Connected</span>
+                        </div>
+                    </div>
+
+                    <!-- Price Panel -->
+                    <div class="price-panel">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <span style="color:var(--text-gray); font-size:0.9rem;">MARKET PRICE (USD)</span>
+                            <span class="live-badge">LIVE</span>
+                        </div>
+                        <div class="d-flex align-items-baseline">
+                            <span id="btcPrice" class="price-display">--.--</span>
+                            <span id="btcChange" class="price-change">--%</span>
+                        </div>
+                    </div>
+
+                    <!-- TradingView Embed -->
+                    <div id="tvEmbed" class="tv-embed"></div>
+
+                    <!-- Signal & Watchlist Panels (Hidden Logic) -->
+                    <div id="signalPanel" class="signal-panel">
+                        <div class="signal-panel-header">
+                            <span>Active Signals (<span id="signalCount">0</span>)</span>
+                            <button id="signalClose" class="signal-close">Close</button>
+                        </div>
+                        <div id="signalList" class="signal-list"></div>
+                    </div>
+                </div>
+
+                <!-- Right Column: Market Info -->
+                <div class="market-info">
+                    <div class="info-row">
+                        <span class="info-label">Market Trend</span>
+                        <span id="marketTrend" class="info-value">NEUTRAL</span>
+                    </div>
+
+                    <div class="info-row">
+                        <span class="info-label">Support Lvl</span>
+                        <span id="supportLevel" class="info-value">--</span>
+                    </div>
+
+                    <div class="info-row">
+                        <span class="info-label">Resistance Lvl</span>
+                        <span id="resistanceLevel" class="info-value">--</span>
+                    </div>
+
+                    <div class="info-row">
+                        <span class="info-label">24h Vol</span>
+                        <span id="volumeLevel" class="info-value">--</span>
+                    </div>
+
+                    <div class="info-row">
+                        <span class="info-label">RVOL Status</span>
+                        <span id="rvolStatus" class="info-value">NORMAL</span>
+                    </div>
+
+                    <div class="info-row">
+                        <span class="info-label">GPS Zone</span>
+                        <span id="gpsStatus" class="info-value">--</span>
+                    </div>
+
+                    <div class="info-row">
+                        <span class="info-label">Divergence</span>
+                        <span id="divergenceStatus" class="info-value">NONE</span>
+                    </div>
+
+                    <div class="info-row info-list">
+                        <div class="d-flex justify-content-between">
+                            <span class="info-label">Distance to Levels</span>
+                            <span id="gpsPill" class="distance-pill gps-clickable">+ GPS Data</span>
+                        </div>
+                        <ul class="mini-list">
+                            <li><span>GPS</span> <span id="gpsDistance" class="info-value">--%</span></li>
+                            <li><span>Daily GP</span> <span id="dailyGpDistance" class="info-value">--%</span></li>
+                            <li><span>Support</span> <span id="supportDistance" class="info-value">--%</span></li>
+                            <li><span>Resistance</span> <span id="resistanceDistance" class="info-value">--%</span></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- GPS Popup (Hidden) -->
+    <div id="gpsPopup" class="gps-popup">
+        <div class="gps-popup-header">GPS DATA CENTER</div>
+        <div class="gps-popup-row"><span class="gps-label">Current Price</span><span id="gpsCurrentPrice"
+                class="gps-value">--</span></div>
+        <div class="gps-popup-row"><span class="gps-label">Daily High</span><span id="gpsDailyHigh"
+                class="gps-value">--</span></div>
+        <div class="gps-popup-row"><span class="gps-label">Daily Low</span><span id="gpsDailyLow"
+                class="gps-value">--</span></div>
+        <div class="gps-popup-row"><span class="gps-label">Weekly High</span><span id="gpsWeeklyHigh"
+                class="gps-value">--</span></div>
+        <div class="gps-popup-row"><span class="gps-label">Weekly Low</span><span id="gpsWeeklyLow"
+                class="gps-value">--</span></div>
+        <div class="gps-popup-row"><span class="gps-label">Support</span><span id="gpsSupportPrice"
+                class="gps-value">--</span></div>
+        <div class="gps-popup-row"><span class="gps-label">Resistance</span><span id="gpsResistancePrice"
+                class="gps-value">--</span></div>
+    </div>
+
+    <!-- PAPER TRADING SECTION -->
+    <section class="paper-trading-section" id="paper-trading">
+        <div class="container">
+            <div class="section-header"
+                style="text-align:left; border-bottom:1px solid var(--glass-border); padding-bottom:20px; display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                    <h2>PAPER TRADING</h2>
+                    <p style="color:var(--text-gray); margin:0;">Practice your strategy risk-free.</p>
+                </div>
+                <button id="paperResetBtn" class="paper-action-btn" style="padding:10px 20px;">Reset Account</button>
+            </div>
+
+            <div class="paper-trading-grid">
+                <!-- Chart (Left Column) -->
+                <div class="paper-trading-chart">
+                    <div id="paperTvEmbed" style="width: 100%; height: 100%; border-radius: 12px; overflow: hidden;">
+                    </div>
+                </div>
+
+                <!-- Trading Interface (Right Column) -->
+                <div class="paper-trading-panel">
+                    <!-- Portfolio Summary -->
+                    <div class="paper-portfolio-card">
+                        <h3 style="color:var(--accent-purple); font-family:var(--font-heading); margin-bottom:15px;">
+                            PORTFOLIO</h3>
+                        <div class="paper-portfolio-row">
+                            <span class="paper-portfolio-label">Available Balance</span>
+                            <span id="paperBalance" class="paper-portfolio-value">$10,000.00</span>
+                        </div>
+                        <div class="paper-portfolio-row">
+                            <span class="paper-portfolio-label">Unrealized P&L</span>
+                            <span id="paperUnrealizedPnl" class="paper-portfolio-value">$0.00</span>
+                        </div>
+                    </div>
+
+                    <!-- Order Entry -->
+                    <div class="paper-order-card">
+                        <div class="paper-order-tabs" style="display:flex; gap:10px; margin-bottom:15px;">
+                            <button class="paper-action-btn active" style="flex:1; padding:10px;"
+                                onclick="setPaperOrderType('market', this)">Market</button>
+                            <button class="paper-action-btn" style="flex:1; padding:10px;"
+                                onclick="setPaperOrderType('limit', this)">Limit</button>
+                        </div>
+
+                        <div class="paper-trade-buttons">
+                            <button id="paperBuyBtn" class="paper-trade-btn long active"
+                                onclick="paperSetTradeType('buy', this)">LONG</button>
+                            <button id="paperSellBtn" class="paper-trade-btn short"
+                                onclick="paperSetTradeType('sell', this)">SHORT</button>
+                        </div>
+
+                        <div class="paper-input-group">
+                            <div class="paper-input-label"
+                                style="color:var(--text-gray); font-size:0.9rem; margin-bottom:5px;"><span>Amount
+                                    (USD)</span></div>
+                            <input type="number" id="paperAmount" class="paper-input" placeholder="1000">
+                            <div class="paper-percent-buttons"
+                                style="display:grid; grid-template-columns:repeat(4,1fr); gap:5px; margin-top:5px;">
+                                <button class="paper-action-btn" onclick="paperSetPercent(10)">10%</button>
+                                <button class="paper-action-btn" onclick="paperSetPercent(25)">25%</button>
+                                <button class="paper-action-btn" onclick="paperSetPercent(50)">50%</button>
+                                <button class="paper-action-btn" onclick="paperSetPercent(100)">MAX</button>
+                            </div>
+                        </div>
+
+                        <div id="limitPriceContainer" class="paper-input-group" style="display:none; margin-top:10px;">
+                            <div class="paper-input-label"
+                                style="color:var(--text-gray); font-size:0.9rem; margin-bottom:5px;"><span>Limit
+                                    Price</span></div>
+                            <input type="number" id="paperLimitPrice" class="paper-input" placeholder="Price">
+                        </div>
+
+                        <div id="paperOrderSummary" class="disclaimer"
+                            style="margin:15px 0; color:var(--text-gray); font-size:0.85rem; text-align:center;"></div>
+                        <button id="paperSubmitBtn" class="paper-submit-btn long" onclick="executePaperTrade()">PLACE
+                            MARKET ORDER</button>
+                    </div>
+                </div>
+
+                <!-- Positions -->
+                <div class="paper-positions-panel">
+                    <div class="paper-positions-tabs"
+                        style="display:flex; gap:10px; margin-bottom:15px; border-bottom:1px solid var(--glass-border); padding-bottom:10px;">
+                        <button class="paper-positions-tab active"
+                            style="background:none; border:none; color:white; font-weight:700; cursor:pointer;"
+                            onclick="switchPaperTab('open')">Open Positions</button>
+                        <button class="paper-positions-tab"
+                            style="background:none; border:none; color:var(--text-gray); cursor:pointer;"
+                            onclick="switchPaperTab('history')">History</button>
+                    </div>
+                    <div id="paperPositionsList" style="min-height:200px;">
+                        <div class="paper-empty-state" style="text-align:center; padding:40px; color:var(--text-gray);">
+                            No open positions</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ARCADE SECTION (New) -->
+    <section class="arcade-section" id="arcade" style="text-align:center; padding:60px 20px;">
+        <div class="container">
+            <div class="section-header">
+                <h2>SNIPER ARCADE</h2>
+                <p style="color:var(--text-gray)">Sharpen your reflexes. Predict the next move.</p>
+            </div>
+
+            <div id="game-widget"
+                style="max-width:700px; margin:0 auto; background:#050505; border:2px solid var(--primary-purple); padding:20px; border-radius:16px; position:relative; overflow:hidden;">
+                <!-- Game Overlay (Win/Lose) -->
+                <div id="end-overlay" class="game-overlay"
+                    style="position:absolute; inset:0; background:rgba(0,0,0,0.95); display:none; flex-direction:column; align-items:center; justify-content:center; z-index:20;">
+                    <h1 id="end-title" style="color:white; margin-bottom:10px;">GAME OVER</h1>
+                    <p id="end-msg" style="color:white; margin-bottom:20px;"></p>
+                    <button class="menu-btn"
+                        style="padding:10px 20px; background:var(--primary-green); color:black; font-weight:bold; border:none; border-radius:8px; cursor:pointer;"
+                        onclick="gameStart()">PLAY AGAIN</button>
+                </div>
+
+                <div id="menu-overlay" class="game-overlay"
+                    style="position:absolute; inset:0; background:rgba(0,0,0,0.95); display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:20;">
+                    <div class="logo-mark" style="font-size:3rem; margin-bottom:20px;">🕹️</div>
+                    <h1 style="color:white; margin-bottom:10px;">SNIPER ARCADE</h1>
+                    <p style="color:gray; margin-bottom:20px;">Predict the next candle. Win credits.</p>
+                    <button class="menu-btn" id="btn-start"
+                        style="padding:15px 40px; background:var(--primary-green); color:black; font-weight:bold; border:none; border-radius:8px; cursor:pointer; font-size:1.2rem;"
+                        onclick="gameStart()">START GAME</button>
+                </div>
+
+                <button id="btn-quit"
+                    style="position:absolute; top:10px; right:10px; z-index:15; display:none; background:red; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer;"
+                    onclick="gameQuit()">QUIT</button>
+
+                <div class="game-stats"
+                    style="display:flex; justify-content:space-between; margin-bottom:10px; color:white; font-family:monospace; background:#111; padding:10px; border-radius:8px;">
+                    <span>SCORE: <span id="gameScore">0</span></span>
+                    <span id="game-status" style="color:var(--primary-purple);">WAITING...</span>
+                    <span>LIVES: <span id="gameLives" style="color:red;">♥♥♥</span></span>
+                </div>
+
+                <div
+                    style="background:#111; border:1px solid #333; border-radius:8px; overflow:hidden; margin-bottom:15px;">
+                    <canvas id="gameCanvas" style="display:block; width:100%; height:200px;"></canvas>
+                </div>
+
+                <div class="game-controls" style="display:flex; gap:10px; justify-content:center;">
+                    <button id="btnLong" class="game-btn"
+                        style="flex:1; padding:15px; background:var(--primary-green); color:black; font-weight:bold; border:none; border-radius:8px; cursor:pointer;"
+                        onclick="gamePlaceBet('LONG')">LONG</button>
+                    <button id="btnShort" class="game-btn"
+                        style="flex:1; padding:15px; background:var(--primary-purple); color:white; font-weight:bold; border:none; border-radius:8px; cursor:pointer;"
+                        onclick="gamePlaceBet('SHORT')">SHORT</button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- INDICATORS / LAWS SECTION -->
+    <section class="laws-section" id="indicators">
+        <div class="container text-center">
+            <div class="section-header">
+                <h2>THE 3 LAWS OF SNIPING</h2>
+            </div>
+            <div class="laws-grid">
+                <div class="law-card">
+                    <h3>1. PATIENCE</h3>
+                    <p style="color:var(--text-gray)">Amateurs chase. Professionals wait. The market is a device for
+                        transferring money from the impatient to the patient.</p>
+                </div>
+                <div class="law-card">
+                    <h3>2. PRECISION</h3>
+                    <p style="color:var(--text-gray)">Do not spray and pray. Analyze high-confluence zones and strike
+                        only when the probability is skewed in your favor.</p>
+                </div>
+                <div class="law-card">
+                    <h3>3. DISCIPLINE</h3>
+                    <p style="color:var(--text-gray)">A trading plan is useless if you don't follow it. Emotional
+                        execution is the enemy of profit.</p>
+                </div>
+            </div>
+
+            <!-- CORE INDICATORS GRID (New) -->
+            <div class="section-header" style="margin-top: 80px;">
+                <h2>OUR CORE TRADING INDICATORS</h2>
+                <p style="color:var(--text-gray); margin-bottom: 40px;">We trade with GPS Golden Pocket zones, VWAP
+                    structure, and volume-driven reversals.</p>
+            </div>
+
+            <div class="laws-grid"> <!-- Reusing grid layout -->
+                <!-- GPS -->
+                <div class="law-card" style="text-align: left;">
+                    <div style="font-size: 2rem; margin-bottom: 10px;">🧭</div>
+                    <h3><a href="https://www.tradingview.com/script/5aZX1cmn-Golden-Pocket-Syndicate-GPS/"
+                            target="_blank" style="color:var(--accent-blue); text-decoration: underline;">GPS Indicator
+                            (Golden Pocket Zones)</a></h3>
+                    <p style="color:var(--text-gray); margin-bottom: 15px;">Maps premium/discount zones for mean
+                        reversion levels and confluence.</p>
+                    <ul style="color:var(--text-gray); font-size: 0.9rem; padding-left: 20px;">
+                        <li>Golden Pocket levels for daily structure</li>
+                        <li>Major reaction zones near key ranges</li>
+                        <li>Pairs with VWAPs to refine entries</li>
+                    </ul>
+                </div>
+
+                <!-- Piv X -->
+                <div class="law-card" style="border-color: var(--primary-purple); text-align: left;">
+                    <div style="font-size: 2rem; margin-bottom: 10px;">🧠</div>
+                    <h3><a href="https://www.tradingview.com/script/EzLLjhiA-Piv-X/" target="_blank"
+                            style="color:var(--accent-blue); text-decoration: underline;">Piv X Pro</a></h3>
+                    <p style="color:var(--text-gray); margin-bottom: 15px;">Multi-layer reversal system with dynamic
+                        pivots, divergence, and VWAP anchoring.</p>
+                    <ul style="color:var(--text-gray); font-size: 0.9rem; padding-left: 20px;">
+                        <li>ATR-based pivot detection + confluence scoring</li>
+                        <li>Williams %R divergence + anchored VWAPs</li>
+                        <li>Mean-reversion stretch filter (>2.5 ATR)</li>
+                    </ul>
+                </div>
+
+                <!-- Sniper Mini VWAP -->
+                <div class="law-card" style="text-align: left;">
+                    <div style="font-size: 2rem; margin-bottom: 10px;">📈</div>
+                    <h3><a href="https://www.tradingview.com/script/krDAvdXq-Sniper-Mini-VWAP/" target="_blank"
+                            style="color:var(--accent-blue); text-decoration: underline;">Sniper Mini VWAP</a></h3>
+                    <p style="color:var(--text-gray); margin-bottom: 15px;">Session-based VWAPs to stay in trend and
+                        spot new trends at market opens.</p>
+                    <ul style="color:var(--text-gray); font-size: 0.9rem; padding-left: 20px;">
+                        <li>1H / 4H / 8H / Daily VWAP stack</li>
+                        <li>Trend bias: above = bullish, below = bearish</li>
+                        <li>Clean trend pullback and reversion cues</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Membership Blocks -->
+    <main class="container" id="membership">
+        <div class="text-center mb-4" style="margin-top: 60px;">
+            <p class="subtitle">CHOOSE YOUR PATH</p>
+            <h2 class="title-medium">MEMBERSHIP TIERS</h2>
+        </div>
+
+        <div class="membership-grid">
+            <!-- Headhunter Block -->
+            <div class="block-card">
+                <div class="block-header text-red">
+                    <span class="status-dot bg-red" style="background: var(--accent-red)"></span>
+                    HEADHUNTER
+                </div>
+                <p>
+                    Entry-level access. Master the basics of market structure and liquidity.
+                    Includes access to the General chat and daily public signals.
+                </p>
+                <button class="btn-block btn-red" onclick="alert('Headhunter Plan Selected')">Join Headhunters</button>
+            </div>
+
+            <!-- Bountyseeker Block -->
+            <div class="block-card">
+                <div class="block-header text-blue">
+                    <span class="status-dot" style="background: var(--accent-blue)"></span>
+                    BOUNTYSEEKER
+                </div>
+                <p>
+                    Advanced signals and automated setups.
+                    Includes "Bounty Seeker" bot access and private strategy channels.
+                    <br><br>
+                    <span class="text-white font-bold">Recommended for Serious Traders.</span>
+                </p>
+                <button class="btn-block btn-blue" onclick="alert('Bountyseeker Plan Selected')">Join
+                    Bountyseekers</button>
+            </div>
+
+            <!-- Lifetime Block -->
+            <div class="block-card">
+                <div class="block-header text-blue">
+                    <span class="status-dot"
+                        style="background: var(--accent-blue); box-shadow: 0 0 10px var(--accent-blue);"></span>
+                    LIFETIME ACCESS
+                </div>
+                <p>
+                    One-time payment for permanent access to all current and future tools.
+                    Includes 1-on-1 mentorship and priority feature requests.
+                </p>
+                <button class="btn-block btn-blue" onclick="alert('Lifetime Plan Selected')">Get Lifetime
+                    Access</button>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <p>&copy; 2026 Snipers-R-Us. All rights reserved. | Precision Trading Academy</p>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="js/hero-animation.js"></script>
+    <script src="js/main.js"></script>
+
+    <script>
+        // Smooth scroll
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth'
+                    });
+                }
+            });
+        });
+    </script>
+</body>
+
+</html>

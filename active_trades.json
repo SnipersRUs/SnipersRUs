@@ -1,0 +1,43 @@
+{
+  "active_trades": {
+    "ANIMEUSDT": {
+      "entry_price": 0.006574,
+      "stop_loss": 0.00663974,
+      "take_profit": 0.006376779999999999,
+      "signal_time": "2026-01-23T00:46:03.471174",
+      "reasons": [
+        "Price at GPS Resistance Zone (0.01)",
+        "Deviation +3 Sigma Zone (Overextended)",
+        "15m Abnormal Volume Spike (Potential Reversal)"
+      ],
+      "score": 85,
+      "status": "ACTIVE"
+    },
+    "EDENUSDT": {
+      "entry_price": 0.05817,
+      "stop_loss": 0.0587517,
+      "take_profit": 0.0564249,
+      "signal_time": "2026-01-23T00:46:03.472814",
+      "reasons": [
+        "Price at GPS Resistance Zone (0.06)",
+        "Deviation +3 Sigma Zone (Overextended)",
+        "Liquidity Sweep (SFP High)"
+      ],
+      "score": 85,
+      "status": "ACTIVE"
+    },
+    "ETHFIUSDT": {
+      "entry_price": 0.624,
+      "stop_loss": 0.63024,
+      "take_profit": 0.6052799999999999,
+      "signal_time": "2026-01-23T00:46:03.473499",
+      "reasons": [
+        "Price at GPS Resistance Zone (0.61)",
+        "Deviation +3 Sigma Zone (Overextended)"
+      ],
+      "score": 70,
+      "status": "ACTIVE"
+    }
+  },
+  "trade_counter": 3
+}
