@@ -6,12 +6,781 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Snipers-R-Us | The Sniper Suite</title>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/style.css">
+    <style>
+        /* Blocks Theme - SnipersRUs */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Orbitron:wght@400;700;900&display=swap');
+
+        :root {
+            --bg-dark: #050505;
+            --bg-card: #0f1115;
+            --bg-card-hover: #161a20;
+            --primary-purple: #a855f7;
+            --primary-green: #22c55e;
+            --accent-red: #ef4444;
+            --accent-blue: #3b82f6;
+
+            --text-white: #ffffff;
+            --text-gray: #9ca3af;
+
+            --font-heading: 'Orbitron', sans-serif;
+            --font-body: 'Inter', sans-serif;
+
+            /* Legacy Variables Compatibility */
+            --accent-purple: var(--primary-purple);
+            --accent-green: var(--primary-green);
+            --glass: rgba(255, 255, 255, 0.03);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --text-primary: var(--text-white);
+            --text-secondary: var(--text-gray);
+            --bg-panel: var(--bg-card);
+            --bg-input: #1a1d24;
+            --shadow-soft: 0 10px 30px rgba(0, 0, 0, 0.5);
+
+            /* Variables used in index.html but not in style.css */
+            --sniper-purple: var(--primary-purple);
+            --sniper-green: var(--primary-green);
+            --text-main: var(--text-white);
+        }
+
+        [data-theme="light"] {
+            --bg-dark: #f0f2f5;
+            --bg-card: #ffffff;
+            --bg-card-hover: #f9fafb;
+            --text-white: #111827;
+            /* Dark text for light mode */
+            --text-gray: #6b7280;
+            --bg-panel: #ffffff;
+            --glass: rgba(0, 0, 0, 0.05);
+            --glass-border: rgba(0, 0, 0, 0.1);
+            --bg-input: #f3f4f6;
+            --shadow-soft: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .theme-toggle {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid var(--glass-border);
+            color: var(--text-white);
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            margin-left: 15px;
+            transition: all 0.3s;
+            font-size: 1.2rem;
+        }
+
+        .theme-toggle:hover {
+            background: var(--primary-purple);
+            transform: rotate(15deg);
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-white);
+            font-family: var(--font-body);
+            margin: 0;
+            padding: 0;
+            line-height: 1.5;
+            overflow-x: hidden;
+        }
+
+        /* Utilities */
+        .text-purple {
+            color: var(--primary-purple);
+        }
+
+        .text-green {
+            color: var(--primary-green);
+        }
+
+        .text-red {
+            color: var(--accent-red);
+        }
+
+        .text-blue {
+            color: var(--accent-blue);
+        }
+
+        .text-white {
+            color: var(--text-white);
+        }
+
+        .text-muted {
+            color: var(--text-gray);
+        }
+
+        .bg-purple {
+            background-color: var(--primary-purple);
+        }
+
+        .bg-green {
+            background-color: var(--primary-green);
+        }
+
+        .italic {
+            font-style: italic;
+        }
+
+        .font-bold {
+            font-weight: 800;
+        }
+
+        .font-light {
+            font-weight: 300;
+        }
+
+        .uppercase {
+            text-transform: uppercase;
+        }
+
+        .underline {
+            text-decoration: underline;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        .mb-4 {
+            margin-bottom: 1rem;
+        }
+
+        .mt-4 {
+            margin-top: 1rem;
+        }
+
+        /* Layout */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        /* Navigation */
+        nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 40px;
+            background: rgba(5, 5, 5, 0.8);
+            backdrop-filter: blur(10px);
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            z-index: 100;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            box-sizing: border-box;
+        }
+
+        .nav-brand {
+            font-family: var(--font-heading);
+            font-weight: 700;
+            font-size: 1.5rem;
+            color: var(--text-white);
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .nav-links a {
+            color: var(--text-gray);
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 600;
+            transition: color 0.2s;
+        }
+
+        .nav-links a:hover {
+            color: var(--text-white);
+        }
+
+        .btn {
+            padding: 10px 24px;
+            border-radius: 8px;
+            font-weight: 700;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            transition: transform 0.2s, opacity 0.2s;
+            border: none;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            opacity: 0.9;
+        }
+
+        .btn-primary {
+            background: linear-gradient(90deg, var(--primary-purple), var(--primary-green));
+            color: white;
+        }
+
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--glass-border);
+            color: var(--text-white);
+            padding: 8px 16px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        .nav-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: var(--primary-purple);
+        }
+
+        /* Hero Section */
+        #hero {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 100px 0;
+            text-align: center;
+        }
+
+        #hero h1 {
+            font-family: var(--font-heading);
+            font-size: clamp(2.5rem, 8vw, 5rem);
+            line-height: 1.1;
+            margin-bottom: 24px;
+        }
+
+        #hero p {
+            font-size: 1.25rem;
+            color: var(--text-gray);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .scroll-indicator {
+            position: absolute;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            color: var(--text-gray);
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .scroll-line {
+            width: 2px;
+            height: 60px;
+            background: linear-gradient(to bottom, var(--primary-purple), transparent);
+        }
+
+        /* Philosophy Section */
+        #philosophy {
+            padding: 100px 0;
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 40px;
+            align-items: center;
+        }
+
+        .card-minimal {
+            background: var(--bg-card);
+            border: 1px solid var(--glass-border);
+            padding: 30px;
+            border-radius: 16px;
+            margin-bottom: 20px;
+            transition: all 0.3s;
+        }
+
+        .card-minimal:hover {
+            background: var(--bg-card-hover);
+            border-color: var(--primary-purple);
+            transform: translateY(-5px);
+        }
+
+        .card-icon {
+            font-size: 2rem;
+            margin-bottom: 15px;
+        }
+
+        /* Live Bot Section */
+        #live {
+            padding: 100px 0;
+        }
+
+        .price-display {
+            font-family: var(--font-heading);
+            font-weight: 300;
+        }
+
+        /* Arsenal Grid */
+        .hover-reveal {
+            color: var(--text-white);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .hover-reveal:hover {
+            color: var(--primary-green);
+            text-decoration: underline;
+        }
+
+        /* Membership Tiers */
+        .tier-card {
+            background: var(--bg-card);
+            border: 1px solid var(--glass-border);
+            padding: 40px;
+            border-radius: 24px;
+            display: flex;
+            flex-direction: column;
+            transition: all 0.3s;
+            height: 100%;
+        }
+
+        .tier-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        .tier-title {
+            font-family: var(--font-heading);
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+
+        .tier-price {
+            font-size: 3rem;
+            font-weight: 800;
+            margin-bottom: 24px;
+        }
+
+        .tier-list {
+            list-style: none;
+            padding: 0;
+            margin: 0 0 40px 0;
+        }
+
+        .tier-list li {
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            color: var(--text-gray);
+            font-size: 0.95rem;
+        }
+
+        .tier-list li::before {
+            content: '→';
+            margin-right: 10px;
+            color: var(--primary-green);
+        }
+
+        /* Arcade */
+        #game-widget {
+            background: #000;
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 0 50px rgba(168, 85, 247, 0.2);
+        }
+
+        /* Free Trial Modal */
+        .trial-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(8px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .trial-overlay.active {
+            display: flex;
+        }
+
+        .trial-modal {
+            background: var(--bg-card);
+            border: 1px solid var(--primary-purple);
+            padding: 40px;
+            border-radius: 24px;
+            max-width: 450px;
+            text-align: center;
+            box-shadow: 0 0 40px rgba(168, 85, 247, 0.3);
+        }
+
+        .trial-title {
+            font-family: var(--font-heading);
+            font-size: 2rem;
+            margin-bottom: 20px;
+            color: var(--text-white);
+        }
+
+        .trial-text {
+            color: var(--text-gray);
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+
+        .trial-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .trial-btn {
+            padding: 15px;
+            border-radius: 12px;
+            font-weight: 700;
+            text-decoration: none;
+            transition: all 0.2s;
+            background: var(--primary-purple);
+            color: white;
+        }
+
+        .trial-btn.secondary {
+            background: transparent;
+            border: 1px solid var(--glass-border);
+            color: var(--text-gray);
+            cursor: pointer;
+        }
+
+        /* Hero / Animation Section - Background Flurries */
+        #hero-animation {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: -1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            pointer-events: none;
+        }
+
+        .scene-container {
+            position: relative;
+            z-index: 10;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+        }
+
+        .scene-container>div {
+            pointer-events: auto;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .nav-links {
+                display: none;
+            }
+
+            #hero h1 {
+                font-size: 3rem;
+            }
+        }
+    </style>
 </head>
 
 <body>
     <div id="hero-animation"></div>
-    <script src="js/hero-animation.js"></script>
+    <script>
+        /**
+         * Hero Animation - Vanilla JS port of the Remotion video
+         * Handles the "Scenes" and background effects.
+         */
+
+        class HeroAnimation {
+            constructor(containerId) {
+                this.container = document.getElementById(containerId);
+                if (!this.container) return;
+
+                this.ctx = null;
+                this.canvas = null;
+                this.width = 0;
+                this.height = 0;
+
+                this.startTime = Date.now();
+                this.scenes = {
+                    hero: { start: 0, duration: 4.5 },
+                    hook: { start: 4.5, duration: 5 },
+                    philosophy: { start: 9.5, duration: 5.5 },
+                    arsenal: { start: 15, duration: 7 },
+                    cta: { start: 22, duration: 6 },
+                    tagline: { start: 28, duration: 4.5 },
+                };
+                this.totalDuration = 32.5; // Seconds
+
+                // Background elements state
+                this.candles = Array.from({ length: 15 }).map((_, i) => ({
+                    delay: Math.random() * 200,
+                    x: (i * 7), // percent
+                    speed: Math.random() * 0.5 + 0.5,
+                    height: Math.random() * 60 + 20,
+                    isGreen: Math.random() > 0.5,
+                    offset: Math.random() * 1000
+                }));
+
+                this.particles = Array.from({ length: 20 }).map((_, i) => ({
+                    x: Math.random() * 100,
+                    y: Math.random() * 100,
+                    speed: Math.random() * 0.2 + 0.1
+                }));
+
+                this.init();
+            }
+
+            init() {
+                // Create Canvas for background
+                this.canvas = document.createElement('canvas');
+                this.canvas.style.position = 'absolute';
+                this.canvas.style.top = '0';
+                this.canvas.style.left = '0';
+                this.canvas.style.width = '100%';
+                this.canvas.style.height = '100%';
+                this.canvas.style.zIndex = '0';
+                this.canvas.style.opacity = '0.4';
+                this.container.appendChild(this.canvas);
+                this.ctx = this.canvas.getContext('2d');
+
+                // Create DOM containers for text scenes
+                this.sceneContainer = document.createElement('div');
+                this.sceneContainer.className = 'scene-container';
+                this.container.appendChild(this.sceneContainer);
+
+                this.resize();
+                window.addEventListener('resize', () => this.resize());
+
+                requestAnimationFrame(() => this.loop());
+            }
+
+            resize() {
+                this.width = this.container.clientWidth;
+                this.height = this.container.clientHeight;
+                this.canvas.width = this.width;
+                this.canvas.height = this.height;
+            }
+
+            getSceneProgress(time, scene) {
+                if (time < scene.start || time > scene.start + scene.duration) return -1;
+                return (time - scene.start) / scene.duration;
+            }
+
+            getOpacity(progress) {
+                if (progress < 0) return 0;
+                // Fade in 0-15%, fade out 85-100%
+                if (progress < 0.15) return progress / 0.15;
+                if (progress > 0.85) return (1 - progress) / 0.15;
+                return 1;
+            }
+
+            loop() {
+                const now = Date.now();
+                const elapsed = (now - this.startTime) / 1000;
+                const loopTime = elapsed % this.totalDuration;
+
+                this.drawBackground(loopTime);
+                this.drawScenes(loopTime);
+
+                requestAnimationFrame(() => this.loop());
+            }
+
+            drawBackground(time) {
+                this.ctx.clearRect(0, 0, this.width, this.height);
+
+                // Grid Effect (Simple lines)
+                this.ctx.strokeStyle = 'rgba(128, 0, 128, 0.1)';
+                this.ctx.lineWidth = 1;
+                const gridSize = 80;
+                const offset = (time * 10) % gridSize;
+
+                for (let x = 0; x < this.width; x += gridSize) {
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(x, 0);
+                    this.ctx.lineTo(x, this.height);
+                    this.ctx.stroke();
+                }
+
+                for (let y = offset; y < this.height; y += gridSize) {
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(0, y);
+                    this.ctx.lineTo(this.width, y);
+                    this.ctx.stroke();
+                }
+
+                // Floating Candles
+                this.candles.forEach(c => {
+                    const yProgress = ((time * 20 + c.offset) % (this.height + 200)) - 100;
+                    const y = this.height - yProgress; // Move up
+
+                    const x = (c.x / 100) * this.width;
+
+                    this.ctx.fillStyle = c.isGreen ? '#22c55e' : '#a855f7';
+                    this.ctx.shadowBlur = 10;
+                    this.ctx.shadowColor = c.isGreen ? 'rgba(34,197,94,0.5)' : 'rgba(168,85,247,0.5)';
+
+                    // Wick
+                    this.ctx.fillRect(x - 0.5, y - 10, 1, c.height + 20);
+                    // Body
+                    this.ctx.fillRect(x - 3, y, 6, c.height);
+
+                    this.ctx.shadowBlur = 0;
+                });
+
+                // Particles
+                this.ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+                this.particles.forEach((p, i) => {
+                    const x = (p.x + Math.sin(time * 0.5 + i) * 10) % 100;
+                    const y = (p.y + time * 2) % 100;
+
+                    const px = (x / 100) * this.width;
+                    const py = (y / 100) * this.height;
+
+                    this.ctx.beginPath();
+                    this.ctx.arc(px, py, 1.5, 0, Math.PI * 2);
+                    this.ctx.fill();
+                });
+            }
+
+            drawScenes(time) {
+                // Clear previous scene content if scene changed (simple check)
+                // Ideally we should diff, but for now we'll just update opacity/content
+
+                let activeScene = null;
+                let activeKey = null;
+
+                for (const [key, scene] of Object.entries(this.scenes)) {
+                    const progress = this.getSceneProgress(time, scene);
+                    if (progress >= 0 && progress <= 1) {
+                        activeScene = scene;
+                        activeKey = key;
+                        break;
+                    }
+                }
+
+                if (!activeKey) {
+                    this.sceneContainer.innerHTML = '';
+                    return;
+                }
+
+                const progress = this.getSceneProgress(time, activeScene);
+                const opacity = this.getOpacity(progress);
+
+                // Render Scene Content
+                let html = '';
+
+                if (activeKey === 'hero') {
+                    const scale = 0.9 + (Math.sin(progress * Math.PI) * 0.1);
+                    html = `
+                <div class="text-center" style="opacity: ${opacity}; transform: scale(${scale})">
+                    <h1 class="title-large" style="font-family: Orbitron, sans-serif; font-size: 5rem; font-weight: 900; line-height: 1.1; margin: 0; letter-spacing: -2px;">
+                        <span class="text-purple" style="color: #a855f7; text-shadow: 0 0 20px rgba(168, 85, 247, 0.5);">SNIPERS</span>
+                        <span class="text-green" style="color: #22c55e; text-shadow: 0 0 20px rgba(34, 197, 94, 0.5);">-R-US</span>
+                    </h1>
+                    <div class="divider-gradient" style="height: 6px; width: 120px; background: linear-gradient(90deg, #a855f7, #22c55e); border-radius: 4px; margin: 20px auto;"></div>
+                    <p class="subtitle" style="font-size: 1.2rem; letter-spacing: 0.3em; color: #9ca3af; margin-top: 20px;">PRECISION TRADING ACADEMY</p>
+                </div>
+            `;
+                } else if (activeKey === 'hook') {
+                    html = `
+                <div class="text-center" style="opacity: ${opacity}; transform: translateY(${(1 - progress) * 20}px)">
+                    <h2 class="title-medium" style="font-family: Orbitron, sans-serif; font-size: 3rem; font-weight: 700; margin: 0 0 20px 0;">
+                        STOP <span class="text-purple underline" style="color: #a855f7; text-decoration: underline;">GAMBLING</span>.<br>
+                        START <span class="text-green" style="color: #22c55e;">SNIPING</span>.
+                    </h2>
+                    <p class="text-desc" style="font-size: 1.5rem; color: #9ca3af; max-width: 800px; margin: 0 auto; line-height: 1.6;">
+                        Tired of chasing price? We don't guess — <span class="italic text-white" style="font-style: italic; color: #ffffff;">we calculate</span>.
+                        Wait for the perfect strike.
+                    </p>
+                </div>
+            `;
+                } else if (activeKey === 'philosophy') {
+                    html = `
+                <div class="text-center" style="opacity: ${opacity}">
+                    <h2 class="title-small text-muted" style="font-family: Orbitron, sans-serif; font-size: 1.5rem; font-weight: 600; margin-bottom: 20px; color: #9ca3af;">THE SNIPER PHILOSOPHY</h2>
+                    <div class="quote-box">
+                        <p class="title-medium italic" style="font-family: Orbitron, sans-serif; font-size: 3rem; font-weight: 700; margin: 0 0 20px 0; font-style: italic;">"ONE SHOT, ONE KILL"</p>
+                        <p class="text-desc" style="font-size: 1.5rem; color: #9ca3af; max-width: 800px; margin: 0 auto; line-height: 1.6;">One perfect entry. One risk-managed trade. Pure efficiency.</p>
+                    </div>
+                </div>
+            `;
+                } else if (activeKey === 'arsenal') {
+                    html = `
+                <div class="text-center" style="opacity: ${opacity}">
+                    <h2 class="title-medium mb-4" style="font-family: Orbitron, sans-serif; font-size: 3rem; font-weight: 700; margin: 0 0 1rem 0;">THE ARSENAL</h2>
+                    <div class="grid-2x2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; max-width: 800px; margin: 0 auto;">
+                        <div class="arsenal-card border-purple" style="background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); padding: 20px; border-radius: 12px; text-align: left; border-color: rgba(168, 85, 247, 0.3); border-left-width: 4px;">
+                            <h3 class="text-purple" style="margin: 0 0 8px 0; font-family: Orbitron, sans-serif; color: #a855f7;">VWAP Precision</h3>
+                            <p style="margin: 0; font-size: 0.9rem; color: #9ca3af;">Targeting with surgical accuracy.</p>
+                        </div>
+                        <div class="arsenal-card border-green" style="background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); padding: 20px; border-radius: 12px; text-align: left; border-color: rgba(34, 197, 94, 0.3); border-left-width: 4px;">
+                            <h3 class="text-green" style="margin: 0 0 8px 0; font-family: Orbitron, sans-serif; color: #22c55e;">Golden Pocket Zones</h3>
+                            <p style="margin: 0; font-size: 0.9rem; color: #9ca3af;">Identifying institutional liquidity.</p>
+                        </div>
+                         <div class="arsenal-card border-purple" style="background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); padding: 20px; border-radius: 12px; text-align: left; border-color: rgba(168, 85, 247, 0.3); border-left-width: 4px;">
+                            <h3 class="text-purple" style="margin: 0 0 8px 0; font-family: Orbitron, sans-serif; color: #a855f7;">Confluence Sniping</h3>
+                            <p style="margin: 0; font-size: 0.9rem; color: #9ca3af;">Bulletproof entries via data sync.</p>
+                        </div>
+                         <div class="arsenal-card border-green" style="background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); padding: 20px; border-radius: 12px; text-align: left; border-color: rgba(34, 197, 94, 0.3); border-left-width: 4px;">
+                            <h3 class="text-green" style="margin: 0 0 8px 0; font-family: Orbitron, sans-serif; color: #22c55e;">Patience Discipline</h3>
+                            <p style="margin: 0; font-size: 0.9rem; color: #9ca3af;">Wait for the trade to come to you.</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+                } else if (activeKey === 'cta') {
+                    html = `
+                <div class="text-center" style="opacity: ${opacity}">
+                    <h2 class="title-large" style="font-family: Orbitron, sans-serif; font-size: 3rem; font-weight: 900; line-height: 1.1; margin: 0; letter-spacing: -2px;">JOIN THE <br><span class="gradient-text" style="background: linear-gradient(90deg, #a855f7, #ffffff, #22c55e); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">SNIPERS</span></h2>
+                    <button class="btn-primary-large mt-4" style="background: transparent; border: 1px solid rgba(255, 255, 255, 0.2); color: white; padding: 15px 40px; font-size: 1.2rem; font-family: Orbitron, sans-serif; font-weight: 700; border-radius: 99px; cursor: pointer; position: relative; transition: all 0.3s; text-transform: uppercase; letter-spacing: 2px; margin-top: 1rem;">JOIN THE SNIPERS</button>
+                    <div class="flex-row gap-4 mt-4 text-muted text-sm uppercase" style="display: flex; justify-content: center; gap: 1rem; margin-top: 1rem; color: #9ca3af; font-size: 0.875rem; text-transform: uppercase;">
+                        <span>• Consistency</span>
+                        <span>• Mastery</span>
+                        <span>• Freedom</span>
+                    </div>
+                </div>
+            `;
+                } else if (activeKey === 'tagline') {
+                    html = `
+                <div class="text-center" style="opacity: ${opacity}">
+                     <p class="title-medium font-light" style="font-family: Orbitron, sans-serif; font-size: 3rem; font-weight: 300; margin: 0 0 20px 0;">
+                        AMATEURS <span class="text-purple font-bold" style="color: #a855f7; font-weight: 800;">CHASE</span>.<br>
+                        PROFESSIONALS <span class="text-green font-bold" style="color: #22c55e; font-weight: 800;">AIM</span>.
+                    </p>
+                </div>
+            `;
+                }
+
+                this.sceneContainer.innerHTML = html;
+            }
+        }
+
+        // Auto-init
+        document.addEventListener('DOMContentLoaded', () => {
+            new HeroAnimation('hero-animation');
+        });
+    </script>
 
     <nav>
         <div class="nav-brand">
@@ -25,6 +794,9 @@
             <a href="#paper">Paper</a>
             <a href="#membership">Join</a>
             <a href="https://discord.gg/qk35c4TH5z" target="_blank" class="nav-btn">Discord</a>
+            <button class="theme-toggle" onclick="toggleTheme()" id="themeToggle" title="Toggle Theme">
+                <span id="themeIcon">🌙</span>
+            </button>
         </div>
     </nav>
 
@@ -215,12 +987,12 @@
                         </div>
 
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                            <button class="btn" id="paperActionBtnLong"
+                            <button class="btn paper-trade-btn" id="paperActionBtnLong"
                                 style="border: 1px solid var(--sniper-green); color: var(--sniper-green); width: 100%;"
-                                onclick="window.paperSetTradeType('buy'); window.executePaperTrade()">LONG</button>
-                            <button class="btn" id="paperActionBtnShort"
+                                onclick="window.paperSetTradeType('buy', this); window.executePaperTrade()">LONG</button>
+                            <button class="btn paper-trade-btn" id="paperActionBtnShort"
                                 style="border: 1px solid var(--sniper-purple); color: var(--sniper-purple); width: 100%;"
-                                onclick="window.paperSetTradeType('sell'); window.executePaperTrade()">SHORT</button>
+                                onclick="window.paperSetTradeType('sell', this); window.executePaperTrade()">SHORT</button>
                         </div>
                     </div>
 
@@ -319,11 +1091,23 @@
 
     <!-- FOOTER -->
     <footer style="padding: 80px 5vw; border-top: 1px solid rgba(255,255,255,0.05);">
-        <div class="container" style="display: flex; justify-content: space-between; align-items: flex-end;">
+        <div class="container"
+            style="display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 40px;">
             <div>
                 <div class="nav-brand" style="margin-bottom: 20px;">SNIPERS—R—US</div>
-                <p style="font-size: 0.9rem; margin: 0;">© 2025 Snipers-R-Us.<br>Not financial advice. Do your own
+                <p style="font-size: 0.9rem; margin: 0;">© 2026 Snipers-R-Us.<br>Not financial advice. Do your own
                     research.</p>
+                <p style="font-size: 0.8rem; color: var(--text-gray); margin-top: 10px;">Version 26.1.1</p>
+            </div>
+            <div style="display: flex; gap: 20px; align-items: center;">
+                <a href="https://twitter.com/Brypto_sniper" target="_blank" title="X (Twitter)"
+                    style="font-size: 1.2rem;">𝕏</a>
+                <a href="https://www.youtube.com/@rickytspanish" target="_blank" title="YouTube"
+                    style="font-size: 1.2rem;">📺</a>
+                <a href="https://www.tiktok.com/@rickytspanish?_r=1&_t=ZT-91tq1sdWMmc" target="_blank" title="TikTok"
+                    style="font-size: 1.2rem;">🎵</a>
+                <a href="https://www.tradingview.com/u/RickyTSpanish/" target="_blank" title="TradingView"
+                    style="font-size: 1.2rem;">📈</a>
             </div>
             <div style="text-align: right;">
                 <a href="#hero" class="text-muted">Back to Top</a>
@@ -649,12 +1433,16 @@
         function updateMarketInfo() {
             if (!state.price) return;
 
-            document.getElementById('marketTrend').textContent = state.trend;
-            document.getElementById('marketTrend').className =
-                `info-value ${state.trend === 'BULLISH' ? 'value-up' : state.trend === 'BEARISH' ? 'value-down' : 'value-neutral'}`;
+            const trendEl = document.getElementById('marketTrend');
+            if (trendEl) {
+                trendEl.textContent = state.trend;
+                trendEl.className = `info-value ${state.trend === 'BULLISH' ? 'value-up' : state.trend === 'BEARISH' ? 'value-down' : 'value-neutral'}`;
+            }
 
-            document.getElementById('supportLevel').textContent = state.support ? `$${state.support.toFixed(2)}` : '--';
-            document.getElementById('resistanceLevel').textContent = state.resistance ? `$${state.resistance.toFixed(2)}` : '--';
+            const supportEl = document.getElementById('supportLevel');
+            const resistanceEl = document.getElementById('resistanceLevel');
+            if (supportEl) supportEl.textContent = state.support ? `$${state.support.toFixed(2)}` : '--';
+            if (resistanceEl) resistanceEl.textContent = state.resistance ? `$${state.resistance.toFixed(2)}` : '--';
 
             // Volume
             const recentVolume = state.volume.slice(-20);
@@ -663,25 +1451,29 @@
             const volMultiplier = avgVolume > 0 ? lastVolume / avgVolume : 0;
 
             const volEl = document.getElementById('volumeLevel');
-            if (state.volume24h) {
-                const volumeMillions = (state.volume24h / 1_000_000).toFixed(1);
-                volEl.textContent = `${volumeMillions}M`;
-                volEl.className = 'info-value value-neutral';
-            } else {
-                volEl.textContent = '--';
-                volEl.className = 'info-value value-neutral';
+            if (volEl) {
+                if (state.volume24h) {
+                    const volumeMillions = (state.volume24h / 1_000_000).toFixed(1);
+                    volEl.textContent = `${volumeMillions}M`;
+                    volEl.className = 'info-value value-neutral';
+                } else {
+                    volEl.textContent = '--';
+                    volEl.className = 'info-value value-neutral';
+                }
             }
 
             const rvolEl = document.getElementById('rvolStatus');
-            if (volMultiplier > 2.0) {
-                rvolEl.textContent = 'HIGH (3x)';
-                rvolEl.className = 'info-value value-up';
-            } else if (volMultiplier > 1.5) {
-                rvolEl.textContent = 'ELEVATED';
-                rvolEl.className = 'info-value value-neutral';
-            } else {
-                rvolEl.textContent = 'NORMAL';
-                rvolEl.className = 'info-value value-neutral';
+            if (rvolEl) {
+                if (volMultiplier > 2.0) {
+                    rvolEl.textContent = 'HIGH (3x)';
+                    rvolEl.className = 'info-value value-up';
+                } else if (volMultiplier > 1.5) {
+                    rvolEl.textContent = 'ELEVATED';
+                    rvolEl.className = 'info-value value-neutral';
+                } else {
+                    rvolEl.textContent = 'NORMAL';
+                    rvolEl.className = 'info-value value-neutral';
+                }
             }
 
             const rsi = calculateRsi(state.prices, 14);
@@ -690,10 +1482,10 @@
             const nearResistance = state.resistance && Math.abs(state.price - state.resistance) / state.price < 0.003;
 
             const gpsEl = document.getElementById('gpsStatus');
-            if (state.dailyGpHigh && state.dailyGpLow) {
+            if (state.dailyGpHigh && state.dailyGpLow && gpsEl) {
                 gpsEl.textContent = `${priceFormatter.format(state.dailyGpLow)} - ${priceFormatter.format(state.dailyGpHigh)}`;
                 gpsEl.className = 'info-value value-neutral';
-            } else {
+            } else if (gpsEl) {
                 gpsEl.textContent = '--';
                 gpsEl.className = 'info-value value-neutral';
             }
@@ -709,15 +1501,17 @@
                 state.divergenceLastUpdate = now;
             }
 
-            if (state.divergenceState === 'BULLISH (RSI)') {
-                divEl.textContent = state.divergenceState;
-                divEl.className = 'info-value value-up';
-            } else if (state.divergenceState === 'BEARISH (RSI)') {
-                divEl.textContent = state.divergenceState;
-                divEl.className = 'info-value value-down';
-            } else {
-                divEl.textContent = 'NONE';
-                divEl.className = 'info-value value-neutral';
+            if (divEl) {
+                if (state.divergenceState === 'BULLISH (RSI)') {
+                    divEl.textContent = state.divergenceState;
+                    divEl.className = 'info-value value-up';
+                } else if (state.divergenceState === 'BEARISH (RSI)') {
+                    divEl.textContent = state.divergenceState;
+                    divEl.className = 'info-value value-down';
+                } else {
+                    divEl.textContent = 'NONE';
+                    divEl.className = 'info-value value-neutral';
+                }
             }
 
             updateDistanceBadges();
@@ -1718,6 +2512,7 @@
         function toggleTheme() {
             const body = document.body;
             const icon = document.getElementById('themeIcon');
+            if (!icon) return;
 
             if (state.theme === 'dark') {
                 body.setAttribute('data-theme', 'light');
@@ -1730,9 +2525,6 @@
             }
 
             localStorage.setItem('srus_theme', state.theme);
-
-            // Reload TradingView widget to match theme
-            loadTradingViewWidget();
         }
 
         // ============================================
@@ -2396,8 +3188,10 @@
 
             window.paperSetTradeType = function (type, clickedBtn) {
                 console.log('Setting trade type to:', type);
-                document.querySelectorAll('.paper-trade-btn').forEach(b => b.classList.remove('active'));
-                clickedBtn.classList.add('active');
+                if (clickedBtn) {
+                    document.querySelectorAll('.paper-trade-btn').forEach(b => b.classList.remove('active'));
+                    clickedBtn.classList.add('active');
+                }
                 paperCurrentTradeType = type;
                 updatePaperSubmitButton();
                 updatePaperOrderSummary();
@@ -2660,18 +3454,11 @@
                 if (balanceEl) balanceEl.textContent = priceFormatter.format(paperPortfolio.balance);
                 if (equityEl) equityEl.textContent = priceFormatter.format(equity);
 
-                if (realizedEl) {
-                    realizedEl.textContent = (paperPortfolio.totalPnl >= 0 ? '+' : '') + priceFormatter.format(paperPortfolio.totalPnl);
-                    realizedEl.style.color = paperPortfolio.totalPnl >= 0 ? 'var(--accent-green)' : 'var(--accent-purple)';
-                }
-
                 if (unrealizedEl) {
                     unrealizedEl.textContent = (unrealizedPnL >= 0 ? '+' : '') + priceFormatter.format(unrealizedPnL);
                     unrealizedEl.style.color = unrealizedPnL >= 0 ? 'var(--accent-green)' : 'var(--accent-purple)';
                 }
 
-                // Update Available (USD)
-                // Since our 'balance' tracks cash, that is the available amount.
                 if (availEl) {
                     availEl.textContent = `Available: ${priceFormatter.format(paperPortfolio.balance)}`;
                 }
@@ -2688,6 +3475,11 @@
                 if (openCountEl) openCountEl.textContent = openCount;
                 if (pendingCountEl) pendingCountEl.textContent = pendingCount;
                 if (closedCountEl) closedCountEl.textContent = closedCount;
+
+                if (realizedEl) {
+                    realizedEl.textContent = (paperPortfolio.totalPnl >= 0 ? '+' : '') + priceFormatter.format(paperPortfolio.totalPnl);
+                    realizedEl.style.color = paperPortfolio.totalPnl >= 0 ? 'var(--accent-green)' : 'var(--accent-purple)';
+                }
 
                 updatePaperSubmitButton();
                 checkPendingOrders();
