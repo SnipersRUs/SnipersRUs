@@ -153,7 +153,14 @@ nav {
     display: flex;
     align-items: center;
     position: relative;
-    padding-top: 80px;
+    padding: 100px 0 60px;
+}
+
+.hero-grid {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr;
+    gap: 4rem;
+    align-items: center;
 }
 
 .hero-content {
@@ -220,6 +227,26 @@ nav {
     background: var(--primary-green);
     color: var(--bg-black);
     box-shadow: var(--glow-green);
+}
+
+/* Terminal & Grids */
+.terminal-grid {
+    display: grid;
+    grid-template-columns: 1fr 400px;
+    gap: 2rem;
+}
+
+.trade-inputs {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+}
+
+.thesis-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4rem;
+    align-items: start;
 }
 
 /* Terminal Section */
@@ -615,18 +642,95 @@ nav {
 }
 
 /* Media Queries */
+@media (max-width: 1024px) {
+    .terminal-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
 @media (max-width: 768px) {
-    .glitch-text {
-        font-size: 3rem;
+    section {
+        padding: 4rem 0;
     }
 
-    .hero-content {
+    .hero {
+        padding-top: 120px;
         text-align: center;
     }
 
+    .hero-grid {
+        grid-template-columns: 1fr;
+        gap: 3rem;
+    }
+
+    .glitch-text {
+        font-size: 2.8rem;
+    }
+
+    .nav-links {
+        display: none;
+    }
+
+    .nav-container {
+        justify-content: center;
+    }
+
+    .trade-inputs {
+        grid-template-columns: 1fr;
+    }
+
+    .thesis-grid {
+        grid-template-columns: 1fr;
+        gap: 2rem;
+    }
+
+    .community-grid,
+    .intel-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .metric-grid {
+        grid-template-columns: 1fr 1fr !important;
+    }
+
+    .terminal-mini {
+        right: 0 !important;
+        bottom: -10px !important;
+        min-width: 151px;
+        padding: 1rem;
+    }
+
+    .intel-wall {
+        padding: 1.5rem;
+    }
+
     .btn-group {
-        display: flex;
         flex-direction: column;
-        gap: 1rem;
+        width: 100%;
+        gap: 1rem !important;
+        display: flex;
+    }
+
+    .btn {
+        width: 100%;
+        text-align: center;
+    }
+
+    .terminal-window {
+        margin-top: 2rem;
+    }
+
+    .tv-container {
+        height: 400px;
+    }
+}
+
+@media (max-width: 480px) {
+    .glitch-text {
+        font-size: 2.2rem;
+    }
+
+    .metric-grid {
+        grid-template-columns: 1fr !important;
     }
 }

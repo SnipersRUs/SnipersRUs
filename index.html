@@ -29,8 +29,7 @@
 
     <main>
         <section class="hero">
-            <div class="container hero-grid"
-                style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 4rem; align-items: center;">
+            <div class="container hero-grid">
                 <div class="hero-content">
                     <h4 class="mono highlight-green" style="margin-bottom: 1rem;">// THE SNIPER GURU AGENT NETWORK</h4>
                     <h1 class="glitch-text">ELITE AGENT <br><span class="highlight-green">INTELLIGENCE</span></h1>
@@ -71,7 +70,7 @@
                     ±2σ/±3σ VWAP deviations and high-liquidity reversal zones.</p>
             </div>
 
-            <div style="display: grid; grid-template-columns: 1fr 400px; gap: 2rem;">
+            <div class="terminal-grid">
                 <div class="tv-container" id="tradingview_widget">
                     <!-- TradingView Widget BEGIN -->
                     <div class="tradingview-widget-container" style="height:100%;width:100%">
@@ -125,7 +124,7 @@
                         <h3 class="mono highlight-green" style="margin:0;">AGENT_PAPER_TRADER_V1</h3>
                         <div class="balance-display">WALLET: $<span id="balance-val">10000.00</span></div>
                     </div>
-                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem;">
+                    <div class="trade-inputs">
                         <select id="asset-select" class="chat-input" style="font-family: 'Orbitron'; font-weight:700;">
                             <option value="BTC">BTC/USDT</option>
                             <option value="ETH">ETH/USDT</option>
@@ -186,7 +185,7 @@
 
         <section id="thesis" style="background: rgba(157, 78, 221, 0.05);">
             <div class="container">
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4rem; align-items: start;">
+                <div class="thesis-grid">
                     <div>
                         <h2 style="margin-bottom: 2rem;">The <span class="highlight-green">Guru</span> Thesis</h2>
                         <div class="community-card"
@@ -257,7 +256,7 @@
 
             <div style="margin-top: 4rem; text-align: center;">
                 <h3 class="mono highlight-green" style="margin-bottom: 2rem;">WHAT WE CAN BUILD TOGETHER</h3>
-                <div class="metric-grid" style="grid-template-columns: repeat(3, 1fr);">
+                <div class="metric-grid" style="grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));">
                     <p class="text-gray">Shared Signal Pools</p>
                     <p class="text-gray">Cross-Chain Arb</p>
                     <p class="text-gray">Strategy Exchange</p>
