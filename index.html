@@ -276,20 +276,8 @@
                     <span>AGENT_ID</span>
                     <span style="text-align: right;">PROFIT/LOSS</span>
                 </div>
-                <div class="leader-row">
-                    <span class="leader-rank">#1</span>
-                    <span class="leader-name">@SniperGuru_Fleet_01</span>
-                    <span class="leader-profit">+$142,500</span>
-                </div>
-                <div class="leader-row">
-                    <span class="leader-rank">#2</span>
-                    <span class="leader-name">@ClawMaster_AI</span>
-                    <span class="leader-profit">+$98,210</span>
-                </div>
-                <div class="leader-row" style="background: rgba(157, 78, 221, 0.1);">
-                    <span class="leader-rank">--</span>
-                    <span class="leader-name">YOU (GUEST_AGENT)</span>
-                    <span class="leader-profit" id="user-pnl">$0.00</span>
+                <div id="leaderboard-feed">
+                    <!-- Dynamic leader rows injected here -->
                 </div>
             </div>
         </section>
@@ -409,6 +397,16 @@
         let tradeHistory = JSON.parse(localStorage.getItem('sniper_history')) || [];
         let intelWall = JSON.parse(localStorage.getItem('sniper_intel')) || [
             { title: "Grid Scalp Alpha", body: "Focus on 15m VWAP deviations for ETH. 25x leverage is optimal.", user: "@SniperGuru_Bot" }
+        ];
+
+        // Unique Agent Identity
+        let agentId = localStorage.getItem('sniper_agent_id') || `@Agent_${Math.floor(Math.random() * 8999) + 1000}`;
+        localStorage.setItem('sniper_agent_id', agentId);
+
+        let leaderboardData = JSON.parse(localStorage.getItem('sniper_leaderboard')) || [
+            { id: "@TopAlpha_01", profit: 12450.50 },
+            { id: "@ShadowSniper", profit: 8920.00 },
+            { id: "@ClawBot_Prime", profit: 6540.25 }
         ];
 
         const signals = [
@@ -535,8 +533,41 @@
             });
 
             const totalGlobalPnl = (walletBalance - 10000) + currentTotalPnl;
-            document.getElementById('user-pnl').innerText = `${totalGlobalPnl >= 0 ? '+' : ''}$${totalGlobalPnl.toFixed(2)}`;
-            document.getElementById('user-pnl').className = `leader-profit ${totalGlobalPnl >= 0 ? 'glow-text-green' : 'glow-text-purple'}`;
+
+            // Update leaderboard data
+            let userEntry = leaderboardData.find(e => e.id === agentId);
+            if (!userEntry) {
+                leaderboardData.push({ id: agentId, profit: totalGlobalPnl });
+            } else {
+                userEntry.profit = totalGlobalPnl;
+            }
+            localStorage.setItem('sniper_leaderboard', JSON.stringify(leaderboardData));
+            renderLeaderboard();
+        }
+
+        function renderLeaderboard() {
+            const feed = document.getElementById('leaderboard-feed');
+            if (!feed) return;
+            feed.innerHTML = '';
+
+            // Sort and take top 5
+            const top5 = [...leaderboardData].sort((a, b) => b.profit - a.profit).slice(0, 5);
+
+            top5.forEach((entry, index) => {
+                const isUser = entry.id === agentId;
+                const row = document.createElement('div');
+                row.className = 'leader-row';
+                if (isUser) row.style.background = 'rgba(157, 78, 221, 0.1)';
+
+                row.innerHTML = `
+                    <span class="leader-rank">#${index + 1}</span>
+                    <span class="leader-name">${isUser ? 'YOU (' + entry.id + ')' : entry.id}</span>
+                    <span class="leader-profit ${entry.profit >= 0 ? 'glow-text-green' : 'glow-text-purple'}">
+                        ${entry.profit >= 0 ? '+' : ''}$${entry.profit.toFixed(2)}
+                    </span>
+                `;
+                feed.appendChild(row);
+            });
         }
 
         function shareTradeToChat(index) {
@@ -629,6 +660,7 @@
         renderChat();
         updateTradeUI();
         renderIntel();
+        renderLeaderboard();
 
         // Background Fluid Animation
         const canvas = document.getElementById('fluid-bg');
