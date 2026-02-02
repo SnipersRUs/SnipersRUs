@@ -233,7 +233,7 @@ export const FreeSignals = () => {
                                 <div className="flex items-start gap-3">
                                     <AlertTriangle size={18} className="text-yellow-400 mt-0.5" />
                                     <div className="text-sm text-white/60">
-                                        <strong className="text-white">Disclaimer:\u003c/strong> These are educational signals only. 
+                                        <strong className="text-white">Disclaimer:</strong> These are educational signals only. 
                                         Always do your own research. Past performance doesn't guarantee future results.
                                     </div>
                                 </div>
