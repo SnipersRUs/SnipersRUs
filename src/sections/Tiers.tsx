@@ -14,7 +14,7 @@ interface TierCardProps {
 
 const TierCard = ({ name, price, tokenAmount, features, icon: Icon, color, popular }: TierCardProps) => {
     const [copied, setCopied] = useState(false);
-    const paymentAddress = "0x..."; // Will be updated with actual address
+    const paymentAddress = "0x9C23d0F34606204202a9b88B2CD8dBBa24192Ae5"; // ZOID Payment Wallet
 
     const handleCopy = () => {
         navigator.clipboard.writeText(paymentAddress);

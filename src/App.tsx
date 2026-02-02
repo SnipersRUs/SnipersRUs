@@ -10,6 +10,8 @@ import { Footer } from './sections/Footer';
 import { AgentConsole } from './sections/AgentConsole';
 import { FreeTrialModal } from './sections/FreeTrialModal';
 import { Tiers } from './sections/Tiers';
+import { ZOIDToken } from './sections/ZOIDToken';
+import { FreeSignals } from './sections/FreeSignals';
 
 import { TerminalProvider } from './TerminalContext';
 
@@ -108,7 +110,9 @@ function App() {
                     <Navigation />
                     <main>
                         <Hero />
+                        <ZOIDToken />
                         <Tiers />
+                        <FreeSignals />
                         <AgentConsole />
                         <Terminal />
                         <PaperTrading />

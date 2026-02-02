@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Menu, X, Terminal, Zap, Bot, Wallet } from 'lucide-react';
+import { Menu, X, Terminal, Zap, Bot, Wallet, Coins, Radio } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTerminal } from '@/TerminalContext';
 
@@ -25,7 +25,9 @@ export const Navigation = () => {
     };
 
     const navItems = [
+        { id: 'zoid-token', label: 'ZOID', icon: Coins },
         { id: 'tiers', label: 'TIERS', icon: Wallet },
+        { id: 'free-signals', label: 'FREE', icon: Radio },
         { id: 'agent-console', label: 'DEPLOY', icon: Bot },
         { id: 'terminal', label: 'TERMINAL', icon: Terminal },
         { id: 'signals', label: 'SIGNALS', icon: Zap },
