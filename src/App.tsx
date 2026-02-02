@@ -9,6 +9,7 @@ import { FuelCluster } from './sections/FuelCluster';
 import { Footer } from './sections/Footer';
 import { AgentConsole } from './sections/AgentConsole';
 import { FreeTrialModal } from './sections/FreeTrialModal';
+import { Tiers } from './sections/Tiers';
 
 import { TerminalProvider } from './TerminalContext';
 
@@ -107,6 +108,7 @@ function App() {
                     <Navigation />
                     <main>
                         <Hero />
+                        <Tiers />
                         <AgentConsole />
                         <Terminal />
                         <PaperTrading />
