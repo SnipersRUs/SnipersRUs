@@ -1,6 +1,28 @@
 import { Youtube } from 'lucide-react';
+import { useState, useEffect } from 'react';
 
 export const Footer = () => {
+    const [visitCount, setVisitCount] = useState(0);
+
+    useEffect(() => {
+        // Get current count from localStorage
+        const stored = localStorage.getItem('srus_visit_count');
+        const currentCount = stored ? parseInt(stored, 10) : 0;
+        
+        // Check if this is a new session (not just a refresh)
+        const sessionId = sessionStorage.getItem('srus_session');
+        if (!sessionId) {
+            // New session - increment counter
+            const newCount = currentCount + 1;
+            localStorage.setItem('srus_visit_count', newCount.toString());
+            setVisitCount(newCount);
+            sessionStorage.setItem('srus_session', 'active');
+        } else {
+            // Same session - show current count without incrementing
+            setVisitCount(currentCount);
+        }
+    }, []);
+
     return (
         <footer className="bg-black border-t border-white/5 py-12">
             <div className="container-custom">
@@ -58,6 +80,18 @@ export const Footer = () => {
                     <div className="text-xs font-mono text-white/30">
                         © 2026 SNIPERS-R-US. ALL RIGHTS RESERVED.
                     </div>
+                    
+                    {/* View Counter - Illuminated Number */}
+                    <div className="flex items-center gap-3">
+                        <div className="relative">
+                            <div className="text-4xl font-bold font-orbitron text-white drop-shadow-[0_0_15px_rgba(0,255,65,0.8)]">
+                                {visitCount.toLocaleString()}
+                            </div>
+                            {/* Glow effect */}
+                            <div className="absolute inset-0 blur-xl bg-sniper-green/30 -z-10"></div>
+                        </div>
+                    </div>
+                    
                     <div className="flex items-center gap-2 text-xs font-mono text-white/30">
                         <span className="w-2 h-2 rounded-full bg-sniper-green animate-pulse"></span>
                         SYSTEM ONLINE
