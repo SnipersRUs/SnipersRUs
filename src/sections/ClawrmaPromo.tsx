@@ -62,8 +62,10 @@ export const ClawrmaPromo = () => {
                             </p>
 
                             <div className="flex flex-wrap gap-4 justify-center lg:justify-start">
-                                <button
-                                    onClick={scrollToSignalBetting}
+                                <a
+                                    href="https://karma.clawrma.com"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
                                     className={cn(
                                         "group inline-flex items-center gap-3 px-8 py-4",
                                         "bg-gradient-to-r from-cyan-500 to-purple-500",
@@ -73,8 +75,20 @@ export const ClawrmaPromo = () => {
                                         "shadow-lg shadow-cyan-500/25 hover:shadow-cyan-500/40"
                                     )}
                                 >
-                                    ENTER PLATFORM
+                                    KARMA PROTOCOL
                                     <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
+                                </a>
+                                <button
+                                    onClick={scrollToSignalBetting}
+                                    className={cn(
+                                        "inline-flex items-center gap-3 px-8 py-4",
+                                        "bg-white/10 hover:bg-white/20",
+                                        "text-white font-bold font-orbitron rounded-xl",
+                                        "transition-all duration-300",
+                                        "border border-white/20"
+                                    )}
+                                >
+                                    VIEW SIGNALS
                                 </button>
                             </div>
                         </div>
