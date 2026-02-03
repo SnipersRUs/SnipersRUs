@@ -68,8 +68,12 @@ app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
   
-  // Initialize Veil WebSocket
-  veilService.connectWebSocket();
+  // Initialize Veil WebSocket (optional - non-blocking)
+  try {
+    veilService.connectWebSocket();
+  } catch (err) {
+    console.log('⚠️ WebSocket not connected - running in REST-only mode');
+  }
 });
 
 module.exports = app;
