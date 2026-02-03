@@ -8,7 +8,7 @@ const UserRoutes = require('./routes/users');
 const SubscriptionRoutes = require('./routes/subscriptions');
 const AgentRoutes = require('./routes/agents');
 const SignalPlatformRoutes = require('./routes/signals-platform');
-const ScannerRoutes = require('./routes/scanner');
+const ScannerRoutes = require('./routes/scanner-simple');
 
 const app = express();
 const PORT = process.env.PORT || 3000;

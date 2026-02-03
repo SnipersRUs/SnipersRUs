@@ -332,6 +332,36 @@ class Database {
         total_token_supply INTEGER DEFAULT 0
       )
     `);
+
+    // Signal Purchases (pay-per-signal model)
+    this.db.run(`
+      CREATE TABLE IF NOT EXISTS signal_purchases (
+        id TEXT PRIMARY KEY,
+        buyer TEXT NOT NULL,
+        package TEXT NOT NULL,
+        price INTEGER NOT NULL,
+        burn_amount INTEGER NOT NULL,
+        dev_amount INTEGER NOT NULL,
+        tx_hash TEXT,
+        signals_remaining INTEGER NOT NULL,
+        expires_at DATETIME,
+        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+        status TEXT DEFAULT 'ACTIVE'
+      )
+    `);
+
+    // Signal Deliveries (track which signals were delivered to whom)
+    this.db.run(`
+      CREATE TABLE IF NOT EXISTS signal_deliveries (
+        id TEXT PRIMARY KEY,
+        purchase_id TEXT NOT NULL,
+        buyer TEXT NOT NULL,
+        symbol TEXT NOT NULL,
+        signal_id TEXT NOT NULL,
+        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (purchase_id) REFERENCES signal_purchases(id)
+      )
+    `);
   }
 
   // Signal methods
@@ -1813,6 +1843,80 @@ class Database {
       this.db.all(
         `SELECT * FROM burns WHERE address = ? ORDER BY timestamp DESC`,
         [address],
+        (err, rows) => {
+          if (err) reject(err);
+          else resolve(rows || []);
+        }
+      );
+    });
+  }
+
+  // Signal Purchase methods (simple pay-per-signal)
+  async createSignalPurchase(purchase) {
+    return new Promise((resolve, reject) => {
+      this.db.run(
+        `INSERT INTO signal_purchases (id, buyer, package, price, burn_amount, dev_amount, tx_hash, signals_remaining, expires_at, timestamp, status)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [purchase.id, purchase.buyer, purchase.package, purchase.price, purchase.burnAmount, purchase.devAmount, purchase.txHash, purchase.signalsRemaining, purchase.expiresAt?.toISOString(), purchase.timestamp.toISOString(), purchase.status],
+        function(err) {
+          if (err) reject(err);
+          else resolve(purchase);
+        }
+      );
+    });
+  }
+
+  async getActivePurchases(address) {
+    return new Promise((resolve, reject) => {
+      const now = new Date().toISOString();
+      this.db.all(
+        `SELECT * FROM signal_purchases 
+         WHERE buyer = ? 
+         AND status = 'ACTIVE' 
+         AND (expires_at IS NULL OR expires_at > ?)
+         AND signals_remaining > 0
+         ORDER BY timestamp ASC`,
+        [address, now],
+        (err, rows) => {
+          if (err) reject(err);
+          else resolve(rows || []);
+        }
+      );
+    });
+  }
+
+  async useSignalCredit(purchaseId) {
+    return new Promise((resolve, reject) => {
+      this.db.run(
+        `UPDATE signal_purchases SET signals_remaining = signals_remaining - 1 WHERE id = ?`,
+        [purchaseId],
+        function(err) {
+          if (err) reject(err);
+          else resolve({ id: purchaseId });
+        }
+      );
+    });
+  }
+
+  async recordSignalDelivery(delivery) {
+    return new Promise((resolve, reject) => {
+      this.db.run(
+        `INSERT INTO signal_deliveries (id, purchase_id, buyer, symbol, signal_id, timestamp)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [delivery.id, delivery.purchaseId, delivery.buyer, delivery.symbol, delivery.signalId, delivery.timestamp.toISOString()],
+        function(err) {
+          if (err) reject(err);
+          else resolve(delivery);
+        }
+      );
+    });
+  }
+
+  async getPublicSignals({ limit, offset }) {
+    return new Promise((resolve, reject) => {
+      this.db.all(
+        `SELECT * FROM sniper_guru_signals ORDER BY timestamp DESC LIMIT ? OFFSET ?`,
+        [limit, offset],
         (err, rows) => {
           if (err) reject(err);
           else resolve(rows || []);
