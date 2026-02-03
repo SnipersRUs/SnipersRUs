@@ -2,6 +2,14 @@ import { useState } from 'react';
 import { Shield, Lock, TrendingUp, Award, Flame } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
+declare global {
+  interface Window {
+    ethereum?: {
+      request: (args: { method: string }) => Promise<string[]>;
+    };
+  }
+}
+
 const TIERS = [
     {
         name: 'BASIC',
@@ -33,12 +41,41 @@ const TIERS = [
 export const ScannerAccess = () => {
     const [address, setAddress] = useState('');
     const [selectedTier, setSelectedTier] = useState<string | null>(null);
+    const [isConnecting, setIsConnecting] = useState(false);
+    const [connected, setConnected] = useState(false);
 
-    const checkAccess = async () => {
-        if (!address) return;
+    const connectWallet = async () => {
+        setIsConnecting(true);
+        try {
+            if (typeof window.ethereum !== 'undefined') {
+                const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                if (accounts.length > 0) {
+                    setAddress(accounts[0]);
+                    setConnected(true);
+                    // Auto-check access after connection
+                    checkAccess(accounts[0]);
+                }
+            } else {
+                alert('Please install MetaMask or another Web3 wallet');
+            }
+        } catch (err) {
+            console.error('Wallet connection error:', err);
+        } finally {
+            setIsConnecting(false);
+        }
+    };
+
+    const disconnectWallet = () => {
+        setAddress('');
+        setConnected(false);
+    };
+
+    const checkAccess = async (addr?: string) => {
+        const checkAddr = addr || address;
+        if (!checkAddr) return;
         
         try {
-            const response = await fetch(`https://snipersrus-backend-production.up.railway.app/api/scanner/access/${address}`);
+            const response = await fetch(`https://snipersrus-backend-production.up.railway.app/api/scanner/access/${checkAddr}`);
             const data = await response.json();
             console.log('Access data:', data);
             alert(`Tier: ${data.tier}\nStaked: ${data.stakedAmount} CLAWNCH\nRemaining: ${data.signalsRemaining}`);
@@ -69,23 +106,41 @@ export const ScannerAccess = () => {
                     </p>
                 </div>
 
-                {/* Wallet Check */}
+                {/* Wallet Connection */}
                 <div className="mb-12 p-6 rounded-2xl bg-white/5 border border-white/10">
-                    <div className="flex flex-col md:flex-row items-center gap-4">
-                        <input
-                            type="text"
-                            placeholder="Enter wallet address (0x...)"
-                            value={address}
-                            onChange={(e) => setAddress(e.target.value)}
-                            className="flex-1 px-4 py-3 rounded-lg bg-black/50 border border-white/10 text-white placeholder-white/30 focus:border-sniper-green focus:outline-none font-mono"
-                        />
-                        <button
-                            onClick={checkAccess}
-                            className="px-8 py-3 rounded-lg bg-sniper-green hover:bg-sniper-green/80 text-black font-bold font-orbitron transition-all"
-                        >
-                            CHECK ACCESS
-                        </button>
-                    </div>
+                    {!connected ? (
+                        <div className="text-center">
+                            <button
+                                onClick={connectWallet}
+                                disabled={isConnecting}
+                                className="px-8 py-4 rounded-lg bg-sniper-green hover:bg-sniper-green/80 text-black font-bold font-orbitron transition-all flex items-center gap-2 mx-auto"
+                            >
+                                {isConnecting ? 'Connecting...' : '🔗 Connect Wallet'}
+                            </button>
+                            <p className="text-white/50 text-sm mt-4">
+                                Connect your wallet to check staking access and manage CLAWNCH
+                            </p>
+                        </div>
+                    ) : (
+                        <div className="flex flex-col md:flex-row items-center gap-4">
+                            <div className="flex-1 px-4 py-3 rounded-lg bg-black/50 border border-sniper-green/50 text-white font-mono flex items-center gap-2">
+                                <span className="w-2 h-2 rounded-full bg-sniper-green animate-pulse"></span>
+                                {address.slice(0, 6)}...{address.slice(-4)}
+                            </div>
+                            <button
+                                onClick={() => checkAccess()}
+                                className="px-6 py-3 rounded-lg bg-sniper-green hover:bg-sniper-green/80 text-black font-bold font-orbitron transition-all"
+                            >
+                                CHECK ACCESS
+                            </button>
+                            <button
+                                onClick={disconnectWallet}
+                                className="px-6 py-3 rounded-lg bg-white/10 hover:bg-white/20 text-white font-bold font-orbitron transition-all"
+                            >
+                                DISCONNECT
+                            </button>
+                        </div>
+                    )}
                 </div>
 
                 {/* Tier Cards */}
@@ -141,18 +196,21 @@ export const ScannerAccess = () => {
                                     "w-full py-3 rounded-lg font-bold font-orbitron transition-all",
                                     selectedTier === tier.name
                                         ? "bg-sniper-green text-black"
-                                        : "bg-white/10 hover:bg-white/20 text-white"
+                                        : connected 
+                                            ? "bg-white/10 hover:bg-white/20 text-white"
+                                            : "bg-white/5 text-white/40 cursor-not-allowed"
                                 )}
                                 onClick={(e) => {
                                     e.stopPropagation();
-                                    if (!address) {
-                                        alert('Please enter your wallet address above first!');
+                                    if (!connected) {
+                                        alert('Please connect your wallet first!');
                                         return;
                                     }
-                                    alert(`To Stake ${tier.stake} CLAWNCH for ${tier.name}:\n\n1. You need CLAWNCH tokens in your wallet\n2. Sign a message to confirm staking\n3. Tokens are held in the staking contract\n4. Access unlocks immediately\n\nTo test: Use the curl commands below or connect a wallet with CLAWNCH.`);
+                                    alert(`To Stake ${tier.stake} CLAWNCH for ${tier.name}:\n\n1. You need CLAWNCH tokens in your wallet\n2. Sign a message to confirm staking\n3. Tokens are held in the staking contract\n4. Access unlocks immediately\n\nThis will be processed through your connected wallet.`);
                                 }}
+                                disabled={!connected}
                             >
-                                {selectedTier === tier.name ? 'SELECTED' : 'STAKE'}
+                                {!connected ? 'CONNECT WALLET' : selectedTier === tier.name ? 'SELECTED' : 'STAKE'}
                             </button>
                         </div>
                     ))}
