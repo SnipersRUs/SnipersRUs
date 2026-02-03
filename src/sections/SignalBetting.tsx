@@ -1,10 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
     TrendingUp, TrendingDown, Target, Clock, Users, DollarSign, 
-    Radio, Wallet, ArrowUp, ShieldCheck, Lock,
-    Award, Zap, TrendingUp as TrendUp
+    Radio, ArrowUp, ShieldCheck, Lock,
+    Award, Zap, TrendingUp as TrendUp, RefreshCw
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { ConnectWalletButton } from '@/components/ConnectWalletButton';
+import { COINGECKO_API, PRICE_IDS } from '@/web3/config';
 
 interface Signal {
     id: number;
@@ -312,11 +314,59 @@ const SignalCard = ({ signal, onBid }: SignalCardProps) => {
 };
 
 export const SignalBetting = () => {
-    const [signals] = useState<Signal[]>(MOCK_SIGNALS);
+    const [signals, setSignals] = useState<Signal[]>(MOCK_SIGNALS);
     const [activeTab, setActiveTab] = useState<'ACTIVE' | 'SETTLED'>('ACTIVE');
     const [showBidModal, setShowBidModal] = useState(false);
     const [selectedSignal, setSelectedSignal] = useState<Signal | null>(null);
     const [bidAmount, setBidAmount] = useState('');
+    const [, setPrices] = useState<Record<string, number>>({});
+    const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
+
+    // Fetch real prices from CoinGecko
+    const fetchPrices = async () => {
+        try {
+            const ids = signals
+                .filter(s => s.status === 'ACTIVE')
+                .map(s => PRICE_IDS[s.asset] || s.asset.toLowerCase())
+                .filter(Boolean)
+                .join(',');
+            
+            if (!ids) return;
+
+            const response = await fetch(
+                `${COINGECKO_API}/simple/price?ids=${ids}&vs_currencies=usd`
+            );
+            const data = await response.json();
+            
+            const newPrices: Record<string, number> = {};
+            signals.forEach(signal => {
+                const id = PRICE_IDS[signal.asset] || signal.asset.toLowerCase();
+                if (data[id]?.usd) {
+                    newPrices[signal.asset] = data[id].usd;
+                }
+            });
+            
+            setPrices(newPrices);
+            setLastUpdate(new Date());
+
+            // Update signals with new prices
+            setSignals(prev => prev.map(signal => {
+                if (signal.status === 'ACTIVE' && newPrices[signal.asset]) {
+                    return { ...signal, current: newPrices[signal.asset] };
+                }
+                return signal;
+            }));
+        } catch (error) {
+            console.error('Failed to fetch prices:', error);
+        }
+    };
+
+    // Fetch prices on mount and every 30 seconds
+    useEffect(() => {
+        fetchPrices();
+        const interval = setInterval(fetchPrices, 30000);
+        return () => clearInterval(interval);
+    }, []);
 
     const handleBid = (signal: Signal) => {
         setSelectedSignal(signal);
@@ -357,12 +407,17 @@ export const SignalBetting = () => {
                         
                         <div className="flex items-center gap-3">
                             <button
-                                onClick={() => alert('Connect wallet:\n• ERC-8004 identity check\n• CLAWNCH balance verification\n• Bankr integration')}
-                                className="flex items-center gap-2 px-6 py-3 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-black font-bold font-orbitron transition-all hover:scale-105"
+                                onClick={fetchPrices}
+                                className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-white/60 hover:text-white transition-all text-sm"
+                                title="Refresh prices"
                             >
-                                <Wallet size={18} />
-                                CONNECT WALLET
+                                <RefreshCw size={16} className="hover:animate-spin" />
+                                <span className="hidden sm:inline">
+                                    {lastUpdate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                                </span>
                             </button>
+                            
+                            <ConnectWalletButton />
                             
                             <button
                                 onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}

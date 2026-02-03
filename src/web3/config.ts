@@ -1,0 +1,63 @@
+import { createConfig, http } from 'wagmi'
+import { base } from 'wagmi/chains'
+import { injected, walletConnect } from 'wagmi/connectors'
+
+// WalletConnect Project ID from Ricky Spanish
+const projectId = '0fc23c1f1b192d88b58507559371da89'
+
+export const config = createConfig({
+  chains: [base],
+  connectors: [
+    injected(),
+    walletConnect({ 
+      projectId,
+      metadata: {
+        name: 'SnipersRUs Signal Betting',
+        description: 'Bet on trading signal outcomes with USDC on Base',
+        url: 'https://srus.life',
+        icons: ['https://srus.life/icon.png']
+      }
+    })
+  ],
+  transports: {
+    [base.id]: http('https://mainnet.base.org')
+  }
+})
+
+// USDC on Base
+export const USDC_CONTRACT = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913'
+
+// CoinGecko API for free price feeds
+export const COINGECKO_API = 'https://api.coingecko.com/api/v3'
+
+// Price feed mapping
+export const PRICE_IDS: Record<string, string> = {
+  'BTC': 'bitcoin',
+  'ETH': 'ethereum',
+  'SOL': 'solana',
+  'BNB': 'binancecoin',
+  'XRP': 'ripple',
+  'ADA': 'cardano',
+  'DOGE': 'dogecoin',
+  'LINK': 'chainlink',
+  'AVAX': 'avalanche-2',
+  'MATIC': 'matic-network'
+}
+
+// USDC ABI for approval/balance
+export const USDC_ABI = [
+  {
+    inputs: [{ name: 'spender', type: 'address' }, { name: 'amount', type: 'uint256' }],
+    name: 'approve',
+    outputs: [{ name: '', type: 'bool' }],
+    stateMutability: 'nonpayable',
+    type: 'function'
+  },
+  {
+    inputs: [{ name: 'account', type: 'address' }],
+    name: 'balanceOf',
+    outputs: [{ name: '', type: 'uint256' }],
+    stateMutability: 'view',
+    type: 'function'
+  }
+] as const
