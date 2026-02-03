@@ -12,6 +12,8 @@ import { FreeTrialModal } from './sections/FreeTrialModal';
 import { Tiers } from './sections/Tiers';
 import { ZOIDToken } from './sections/ZOIDToken';
 import { FreeSignals } from './sections/FreeSignals';
+import { SniperGuruTracker } from './sections/SniperGuruTracker';
+import { SignalBetting } from './sections/SignalBetting';
 
 import { TerminalProvider } from './TerminalContext';
 
@@ -113,6 +115,8 @@ function App() {
                         <ZOIDToken />
                         <Tiers />
                         <FreeSignals />
+                        <SniperGuruTracker />
+                        <SignalBetting />
                         <AgentConsole />
                         <Terminal />
                         <PaperTrading />

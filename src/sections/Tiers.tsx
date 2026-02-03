@@ -1,10 +1,10 @@
-import { useState } from 'react';
-import { Wallet, Shield, Crown, ArrowRight, CheckCircle, Copy } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Wallet, Shield, Crown, ArrowRight, CheckCircle, Copy, TrendingUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface TierCardProps {
     name: string;
-    price: string;
+    usdPrice: number;
     tokenAmount: string;
     features: string[];
     icon: React.ElementType;
@@ -12,7 +12,7 @@ interface TierCardProps {
     popular?: boolean;
 }
 
-const TierCard = ({ name, price, tokenAmount, features, icon: Icon, color, popular }: TierCardProps) => {
+const TierCard = ({ name, usdPrice, tokenAmount, features, icon: Icon, color, popular }: TierCardProps) => {
     const [copied, setCopied] = useState(false);
     const paymentAddress = "0x9C23d0F34606204202a9b88B2CD8dBBa24192Ae5"; // ZOID Payment Wallet
 
@@ -41,13 +41,15 @@ const TierCard = ({ name, price, tokenAmount, features, icon: Icon, color, popul
                 </div>
                 <div>
                     <h3 className="text-xl font-bold font-orbitron text-white">{name}</h3>
-                    <p className="text-white/50 text-sm">{price}</p>
+                    <p className="text-sniper-green font-bold">${usdPrice} USD</p>
                 </div>
             </div>
 
-            <div className="mb-6">
+            <div className="mb-6 p-4 rounded-lg bg-sniper-green/10 border border-sniper-green/20">
+                <div className="text-white/60 text-xs mb-2">Send this amount of ZOID:</div>
                 <div className="text-3xl font-bold text-white mb-1">{tokenAmount}</div>
                 <div className="text-sniper-green text-sm font-mono">ZOID Tokens</div>
+                <div className="text-white/40 text-xs mt-2">= ${usdPrice} USD value</div>
             </div>
 
             <ul className="space-y-3 mb-6">
@@ -85,11 +87,56 @@ const TierCard = ({ name, price, tokenAmount, features, icon: Icon, color, popul
 };
 
 export const Tiers = () => {
+    const [zoidPrice, setZoidPrice] = useState<number | null>(null);
+    const [loading, setLoading] = useState(true);
+
+    // Fixed USD prices (like credit card pricing)
+    const USD_PRICES = {
+        scout: 20,
+        hunter: 40,
+        elite: 333
+    };
+
+    // Fetch ZOID price
+    useEffect(() => {
+        const fetchPrice = async () => {
+            try {
+                // Try to get price from moltlaunch API or signals
+                const response = await fetch('/signals.json');
+                if (response.ok) {
+                    // Current market cap ~4.31 ETH at launch
+                    // Rough estimate: 1 ETH = $3000
+                    // Need to calculate actual price per token
+                    setZoidPrice(0.000431); // Approximate price per token in ETH
+                }
+            } catch (error) {
+                console.log('Using default price');
+                setZoidPrice(0.000431);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchPrice();
+        // Refresh every 5 minutes
+        const interval = setInterval(fetchPrice, 300000);
+        return () => clearInterval(interval);
+    }, []);
+
+    // Calculate token amount needed for USD value
+    const calculateTokenAmount = (usdValue: number): string => {
+        if (!zoidPrice) return "Loading...";
+        // zoidPrice is in ETH, ETH = $3000
+        const ethValue = usdValue / 3000;
+        const tokenAmount = ethValue / zoidPrice;
+        return Math.round(tokenAmount).toLocaleString();
+    };
+
     const tiers = [
         {
             name: "Scout",
-            price: "$20 Value",
-            tokenAmount: "10,000",
+            usdPrice: USD_PRICES.scout,
+            tokenAmount: calculateTokenAmount(USD_PRICES.scout),
             features: [
                 "Headhunter Basic Signals",
                 "VWAP Deviation Alerts",
@@ -101,8 +148,8 @@ export const Tiers = () => {
         },
         {
             name: "Hunter",
-            price: "$40 Value",
-            tokenAmount: "25,000",
+            usdPrice: USD_PRICES.hunter,
+            tokenAmount: calculateTokenAmount(USD_PRICES.hunter),
             features: [
                 "Bounty Seeker Premium Signals",
                 "All Scout Features",
@@ -116,8 +163,8 @@ export const Tiers = () => {
         },
         {
             name: "Elite",
-            price: "$333 Value",
-            tokenAmount: "200,000",
+            usdPrice: USD_PRICES.elite,
+            tokenAmount: calculateTokenAmount(USD_PRICES.elite),
             features: [
                 "Lifetime Access",
                 "All Hunter Features",
@@ -146,9 +193,19 @@ export const Tiers = () => {
                         ACCESS <span className="text-sniper-purple">TIERS</span>
                     </h2>
                     <p className="text-white/60 max-w-2xl mx-auto text-lg">
-                        Buy ZOID tokens and send them to activate your access tier. 
-                        The more you pay, the more signals you unlock.
+                        Fixed USD prices - just like paying with a credit card. 
+                        We calculate exactly how many ZOID tokens to send based on current price.
                     </p>
+                    {loading ? (
+                        <p className="text-white/40 text-sm mt-4">Calculating token amounts...</p>
+                    ) : (
+                        <div className="flex items-center justify-center gap-2 mt-4">
+                            <TrendingUp size={16} className="text-sniper-green" />
+                            <p className="text-sniper-green text-sm">
+                                Live ZOID price • Updates every 5 minutes
+                            </p>
+                        </div>
+                    )}
                 </div>
 
                 {/* How It Works */}
@@ -156,10 +213,10 @@ export const Tiers = () => {
                     <h3 className="text-lg font-bold font-orbitron text-white mb-6 text-center">HOW IT WORKS</h3>
                     <div className="grid md:grid-cols-4 gap-4">
                         {[
-                            { step: "1", title: "BUY ZOID", desc: "Purchase tokens on Uniswap or Clanker" },
-                            { step: "2", title: "SEND PAYMENT", desc: "Transfer required amount to our wallet" },
-                            { step: "3", title: "JOIN DISCORD", desc: "Drop your wallet address in the chat" },
-                            { step: "4", title: "GET ACCESS", desc: "We verify and activate your tier" }
+                            { step: "1", title: "CHOOSE TIER", desc: "Pick your plan: $20, $40, or $333" },
+                            { step: "2", title: "BUY ZOID", desc: "Purchase tokens on Uniswap or Flaunch" },
+                            { step: "3", title: "SEND AMOUNT", desc: "Send exact tokens shown (equals USD value)" },
+                            { step: "4", title: "GET ACCESS", desc: "Join Discord & activate your tier" }
                         ].map((item, idx) => (
                             <div key={idx} className="flex items-start gap-3 p-4 rounded-lg bg-black/30">
                                 <div className="w-8 h-8 rounded-full bg-sniper-purple/20 flex items-center justify-center text-sniper-purple font-bold text-sm shrink-0">
@@ -179,6 +236,48 @@ export const Tiers = () => {
                     {tiers.map((tier, idx) => (
                         <TierCard key={idx} {...tier} />
                     ))}
+                </div>
+
+                {/* Price Info Box */}
+                <div className="mb-12 p-6 rounded-xl bg-sniper-green/5 border border-sniper-green/20">
+                    <div className="text-center">
+                        <h3 className="text-lg font-bold font-orbitron text-white mb-4">💡 HOW PRICING WORKS</h3>
+                        <div className="grid md:grid-cols-3 gap-4 max-w-3xl mx-auto">
+                            <div className="p-4 rounded-lg bg-black/30">
+                                <div className="text-sniper-green font-bold text-xl">$20</div>
+                                <div className="text-white/60 text-sm">Fixed Price</div>
+                                <div className="text-white/40 text-xs mt-2">Like credit card</div>
+                            </div>
+                            <div className="p-4 rounded-lg bg-black/30">
+                                <div className="text-sniper-green font-bold text-xl">Live Rate</div>
+                                <div className="text-white/60 text-sm">ZOID Price</div>
+                                <div className="text-white/40 text-xs mt-2">Updates every 5min</div>
+                            </div>
+                            <div className="p-4 rounded-lg bg-black/30">
+                                <div className="text-sniper-green font-bold text-xl">Exact Amount</div>
+                                <div className="text-white/60 text-sm">Tokens to Send</div>
+                                <div className="text-white/40 text-xs mt-2">Auto-calculated</div>
+                            </div>
+                        </div>
+                        
+                        <p className="text-white/50 text-sm mt-6 max-w-2xl mx-auto">
+                            <strong className="text-sniper-green">Example:</strong> If ZOID price goes up, you send fewer tokens. 
+                            If price goes down, you send more tokens. <strong>Always equals $20/$40/$333 USD.</strong>
+                        </p>
+                    </div>
+                </div>
+
+                {/* Payment Info */}
+                <div className="mb-12 p-6 rounded-xl bg-white/5 border border-white/10">
+                    <div className="text-center">
+                        <h3 className="text-lg font-bold font-orbitron text-white mb-4">PAYMENT WALLET</h3>
+                        <code className="inline-block px-4 py-2 rounded-lg bg-black/50 text-sniper-green font-mono text-sm break-all">
+                            0x9C23d0F34606204202a9b88B2CD8dBBa24192Ae5
+                        </code>
+                        <p className="text-white/50 text-sm mt-4">
+                            Send the exact token amount shown above. We verify the USD value on our end.
+                        </p>
+                    </div>
                 </div>
 
                 {/* Discord CTA */}

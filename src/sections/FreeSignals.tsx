@@ -27,6 +27,7 @@ interface Signal {
     stop: string;
     confidence: number;
     time: string;
+    timestamp?: number;
     status: string;
     source?: string;
     reasons?: string[];
@@ -159,9 +160,12 @@ export const FreeSignals = () => {
                     <h2 className="text-4xl md:text-5xl font-bold font-orbitron text-white mb-4">
                         FREE <span className="text-sniper-green">SIGNALS</span>
                     </h2>
-                    <p className="text-white/60 max-w-2xl mx-auto text-lg">
+                    <p className="text-white/60 max-w-2xl mx-auto text-lg mb-4">
                         Get access to basic trading signals completely free. 
                         No wallet connection required - just subscribe to receive alerts.
+                    </p>
+                    <p className="text-sniper-green text-sm">
+                        🎯 2 fresh signals per hour • Valid for 60 minutes • Updated every scan
                     </p>
                 </div>
 
