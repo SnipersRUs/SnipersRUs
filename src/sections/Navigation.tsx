@@ -29,7 +29,7 @@ export const Navigation = () => {
         { id: 'tiers', label: 'TIERS', icon: Wallet, external: false },
         { id: 'free-signals', label: 'FREE', icon: Radio, external: false },
         { id: 'sniper-guru', label: 'TRACKER', icon: User, external: false },
-        { id: 'clawrma', label: 'CLAWrMA', icon: Target, external: true, url: 'https://clawrma.com' },
+        { id: 'clawrma', label: 'CLAWrMA', icon: Target, external: true, url: 'https://snipersrus-backend-production.up.railway.app' },
         { id: 'agent-console', label: 'DEPLOY', icon: Bot, external: false },
         { id: 'terminal', label: 'TERMINAL', icon: Terminal, external: false },
         { id: 'trading', label: 'TRADE', icon: Zap, external: false },
