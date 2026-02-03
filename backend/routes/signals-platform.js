@@ -267,6 +267,90 @@ router.get('/provider/:address', async (req, res) => {
   }
 });
 
+// Upvote a signal
+router.post('/upvote/:signalId', async (req, res) => {
+  try {
+    const { signalId } = req.params;
+    const { voter, signature } = req.body;
+    
+    // Verify signature
+    const message = `Upvote signal ${signalId} at ${Date.now()}`;
+    const recoveredAddress = ethers.verifyMessage(message, signature);
+    
+    if (recoveredAddress.toLowerCase() !== voter.toLowerCase()) {
+      return res.status(401).json({ error: 'Invalid signature' });
+    }
+    
+    // Check if already upvoted
+    const hasUpvoted = await req.db.hasUpvoted(signalId, voter);
+    if (hasUpvoted) {
+      return res.status(400).json({ error: 'Already upvoted this signal' });
+    }
+    
+    // Add upvote
+    await req.db.addUpvote({
+      id: `upvote_${Date.now()}`,
+      signalId,
+      voter,
+      timestamp: new Date()
+    });
+    
+    // Update signal upvote count
+    await req.db.incrementSignalUpvotes(signalId);
+    
+    res.json({
+      success: true,
+      message: 'Signal upvoted!'
+    });
+    
+  } catch (err) {
+    console.error('Upvote error:', err);
+    res.status(500).json({ error: 'Failed to upvote' });
+  }
+});
+
+// Get signal details with upvotes
+router.get('/signal/:signalId', async (req, res) => {
+  try {
+    const { signalId } = req.params;
+    
+    const signal = await req.db.getSignal(signalId);
+    if (!signal) {
+      return res.status(404).json({ error: 'Signal not found' });
+    }
+    
+    const upvotes = await req.db.getSignalUpvotes(signalId);
+    const provider = await req.db.getProvider(signal.provider);
+    
+    res.json({
+      signal: {
+        id: signal.id,
+        provider: signal.provider,
+        providerName: provider?.name || 'Unknown',
+        providerAvatar: provider?.isAgent ? '🤖' : '👤',
+        isAgent: provider?.isAgent || false,
+        type: signal.type,
+        symbol: signal.symbol,
+        entry: signal.entry,
+        stopLoss: signal.stopLoss,
+        takeProfit: signal.takeProfit,
+        timeframe: signal.timeframe,
+        reasoning: signal.reasoning,
+        karmaAtSubmit: signal.karmaAtSubmit,
+        upvotes: upvotes.length,
+        createdAt: signal.createdAt,
+        status: signal.status,
+        result: signal.result
+      },
+      upvoters: upvotes.map(u => u.voter)
+    });
+    
+  } catch (err) {
+    console.error('Get signal error:', err);
+    res.status(500).json({ error: 'Failed to fetch signal' });
+  }
+});
+
 // Helper functions
 async function checkZoidBalance(address) {
   try {

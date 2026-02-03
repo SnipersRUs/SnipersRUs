@@ -362,6 +362,17 @@ class Database {
         FOREIGN KEY (purchase_id) REFERENCES signal_purchases(id)
       )
     `);
+
+    // Upvotes (likes on signals)
+    this.db.run(`
+      CREATE TABLE IF NOT EXISTS upvotes (
+        id TEXT PRIMARY KEY,
+        signal_id TEXT NOT NULL,
+        voter TEXT NOT NULL,
+        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (signal_id) REFERENCES signals(id)
+      )
+    `);
   }
 
   // Signal methods
@@ -1920,6 +1931,59 @@ class Database {
         (err, rows) => {
           if (err) reject(err);
           else resolve(rows || []);
+        }
+      );
+    });
+  }
+
+  // Upvote methods
+  async addUpvote(upvote) {
+    return new Promise((resolve, reject) => {
+      this.db.run(
+        `INSERT INTO upvotes (id, signal_id, voter, timestamp) VALUES (?, ?, ?, ?)`,
+        [upvote.id, upvote.signalId, upvote.voter, upvote.timestamp.toISOString()],
+        function(err) {
+          if (err) reject(err);
+          else resolve(upvote);
+        }
+      );
+    });
+  }
+
+  async hasUpvoted(signalId, voter) {
+    return new Promise((resolve, reject) => {
+      this.db.get(
+        `SELECT COUNT(*) as count FROM upvotes WHERE signal_id = ? AND voter = ?`,
+        [signalId, voter],
+        (err, row) => {
+          if (err) reject(err);
+          else resolve(row.count > 0);
+        }
+      );
+    });
+  }
+
+  async getSignalUpvotes(signalId) {
+    return new Promise((resolve, reject) => {
+      this.db.all(
+        `SELECT * FROM upvotes WHERE signal_id = ? ORDER BY timestamp DESC`,
+        [signalId],
+        (err, rows) => {
+          if (err) reject(err);
+          else resolve(rows || []);
+        }
+      );
+    });
+  }
+
+  async incrementSignalUpvotes(signalId) {
+    return new Promise((resolve, reject) => {
+      this.db.run(
+        `UPDATE signals SET upvotes = COALESCE(upvotes, 0) + 1 WHERE id = ?`,
+        [signalId],
+        function(err) {
+          if (err) reject(err);
+          else resolve({ signalId });
         }
       );
     });
