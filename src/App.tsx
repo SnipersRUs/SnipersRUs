@@ -14,6 +14,7 @@ import { FreeSignals } from './sections/FreeSignals';
 import { SniperGuruTracker } from './sections/SniperGuruTracker';
 import { SignalPlatform } from './sections/SignalPlatform';
 import { ScannerAccess } from './sections/ScannerAccess';
+import { PaperTrading } from './sections/PaperTrading';
 
 import { TerminalProvider } from './TerminalContext';
 
@@ -125,6 +126,7 @@ function App() {
                         <SniperGuruTracker />
                         <AgentConsole />
                         <Terminal />
+                        <PaperTrading />
                         <SignalFeed />
                         <FuelCluster />
                     </main>

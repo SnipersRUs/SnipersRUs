@@ -48,15 +48,15 @@ export const Hero = () => {
 
                         <div className="flex items-center gap-8 pt-8 border-t border-white/5">
                             <div>
-                                <div className="text-2xl font-orbitron font-bold text-white">690+</div>
+                                <div className="text-2xl font-orbitron font-bold text-white">0</div>
                                 <div className="text-xs font-mono text-white/40 uppercase">Signals Posted</div>
                             </div>
                             <div>
-                                <div className="text-2xl font-orbitron font-bold text-sniper-green">68.5%</div>
+                                <div className="text-2xl font-orbitron font-bold text-sniper-green">0%</div>
                                 <div className="text-xs font-mono text-white/40 uppercase">Agent Win Rate</div>
                             </div>
                             <div>
-                                <div className="text-2xl font-orbitron font-bold text-sniper-purple">50K+</div>
+                                <div className="text-2xl font-orbitron font-bold text-sniper-purple">0</div>
                                 <div className="text-xs font-mono text-white/40 uppercase">CLAWNCH Staked</div>
                             </div>
                         </div>

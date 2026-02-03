@@ -35,8 +35,8 @@ router.get('/access/:address', async (req, res) => {
   try {
     const { address } = req.params;
     
-    // Check staked amount
-    const stakedAmount = await getStakedClawnch(address);
+    // Check staked amount from database
+    const stakedAmount = await getStakedClawnch(address, req.db);
     
     let tier = 'NONE';
     if (stakedAmount >= SCANNER_TIERS.GURU.stake) {
@@ -179,11 +179,13 @@ router.get('/signal/:symbol', async (req, res) => {
     const { address } = req.query;
     
     // Check access
-    const access = await checkScannerAccess(address);
+    const access = await checkScannerAccess(address, req.db);
     if (!access.canAccess) {
       return res.status(403).json({ 
         error: 'Scanner access required',
-        stakeRequired: '100 CLAWNCH minimum'
+        stakeRequired: '100 CLAWNCH minimum',
+        currentTier: access.tier,
+        stakedAmount: await getStakedClawnch(address, req.db)
       });
     }
     
@@ -285,11 +287,12 @@ router.get('/scanner-10x', async (req, res) => {
     const { address } = req.query;
     
     // Check Guru tier required
-    const access = await checkScannerAccess(address);
+    const access = await checkScannerAccess(address, req.db);
     if (access.tier !== 'GURU') {
       return res.status(403).json({ 
         error: '10x Scanner requires GURU tier (1000 CLAWNCH staked)',
-        currentTier: access.tier
+        currentTier: access.tier,
+        stakedAmount: await getStakedClawnch(address, req.db)
       });
     }
     
@@ -330,11 +333,18 @@ router.get('/scanner-10x', async (req, res) => {
   }
 });
 
-// Helper functions
-async function getStakedClawnch(address) {
-  // TODO: Check on-chain staking contract
-  // For now, query database
-  return 0; // Placeholder
+// Helper functions - query database for staked amount
+async function getStakedClawnch(address, db) {
+  try {
+    const stake = await db.getScannerStake(address);
+    if (stake && stake.status === 'ACTIVE') {
+      return stake.amount;
+    }
+    return 0;
+  } catch (err) {
+    console.error('Error getting staked amount:', err);
+    return 0;
+  }
 }
 
 async function getClawnchBalance(address) {
@@ -349,9 +359,9 @@ async function getClawnchBalance(address) {
   }
 }
 
-async function checkScannerAccess(address) {
-  const staked = await getStakedClawnch(address);
-  const todaySignals = await req.db.getTodaySignalCount(address);
+async function checkScannerAccess(address, db) {
+  const staked = await getStakedClawnch(address, db);
+  const todaySignals = await db.getTodaySignalCount(address);
   
   if (staked >= SCANNER_TIERS.GURU.stake) {
     return { tier: 'GURU', canAccess: true, remaining: 'Unlimited' };

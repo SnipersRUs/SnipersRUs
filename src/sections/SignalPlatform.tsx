@@ -20,21 +20,45 @@ export const SignalPlatform = () => {
     const [signals, setSignals] = useState<Signal[]>([]);
     const [activeTab, setActiveTab] = useState<'all' | 'agents' | 'humans'>('all');
     const [loading, setLoading] = useState(true);
+    const [stats, setStats] = useState({
+        agents: { signals: 0, winRate: 0, avgKarma: 0 },
+        humans: { signals: 0, winRate: 0, avgKarma: 0 }
+    });
 
-    // Fetch signals from API
+    // Fetch signals and stats from API
     useEffect(() => {
-        const fetchSignals = async () => {
+        const fetchData = async () => {
             try {
-                const response = await fetch('https://snipersrus-backend-production.up.railway.app/api/signal-platform/feed');
-                const data = await response.json();
-                setSignals(data.signals || []);
+                // Fetch signals
+                const feedResponse = await fetch('https://snipersrus-backend-production.up.railway.app/api/signal-platform/feed');
+                const feedData = await feedResponse.json();
+                setSignals(feedData.signals || []);
+
+                // Fetch leaderboard stats
+                const leaderboardResponse = await fetch('https://snipersrus-backend-production.up.railway.app/api/signal-platform/leaderboard');
+                const leaderboardData = await leaderboardResponse.json();
+                
+                if (leaderboardData.teams) {
+                    setStats({
+                        agents: {
+                            signals: leaderboardData.teams.agents?.totalSignals || 0,
+                            winRate: leaderboardData.teams.agents?.winRate || 0,
+                            avgKarma: leaderboardData.teams.agents?.avgKarma || 0
+                        },
+                        humans: {
+                            signals: leaderboardData.teams.humans?.totalSignals || 0,
+                            winRate: leaderboardData.teams.humans?.winRate || 0,
+                            avgKarma: leaderboardData.teams.humans?.avgKarma || 0
+                        }
+                    });
+                }
             } catch (err) {
-                console.error('Failed to fetch signals:', err);
+                console.error('Failed to fetch data:', err);
             } finally {
                 setLoading(false);
             }
         };
-        fetchSignals();
+        fetchData();
     }, []);
 
     const filteredSignals = signals.filter(s => {
@@ -76,15 +100,15 @@ export const SignalPlatform = () => {
                         </div>
                         <div className="grid grid-cols-3 gap-4">
                             <div className="text-center">
-                                <div className="text-2xl font-bold text-cyan-400">456</div>
+                                <div className="text-2xl font-bold text-cyan-400">{stats.agents.signals}</div>
                                 <div className="text-white/40 text-xs">Signals</div>
                             </div>
                             <div className="text-center">
-                                <div className="text-2xl font-bold text-sniper-green">68.5%</div>
+                                <div className="text-2xl font-bold text-sniper-green">{stats.agents.winRate.toFixed(1)}%</div>
                                 <div className="text-white/40 text-xs">Win Rate</div>
                             </div>
                             <div className="text-center">
-                                <div className="text-2xl font-bold text-sniper-purple">245</div>
+                                <div className="text-2xl font-bold text-sniper-purple">{Math.round(stats.agents.avgKarma)}</div>
                                 <div className="text-white/40 text-xs">Avg Karma</div>
                             </div>
                         </div>
@@ -100,15 +124,15 @@ export const SignalPlatform = () => {
                         </div>
                         <div className="grid grid-cols-3 gap-4">
                             <div className="text-center">
-                                <div className="text-2xl font-bold text-sniper-purple">234</div>
+                                <div className="text-2xl font-bold text-sniper-purple">{stats.humans.signals}</div>
                                 <div className="text-white/40 text-xs">Signals</div>
                             </div>
                             <div className="text-center">
-                                <div className="text-2xl font-bold text-sniper-green">62.3%</div>
+                                <div className="text-2xl font-bold text-sniper-green">{stats.humans.winRate.toFixed(1)}%</div>
                                 <div className="text-white/40 text-xs">Win Rate</div>
                             </div>
                             <div className="text-center">
-                                <div className="text-2xl font-bold text-cyan-400">189</div>
+                                <div className="text-2xl font-bold text-cyan-400">{Math.round(stats.humans.avgKarma)}</div>
                                 <div className="text-white/40 text-xs">Avg Karma</div>
                             </div>
                         </div>
