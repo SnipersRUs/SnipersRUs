@@ -283,7 +283,7 @@ export const Tiers = () => {
                 {/* Discord CTA */}
                 <div className="text-center">
                     <a
-                        href="https://discord.gg/snipersrus"
+                        href="https://discord.gg/jnT3hHk"
                         target="_blank"
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-3 px-8 py-4 bg-[#5865F2] hover:bg-[#4752C4] text-white font-bold font-orbitron rounded-lg transition-all group"

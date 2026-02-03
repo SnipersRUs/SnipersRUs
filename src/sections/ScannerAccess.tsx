@@ -48,7 +48,7 @@ export const ScannerAccess = () => {
     const [status, setStatus] = useState<{hasAccess: boolean; remaining: number} | null>(null);
 
     const DEV_WALLET = '0x9C23d0F34606204202a9b88B2CD8dBBa24192Ae5';
-    const DISCORD_LINK = 'https://discord.gg/snipersrus';
+    const DISCORD_LINK = 'https://discord.gg/jnT3hHk';
 
     const connectWallet = async () => {
         try {
