@@ -18,6 +18,7 @@ import { PaperTrading } from './sections/PaperTrading';
 import { RatingLeaderboard } from './sections/RatingLeaderboard';
 
 import { TerminalProvider } from './TerminalContext';
+import { StatusBar } from './components/StatusBar';
 
 function App() {
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -137,6 +138,9 @@ function App() {
 
                 <AgentIdentityModal />
                 <FreeTrialModal />
+                
+                {/* Real-time Status Bar */}
+                <StatusBar />
             </div>
         </TerminalProvider>
     );

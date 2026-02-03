@@ -32,7 +32,14 @@ export const RatingLeaderboard = () => {
                 setLoading(false);
             }
         };
+        
+        // Initial fetch
         fetchLeaderboard();
+        
+        // Real-time updates every 30 seconds
+        const interval = setInterval(fetchLeaderboard, 30000);
+        
+        return () => clearInterval(interval);
     }, [activeTab]);
 
     return (

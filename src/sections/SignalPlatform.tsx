@@ -25,7 +25,7 @@ export const SignalPlatform = () => {
         humans: { signals: 0, winRate: 0, avgKarma: 0 }
     });
 
-    // Fetch signals and stats from API
+    // Fetch signals and stats from API with real-time updates
     useEffect(() => {
         const fetchData = async () => {
             try {
@@ -58,7 +58,14 @@ export const SignalPlatform = () => {
                 setLoading(false);
             }
         };
+        
+        // Initial fetch
         fetchData();
+        
+        // Real-time updates every 30 seconds
+        const interval = setInterval(fetchData, 30000);
+        
+        return () => clearInterval(interval);
     }, []);
 
     const filteredSignals = signals.filter(s => {
