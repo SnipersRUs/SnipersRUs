@@ -1,6 +1,14 @@
-import { useState, useEffect } from 'react';
-import { Target, Zap, TrendingUp, Copy, CheckCircle } from 'lucide-react';
+import { useState } from 'react';
+import { Zap, Copy, CheckCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+
+declare global {
+  interface Window {
+    ethereum?: {
+      request: (args: { method: string }) => Promise<string[]>;
+    };
+  }
+}
 
 const PACKAGES = [
     {
