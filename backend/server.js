@@ -45,6 +45,22 @@ app.use('/api/signals', SignalRoutes);
 app.use('/api/bets', BetRoutes);
 app.use('/api/users', UserRoutes);
 
+// Root route - redirect to health or show API info
+app.get('/', (req, res) => {
+  res.json({
+    name: 'SnipersRUs Backend API',
+    version: '1.0.0',
+    status: 'running',
+    endpoints: {
+      health: '/health',
+      signals: '/api/signals',
+      bets: '/api/bets',
+      users: '/api/users'
+    },
+    documentation: 'API docs coming soon'
+  });
+});
+
 // Health check
 app.get('/health', (req, res) => {
   res.json({ 
