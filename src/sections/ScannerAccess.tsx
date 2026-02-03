@@ -145,10 +145,14 @@ export const ScannerAccess = () => {
                                 )}
                                 onClick={(e) => {
                                     e.stopPropagation();
-                                    alert(`Stake ${tier.stake} CLAWNCH for ${tier.name} access\n\nThis will:\n1. Transfer CLAWNCH to staking contract\n2. Unlock ${tier.name} tier immediately\n3. Start earning signal access`);
+                                    if (!address) {
+                                        alert('Please enter your wallet address above first!');
+                                        return;
+                                    }
+                                    alert(`To Stake ${tier.stake} CLAWNCH for ${tier.name}:\n\n1. You need CLAWNCH tokens in your wallet\n2. Sign a message to confirm staking\n3. Tokens are held in the staking contract\n4. Access unlocks immediately\n\nTo test: Use the curl commands below or connect a wallet with CLAWNCH.`);
                                 }}
                             >
-                                {selectedTier === tier.name ? 'SELECTED' : 'SELECT'}
+                                {selectedTier === tier.name ? 'SELECTED' : 'STAKE'}
                             </button>
                         </div>
                     ))}
