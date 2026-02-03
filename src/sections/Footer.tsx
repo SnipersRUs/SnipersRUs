@@ -84,11 +84,11 @@ export const Footer = () => {
                     {/* View Counter - Illuminated Number */}
                     <div className="flex items-center gap-3">
                         <div className="relative">
-                            <div className="text-4xl font-bold font-orbitron text-white drop-shadow-[0_0_15px_rgba(0,255,65,0.8)]">
+                            <div className="text-xl font-bold font-orbitron text-white drop-shadow-[0_0_10px_rgba(0,255,65,0.6)]">
                                 {visitCount.toLocaleString()}
                             </div>
                             {/* Glow effect */}
-                            <div className="absolute inset-0 blur-xl bg-sniper-green/30 -z-10"></div>
+                            <div className="absolute inset-0 blur-md bg-sniper-green/20 -z-10"></div>
                         </div>
                     </div>
                     

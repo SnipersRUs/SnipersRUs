@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Menu, X, Terminal, Zap, Bot, Wallet, Coins, Radio, User, Target } from 'lucide-react';
+import { Menu, X, Terminal, Zap, Bot, Wallet, Coins, Radio, User, Target, Server } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTerminal } from '@/TerminalContext';
 
@@ -34,6 +34,7 @@ export const Navigation = () => {
         { id: 'terminal', label: 'TERMINAL', icon: Terminal, external: false },
         { id: 'trading', label: 'TRADE', icon: Zap, external: false },
         { id: 'fuel-cluster', label: 'FUEL', icon: Zap, external: false },
+        { id: 'backend', label: 'API', icon: Server, external: true, url: 'https://snipersrus-backend-production.up.railway.app' },
     ];
 
     return (
