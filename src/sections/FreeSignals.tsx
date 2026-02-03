@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Radio, Clock, TrendingUp, AlertTriangle, CheckCircle, Bell, Zap } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-// Sample free signals - in production these would come from your API
-const FREE_SIGNALS = [
+// Default signals while loading
+const DEFAULT_SIGNALS = [
     {
         id: 1,
         pair: "BTC/USDT",
@@ -12,35 +12,28 @@ const FREE_SIGNALS = [
         target: "91,200",
         stop: "88,800",
         confidence: 78,
-        time: "2 hours ago",
-        status: "ACTIVE"
-    },
-    {
-        id: 2,
-        pair: "SOL/USDT",
-        type: "SHORT",
-        entry: "125.50",
-        target: "118.00",
-        stop: "128.00",
-        confidence: 82,
-        time: "4 hours ago",
-        status: "ACTIVE"
-    },
-    {
-        id: 3,
-        pair: "ETH/USDT",
-        type: "LONG",
-        entry: "2,450",
-        target: "2,520",
-        stop: "2,420",
-        confidence: 75,
-        time: "6 hours ago",
-        status: "HIT_TP"
+        time: "Loading...",
+        status: "ACTIVE",
+        source: "Short Hunter"
     }
 ];
 
+interface Signal {
+    id: number;
+    pair: string;
+    type: string;
+    entry: string;
+    target: string;
+    stop: string;
+    confidence: number;
+    time: string;
+    status: string;
+    source?: string;
+    reasons?: string[];
+}
+
 interface SignalCardProps {
-    signal: typeof FREE_SIGNALS[0];
+    signal: Signal;
 }
 
 const SignalCard = ({ signal }: SignalCardProps) => {
@@ -116,6 +109,32 @@ const SignalCard = ({ signal }: SignalCardProps) => {
 export const FreeSignals = () => {
     const [email, setEmail] = useState("");
     const [subscribed, setSubscribed] = useState(false);
+    const [signals, setSignals] = useState<Signal[]>(DEFAULT_SIGNALS);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        // Fetch signals from JSON file
+        const fetchSignals = async () => {
+            try {
+                const response = await fetch('/signals.json');
+                if (response.ok) {
+                    const data = await response.json();
+                    if (Array.isArray(data) && data.length > 0) {
+                        setSignals(data);
+                    }
+                }
+            } catch (error) {
+                console.log('Using default signals');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchSignals();
+        // Refresh every 5 minutes
+        const interval = setInterval(fetchSignals, 300000);
+        return () => clearInterval(interval);
+    }, []);
 
     const handleSubscribe = (e: React.FormEvent) => {
         e.preventDefault();
@@ -161,9 +180,15 @@ export const FreeSignals = () => {
                         </div>
                         
                         <div className="space-y-3">
-                            {FREE_SIGNALS.map((signal) => (
-                                <SignalCard key={signal.id} signal={signal} />
-                            ))}
+                            {loading ? (
+                                <div className="p-4 rounded-xl bg-black/30 border border-white/10 text-center">
+                                    <div className="text-white/50">Loading signals...</div>
+                                </div>
+                            ) : (
+                                signals.map((signal) => (
+                                    <SignalCard key={signal.id} signal={signal} />
+                                ))
+                            )}
                         </div>
                         
                         <div className="p-4 rounded-xl bg-sniper-purple/10 border border-sniper-purple/20">
