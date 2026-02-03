@@ -98,6 +98,11 @@ function App() {
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
+    // Scroll to top on page load
+    useEffect(() => {
+        window.scrollTo(0, 0);
+    }, []);
+
     return (
         <TerminalProvider>
             <div className="bg-black min-h-screen text-white font-sans selection:bg-sniper-green/30">
@@ -112,9 +117,9 @@ function App() {
                 <div className="relative z-10">
                     <Navigation />
                     <main>
+                        <Hero />
                         <ClawrmaPromo />
                         <SignalBetting />
-                        <Hero />
                         <ZOIDToken />
                         <Tiers />
                         <FreeSignals />
