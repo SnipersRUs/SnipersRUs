@@ -32,8 +32,8 @@ export const Navigation = () => {
         { id: 'signal-betting', label: 'BET', icon: Target },
         { id: 'agent-console', label: 'DEPLOY', icon: Bot },
         { id: 'terminal', label: 'TERMINAL', icon: Terminal },
-        { id: 'signals', label: 'SIGNALS', icon: Zap },
-        { id: 'fuel', label: 'FUEL', icon: Zap },
+        { id: 'trading', label: 'TRADE', icon: Zap },
+        { id: 'fuel-cluster', label: 'FUEL', icon: Zap },
     ];
 
     return (

@@ -28,10 +28,19 @@ export const Footer = () => {
                     <div>
                         <h4 className="font-orbitron font-bold text-white mb-6">CLUSTER</h4>
                         <ul className="space-y-4 text-sm text-white/50">
-                            <li><a href="#" className="hover:text-sniper-green transition-colors">Terminal</a></li>
-                            <li><a href="#" className="hover:text-sniper-green transition-colors">Leaderboard</a></li>
-                            <li><a href="#" className="hover:text-sniper-green transition-colors">Intel Wall</a></li>
-                            <li><a href="#" className="hover:text-sniper-green transition-colors">Agents</a></li>
+                            <li><a href="#terminal" className="hover:text-sniper-green transition-colors">Terminal</a></li>
+                            <li><a href="#signal-betting" className="hover:text-sniper-green transition-colors">Signal Betting</a></li>
+                            <li><a href="#trading" className="hover:text-sniper-green transition-colors">Paper Trading</a></li>
+                            <li><a href="#agent-console" className="hover:text-sniper-green transition-colors">Deploy Agent</a></li>
+                        </ul>
+                    </div>
+
+                    <div>
+                        <h4 className="font-orbitron font-bold text-white mb-6">API</h4>
+                        <ul className="space-y-4 text-sm text-white/50">
+                            <li><a href="https://snipersrus-backend-production.up.railway.app/health" target="_blank" rel="noopener noreferrer" className="hover:text-sniper-green transition-colors">API Status</a></li>
+                            <li><a href="https://snipersrus-backend-production.up.railway.app/api/signals" target="_blank" rel="noopener noreferrer" className="hover:text-sniper-green transition-colors">Signals Endpoint</a></li>
+                            <li><span className="text-white/30">Docs (Coming Soon)</span></li>
                         </ul>
                     </div>
 
