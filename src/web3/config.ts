@@ -27,21 +27,22 @@ export const config = createConfig({
 // USDC on Base
 export const USDC_CONTRACT = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913'
 
-// CoinGecko API for free price feeds
-export const COINGECKO_API = 'https://api.coingecko.com/api/v3'
+// OKX Futures API for real-time price feeds
+export const OKX_API = 'https://www.okx.com/api/v5'
 
-// Price feed mapping
+// Price feed mapping - OKX instId format
 export const PRICE_IDS: Record<string, string> = {
-  'BTC': 'bitcoin',
-  'ETH': 'ethereum',
-  'SOL': 'solana',
-  'BNB': 'binancecoin',
-  'XRP': 'ripple',
-  'ADA': 'cardano',
-  'DOGE': 'dogecoin',
-  'LINK': 'chainlink',
-  'AVAX': 'avalanche-2',
-  'MATIC': 'matic-network'
+  'BTC': 'BTC-USDT-SWAP',
+  'ETH': 'ETH-USDT-SWAP',
+  'SOL': 'SOL-USDT-SWAP',
+  'BNB': 'BNB-USDT-SWAP',
+  'XRP': 'XRP-USDT-SWAP',
+  'ADA': 'ADA-USDT-SWAP',
+  'DOGE': 'DOGE-USDT-SWAP',
+  'LINK': 'LINK-USDT-SWAP',
+  'AVAX': 'AVAX-USDT-SWAP',
+  'MATIC': 'MATIC-USDT-SWAP',
+  'SUI': 'SUI-USDT-SWAP'
 }
 
 // USDC ABI for approval/balance

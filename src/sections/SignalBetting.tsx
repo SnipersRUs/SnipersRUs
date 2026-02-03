@@ -6,7 +6,8 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ConnectWalletButton } from '@/components/ConnectWalletButton';
-import { COINGECKO_API, PRICE_IDS } from '@/web3/config';
+import { OKX_API, PRICE_IDS } from '@/web3/config';
+import { signalsApi } from '@/lib/api';
 
 interface Signal {
     id: number;
@@ -37,96 +38,6 @@ interface Signal {
     fee: number;
     veilMarketId?: string;
 }
-
-const MOCK_SIGNALS: Signal[] = [
-    {
-        id: 1,
-        provider: {
-            id: "0x71...f9a",
-            name: "AlphaQuant",
-            avatar: "🎯",
-            reputation: 94,
-            winRate: 73,
-            totalSignals: 247,
-            erc8004Id: "agent_f142261cc302b600"
-        },
-        asset: "BTC",
-        type: "LONG",
-        entry: 45200,
-        current: 45800,
-        target: 48000,
-        stopLoss: 44000,
-        timeframe: "24h",
-        timeLeft: "18h 23m",
-        stakeAmount: 5000,
-        bidCount: 23,
-        totalBids: 8900,
-        yesOdds: 2.3,
-        noOdds: 1.7,
-        status: "ACTIVE",
-        isEncrypted: true,
-        fee: 25,
-        veilMarketId: "0xabc..."
-    },
-    {
-        id: 2,
-        provider: {
-            id: "0x82...e12",
-            name: "NeuralNet",
-            avatar: "🧠",
-            reputation: 87,
-            winRate: 68,
-            totalSignals: 156,
-            erc8004Id: "agent_8a9b2c3d4e5f"
-        },
-        asset: "ETH",
-        type: "SHORT",
-        entry: 2450,
-        current: 2420,
-        target: 2300,
-        stopLoss: 2520,
-        timeframe: "12h",
-        timeLeft: "8h 45m",
-        stakeAmount: 2500,
-        bidCount: 15,
-        totalBids: 4200,
-        yesOdds: 1.9,
-        noOdds: 2.1,
-        status: "ACTIVE",
-        isEncrypted: true,
-        fee: 15,
-        veilMarketId: "0xdef..."
-    },
-    {
-        id: 3,
-        provider: {
-            id: "0x33...c44",
-            name: "WhaleWatcher",
-            avatar: "🐋",
-            reputation: 96,
-            winRate: 81,
-            totalSignals: 512,
-            erc8004Id: "agent_1a2b3c4d5e6f"
-        },
-        asset: "SOL",
-        type: "LONG",
-        entry: 98.5,
-        current: 102.3,
-        target: 110,
-        stopLoss: 94,
-        timeframe: "48h",
-        timeLeft: "41h 12m",
-        stakeAmount: 10000,
-        bidCount: 47,
-        totalBids: 15200,
-        yesOdds: 2.1,
-        noOdds: 1.8,
-        status: "SETTLED_SUCCESS",
-        isEncrypted: false,
-        fee: 50,
-        veilMarketId: "0xghi..."
-    }
-];
 
 interface SignalCardProps {
     signal: Signal;
@@ -314,37 +225,45 @@ const SignalCard = ({ signal, onBid }: SignalCardProps) => {
 };
 
 export const SignalBetting = () => {
-    const [signals, setSignals] = useState<Signal[]>(MOCK_SIGNALS);
+    const [signals, setSignals] = useState<Signal[]>([]);
     const [activeTab, setActiveTab] = useState<'ACTIVE' | 'SETTLED'>('ACTIVE');
     const [showBidModal, setShowBidModal] = useState(false);
     const [selectedSignal, setSelectedSignal] = useState<Signal | null>(null);
     const [bidAmount, setBidAmount] = useState('');
     const [, setPrices] = useState<Record<string, number>>({});
     const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
-    // Fetch real prices from CoinGecko
+    // Fetch real-time futures prices from OKX
     const fetchPrices = async () => {
         try {
-            const ids = signals
-                .filter(s => s.status === 'ACTIVE')
-                .map(s => PRICE_IDS[s.asset] || s.asset.toLowerCase())
-                .filter(Boolean)
-                .join(',');
-            
-            if (!ids) return;
+            const activeSignals = signals.filter(s => s.status === 'ACTIVE');
+            if (activeSignals.length === 0) return;
 
-            const response = await fetch(
-                `${COINGECKO_API}/simple/price?ids=${ids}&vs_currencies=usd`
-            );
-            const data = await response.json();
-            
             const newPrices: Record<string, number> = {};
-            signals.forEach(signal => {
-                const id = PRICE_IDS[signal.asset] || signal.asset.toLowerCase();
-                if (data[id]?.usd) {
-                    newPrices[signal.asset] = data[id].usd;
-                }
-            });
+            
+            // Fetch each price individually (OKX doesn't support batch in free tier)
+            await Promise.all(
+                activeSignals.map(async (signal) => {
+                    const instId = PRICE_IDS[signal.asset];
+                    if (!instId) return;
+                    
+                    try {
+                        const response = await fetch(
+                            `${OKX_API}/market/ticker?instId=${instId}`
+                        );
+                        const data = await response.json();
+                        
+                        if (data.code === '0' && data.data && data.data[0]) {
+                            // OKX returns last traded price
+                            newPrices[signal.asset] = parseFloat(data.data[0].last);
+                        }
+                    } catch (err) {
+                        console.error(`Failed to fetch ${signal.asset}:`, err);
+                    }
+                })
+            );
             
             setPrices(newPrices);
             setLastUpdate(new Date());
@@ -361,12 +280,62 @@ export const SignalBetting = () => {
         }
     };
 
+    // Fetch signals from API on mount
+    useEffect(() => {
+        const fetchSignals = async () => {
+            try {
+                setLoading(true);
+                const data = await signalsApi.getAll();
+                // Transform API data to component format
+                const transformedSignals = data.map((s: any) => ({
+                    id: s.id,
+                    provider: {
+                        id: s.provider?.address || '0x...',
+                        name: s.provider?.name || 'Unknown',
+                        avatar: '🎯',
+                        reputation: s.provider?.reputation || 50,
+                        winRate: s.provider?.winRate || 50,
+                        totalSignals: s.provider?.totalSignals || 0,
+                        erc8004Id: s.provider?.erc8004Id || ''
+                    },
+                    asset: s.asset,
+                    type: s.type,
+                    entry: s.entry,
+                    current: s.current || s.entry,
+                    target: s.target,
+                    stopLoss: s.stopLoss,
+                    timeframe: s.timeframe,
+                    timeLeft: s.timeLeft || '24h',
+                    stakeAmount: s.stakeAmount || 1000,
+                    bidCount: s.bidCount || 0,
+                    totalBids: s.totalBids || 0,
+                    yesOdds: s.yesOdds || 2.0,
+                    noOdds: s.noOdds || 2.0,
+                    status: s.status,
+                    isEncrypted: s.isEncrypted !== false,
+                    fee: s.fee || 25,
+                    veilMarketId: s.veilMarketId
+                }));
+                setSignals(transformedSignals);
+                setError(null);
+            } catch (err) {
+                console.error('Failed to fetch signals:', err);
+                setError('Failed to load signals');
+            } finally {
+                setLoading(false);
+            }
+        };
+        
+        fetchSignals();
+    }, []);
+
     // Fetch prices on mount and every 30 seconds
     useEffect(() => {
+        if (signals.length === 0) return;
         fetchPrices();
         const interval = setInterval(fetchPrices, 30000);
         return () => clearInterval(interval);
-    }, []);
+    }, [signals]);
 
     const handleBid = (signal: Signal) => {
         setSelectedSignal(signal);
@@ -503,7 +472,31 @@ export const SignalBetting = () => {
                     </button>
                 </div>
 
+                {/* Loading State */}
+                {loading && (
+                    <div className="text-center py-12">
+                        <div className="inline-flex items-center gap-2 text-white/60">
+                            <RefreshCw size={20} className="animate-spin" />
+                            Loading signals...
+                        </div>
+                    </div>
+                )}
+
+                {/* Error State */}
+                {error && (
+                    <div className="text-center py-12">
+                        <div className="text-red-400 mb-2">⚠️ {error}</div>
+                        <button 
+                            onClick={() => window.location.reload()}
+                            className="text-cyan-400 hover:text-cyan-300 underline"
+                        >
+                            Retry
+                        </button>
+                    </div>
+                )}
+
                 {/* Signals Grid */}
+                {!loading && !error && (
                 <div className="grid lg:grid-cols-2 gap-6">
                     {signals
                         .filter(s => activeTab === 'ACTIVE' ? s.status === 'ACTIVE' : s.status !== 'ACTIVE')
@@ -515,6 +508,7 @@ export const SignalBetting = () => {
                             />
                         ))}
                 </div>
+                )}
 
                 {/* How It Works - Enhanced */}
                 <div className="mt-16 p-8 rounded-2xl bg-sniper-card border border-white/10">
