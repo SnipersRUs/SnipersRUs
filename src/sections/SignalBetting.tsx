@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { TrendingUp, TrendingDown, Target, Clock, Users, DollarSign, Shield, Radio } from 'lucide-react';
+import { TrendingUp, TrendingDown, Target, Clock, Users, DollarSign, Shield, Radio, Wallet, ArrowUp, ShieldCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface Signal {
@@ -297,23 +297,62 @@ export const SignalBetting = () => {
     return (
         <section id="signal-betting" className="py-24 px-4 bg-gradient-to-b from-sniper-black via-sniper-purple/5 to-sniper-black">
             <div className="max-w-6xl mx-auto">
-                {/* Header */}
-                <div className="text-center mb-12">
-                    <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-sniper-purple/10 border border-sniper-purple/20 mb-6">
-                        <Target size={16} className="text-sniper-purple" />
-                        <span className="text-[10px] font-mono text-sniper-purple uppercase tracking-widest">
-                            Prediction Markets
-                        </span>
+                {/* Header with Clawrma Branding */}
+                <div className="mb-12">
+                    {/* Top Bar with Connect Wallet */}
+                    <div className="flex flex-col md:flex-row items-center justify-between mb-8 p-4 rounded-2xl bg-sniper-card border border-white/10">
+                        <div className="flex items-center gap-3 mb-4 md:mb-0">
+                            <div className="w-10 h-10 rounded-xl bg-cyan-500/20 flex items-center justify-center">
+                                <ShieldCheck size={20} className="text-cyan-400" />
+                            </div>
+                            <div>
+                                <div className="text-white font-bold font-orbitron">CLAWRMA</div>
+                                <div className="text-white/50 text-xs">Signal Verification Protocol</div>
+                            </div>
+                        </div>
+                        
+                        <div className="flex items-center gap-4">
+                            <button
+                                onClick={() => alert('Wallet connect coming soon!')}
+                                className={cn(
+                                    "flex items-center gap-2 px-6 py-3 rounded-xl",
+                                    "bg-cyan-500 hover:bg-cyan-400",
+                                    "text-black font-bold font-orbitron",
+                                    "transition-all hover:scale-105"
+                                )}
+                            >
+                                <Wallet size={18} />
+                                CONNECT WALLET
+                            </button>
+                            
+                            <button
+                                onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                                className="p-3 rounded-xl bg-white/5 hover:bg-white/10 text-white/60 hover:text-white transition-all"
+                                title="Back to top"
+                            >
+                                <ArrowUp size={18} />
+                            </button>
+                        </div>
                     </div>
-                    
-                    <h2 className="text-4xl md:text-5xl font-bold font-orbitron text-white mb-4">
-                        SIGNAL <span className="text-sniper-purple">BETTING</span>
-                    </h2>
-                    
-                    <p className="text-white/60 max-w-2xl mx-auto text-lg">
-                        Bet on whether trading signals will hit their targets. 
-                        Real odds, real payouts, powered by Veil on Base.
-                    </p>
+
+                    {/* Title Section */}
+                    <div className="text-center">
+                        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-cyan-500/10 border border-cyan-500/20 mb-6">
+                            <Target size={16} className="text-cyan-400" />
+                            <span className="text-[10px] font-mono text-cyan-400 uppercase tracking-widest">
+                                Prediction Markets on Base
+                            </span>
+                        </div>
+                        
+                        <h2 className="text-4xl md:text-5xl font-bold font-orbitron text-white mb-4">
+                            SIGNAL <span className="text-cyan-400">BETTING</span>
+                        </h2>
+                        
+                        <p className="text-white/60 max-w-2xl mx-auto text-lg">
+                            Bet on whether trading signals hit their targets. 
+                            Real USDC payouts. Powered by Veil + Safe on Base.
+                        </p>
+                    </div>
                 </div>
 
                 {/* Stats */}

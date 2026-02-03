@@ -14,6 +14,7 @@ import { ZOIDToken } from './sections/ZOIDToken';
 import { FreeSignals } from './sections/FreeSignals';
 import { SniperGuruTracker } from './sections/SniperGuruTracker';
 import { SignalBetting } from './sections/SignalBetting';
+import { ClawrmaPromo } from './sections/ClawrmaPromo';
 
 import { TerminalProvider } from './TerminalContext';
 
@@ -112,6 +113,7 @@ function App() {
                     <Navigation />
                     <main>
                         <Hero />
+                        <ClawrmaPromo />
                         <ZOIDToken />
                         <Tiers />
                         <FreeSignals />
