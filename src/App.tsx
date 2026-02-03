@@ -15,6 +15,7 @@ import { SniperGuruTracker } from './sections/SniperGuruTracker';
 import { SignalPlatform } from './sections/SignalPlatform';
 import { ScannerAccess } from './sections/ScannerAccess';
 import { PaperTrading } from './sections/PaperTrading';
+import { RatingLeaderboard } from './sections/RatingLeaderboard';
 
 import { TerminalProvider } from './TerminalContext';
 
@@ -119,6 +120,7 @@ function App() {
                     <main>
                         <Hero />
                         <SignalPlatform />
+                        <RatingLeaderboard />
                         <ScannerAccess />
                         <FreeSignals />
                         <ZOIDToken />
