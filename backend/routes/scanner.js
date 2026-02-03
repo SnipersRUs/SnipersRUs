@@ -108,6 +108,11 @@ router.post('/stake', async (req, res) => {
     if (amount >= SCANNER_TIERS.GURU.stake) tier = 'GURU';
     else if (amount >= SCANNER_TIERS.PRO.stake) tier = 'PRO';
     
+    // Send Discord notification
+    if (req.discord) {
+      await req.discord.sendStakeNotification(address, amount, tier);
+    }
+    
     res.json({
       success: true,
       stakeId: stake.id,
@@ -156,6 +161,11 @@ router.post('/unstake', async (req, res) => {
     // TODO: Transfer fee to dev wallet on-chain
     // For now, track it
     await req.db.recordDevFee(fee);
+    
+    // Send Discord notification
+    if (req.discord) {
+      await req.discord.sendUnstakeNotification(address, stake.amount, fee, returnAmount);
+    }
     
     res.json({
       success: true,
@@ -476,6 +486,11 @@ router.post('/tip', async (req, res) => {
     // Update Sniper Guru stats
     await req.db.updateSniperGuruTips(guruAmount, burnAmount);
     
+    // Send Discord notification
+    if (req.discord) {
+      await req.discord.sendTipNotification(tipper, amount, guruAmount, burnAmount, message, signalId);
+    }
+    
     res.json({
       success: true,
       tipId: tip.id,
@@ -768,6 +783,11 @@ router.post('/burn', async (req, res) => {
     
     // Update total burned stats
     await req.db.updateBurnStats(amount, tokenAllocation);
+    
+    // Send Discord notification
+    if (req.discord) {
+      await req.discord.sendBurnNotification(address, amount, allocationPercent, tokenAllocation);
+    }
     
     res.json({
       success: true,

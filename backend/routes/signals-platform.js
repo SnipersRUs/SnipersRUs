@@ -82,8 +82,18 @@ router.post('/submit', async (req, res) => {
     
     await req.db.createSignal(signal);
     
-    // Notify Discord
-    await notifyDiscord(signal);
+    // Send Discord notification
+    if (req.discord) {
+      await req.discord.sendSignalNotification(
+        provider, 
+        symbol, 
+        type, 
+        entry, 
+        takeProfit, 
+        stopLoss, 
+        isAgent
+      );
+    }
     
     res.status(201).json({
       success: true,

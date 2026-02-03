@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 const Database = require('./database');
+const DiscordService = require('./services/discord');
 const UserRoutes = require('./routes/users');
 const SubscriptionRoutes = require('./routes/subscriptions');
 const AgentRoutes = require('./routes/agents');
@@ -12,8 +13,9 @@ const ScannerRoutes = require('./routes/scanner');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Initialize database
+// Initialize database and Discord service
 const db = new Database();
+const discord = new DiscordService();
 
 // Middleware
 app.use(cors({
@@ -31,9 +33,10 @@ const limiter = rateLimit({
 });
 app.use('/api/', limiter);
 
-// Attach database to requests
+// Attach database and Discord service to requests
 app.use((req, res, next) => {
   req.db = db;
+  req.discord = discord;
   next();
 });
 
