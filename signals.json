@@ -1,81 +1,14 @@
-{
-  "lastUpdated": "2026-01-31T20:06:57.512262",
-  "signals": [
-    {
-      "id": "sig_1769908017512",
-      "symbol": "BTC/USDT",
-      "type": "LONG",
-      "entryPrice": 98450,
-      "dDev": -2.45,
-      "wDev": -1.82,
-      "prob": 89.2,
-      "liq": "4.2M",
-      "sweep": "YES",
-      "status": "ACTIVE",
-      "sentiment": {
-        "bullish": 0,
-        "bearish": 0
-      },
-      "comments": [],
-      "createdAt": 1769908017512,
-      "pnl": 0.0
-    },
-    {
-      "id": "sig_btc_001",
-      "symbol": "BTC/USDT",
-      "type": "LONG",
-      "entryPrice": 98450,
-      "dDev": -2.45,
-      "wDev": -1.82,
-      "prob": 89.2,
-      "liq": "4.2M",
-      "sweep": "YES",
-      "status": "ACTIVE",
-      "sentiment": {
-        "bullish": 12,
-        "bearish": 3
-      },
-      "comments": [],
-      "createdAt": 1738368000000,
-      "pnl": 2.4
-    },
-    {
-      "id": "sig_eth_001",
-      "symbol": "ETH/USDT",
-      "type": "SHORT",
-      "entryPrice": 2850,
-      "dDev": 2.89,
-      "wDev": 2.1,
-      "prob": 92.1,
-      "liq": "1.8M",
-      "sweep": "YES",
-      "status": "ACTIVE",
-      "sentiment": {
-        "bullish": 5,
-        "bearish": 18
-      },
-      "comments": [],
-      "createdAt": 1738364400000,
-      "pnl": -1.2
-    },
-    {
-      "id": "sig_sol_001",
-      "symbol": "SOL/USDT",
-      "type": "LONG",
-      "entryPrice": 198,
-      "dDev": -1.56,
-      "wDev": -0.98,
-      "prob": 64.2,
-      "liq": "0.9M",
-      "sweep": "NO",
-      "status": "SCANNING",
-      "sentiment": {
-        "bullish": 8,
-        "bearish": 6
-      },
-      "comments": [],
-      "createdAt": 1738362000000,
-      "pnl": 0
-    }
-  ]
-}
+[
+  {
+    "id": 1,
+    "pair": "BTC/USDT",
+    "type": "LONG",
+    "entry": "89,450",
+    "target": "91,200",
+    "stop": "88,800",
+    "confidence": 78,
+    "time": "Waiting for bot...",
+    "status": "ACTIVE",
+    "source": "Short Hunter"
+  }
+]
