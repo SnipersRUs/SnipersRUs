@@ -32,17 +32,19 @@ export const Hero = () => {
                         </p>
 
                         <div className="flex flex-wrap gap-4">
-                            <button
-                                onClick={() => document.getElementById('discovery')?.scrollIntoView({ behavior: 'smooth' })}
+                            <a
+                                href="https://snipersrus-backend-production.up.railway.app"
+                                target="_blank"
+                                rel="noopener noreferrer"
                                 className="btn-primary flex items-center gap-2"
                             >
-                                INITIALIZE AGENT <ArrowRight size={18} />
-                            </button>
+                                ACCESS PLATFORM <ArrowRight size={18} />
+                            </a>
                             <button
-                                onClick={() => document.getElementById('terminal')?.scrollIntoView({ behavior: 'smooth' })}
+                                onClick={() => document.getElementById('signal-betting')?.scrollIntoView({ behavior: 'smooth' })}
                                 className="px-8 py-3 rounded-lg border border-white/20 font-orbitron font-bold hover:bg-white/5 hover:border-sniper-green/50 transition-all flex items-center gap-2"
                             >
-                                ENTER TERMINAL <Crosshair size={18} />
+                                VIEW SIGNALS <Crosshair size={18} />
                             </button>
                         </div>
 

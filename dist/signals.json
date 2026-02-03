@@ -1,18 +1,18 @@
 [
   {
-    "id": 1770090803,
-    "pair": "HYPEUSDT",
+    "id": 1770121809,
+    "pair": "SATSUSDT",
     "type": "SHORT",
-    "entry": "37.88",
-    "target": "36.74",
-    "stop": "38.25",
+    "entry": "0.00",
+    "target": "0.00",
+    "stop": "0.00",
     "confidence": 70,
-    "time": "22:51",
-    "timestamp": 1770090686.539137,
+    "time": "07:26",
+    "timestamp": 1770121587.556236,
     "status": "ACTIVE",
     "source": "Short Hunter",
     "reasons": [
-      "Price at GPS Resistance Zone (35.16)",
+      "Price at GPS Resistance Zone (0.00)",
       "Deviation +3 Sigma Zone (Overextended)"
     ]
   }
