@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Menu, X, Terminal, Zap, Bot, Wallet, Coins, Radio, User, Target, Server } from 'lucide-react';
+import { Menu, X, Terminal, Bot, Wallet, Coins, Radio, User, Target, Server, Shield } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTerminal } from '@/TerminalContext';
 
@@ -25,15 +25,14 @@ export const Navigation = () => {
     };
 
     const navItems = [
+        { id: 'signal-platform', label: 'SIGNALS', icon: Target, external: false },
+        { id: 'scanner', label: 'SCANNER', icon: Shield, external: false },
+        { id: 'free-signals', label: 'FREE', icon: Radio, external: false },
         { id: 'zoid-token', label: 'ZOID', icon: Coins, external: false },
         { id: 'tiers', label: 'TIERS', icon: Wallet, external: false },
-        { id: 'free-signals', label: 'FREE', icon: Radio, external: false },
         { id: 'sniper-guru', label: 'TRACKER', icon: User, external: false },
-        { id: 'clawrma', label: 'CLAWrMA', icon: Target, external: true, url: 'https://snipersrus-backend-production.up.railway.app' },
         { id: 'agent-console', label: 'DEPLOY', icon: Bot, external: false },
         { id: 'terminal', label: 'TERMINAL', icon: Terminal, external: false },
-        { id: 'trading', label: 'TRADE', icon: Zap, external: false },
-        { id: 'fuel-cluster', label: 'FUEL', icon: Zap, external: false },
         { id: 'backend', label: 'API', icon: Server, external: true, url: 'https://snipersrus-backend-production.up.railway.app' },
     ];
 

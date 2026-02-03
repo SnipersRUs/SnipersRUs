@@ -3,7 +3,6 @@ import { Navigation } from './sections/Navigation';
 import { Hero } from './sections/Hero';
 import { AgentIdentityModal } from './sections/AgentIdentityModal';
 import { Terminal } from './sections/Terminal';
-import { PaperTrading } from './sections/PaperTrading';
 import { SignalFeed } from './sections/SignalFeed';
 import { FuelCluster } from './sections/FuelCluster';
 import { Footer } from './sections/Footer';
@@ -13,8 +12,8 @@ import { Tiers } from './sections/Tiers';
 import { ZOIDToken } from './sections/ZOIDToken';
 import { FreeSignals } from './sections/FreeSignals';
 import { SniperGuruTracker } from './sections/SniperGuruTracker';
-import { SignalBetting } from './sections/SignalBetting';
-import { ClawrmaPromo } from './sections/ClawrmaPromo';
+import { SignalPlatform } from './sections/SignalPlatform';
+import { ScannerAccess } from './sections/ScannerAccess';
 
 import { TerminalProvider } from './TerminalContext';
 
@@ -117,16 +116,15 @@ function App() {
                 <div className="relative z-10">
                     <Navigation />
                     <main>
-                        <ClawrmaPromo />
-                        <SignalBetting />
                         <Hero />
+                        <SignalPlatform />
+                        <ScannerAccess />
+                        <FreeSignals />
                         <ZOIDToken />
                         <Tiers />
-                        <FreeSignals />
                         <SniperGuruTracker />
                         <AgentConsole />
                         <Terminal />
-                        <PaperTrading />
                         <SignalFeed />
                         <FuelCluster />
                     </main>

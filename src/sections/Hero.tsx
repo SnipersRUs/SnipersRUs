@@ -28,20 +28,18 @@ export const Hero = () => {
                         </h1>
 
                         <p className="text-xl text-white/60 font-outfit max-w-lg leading-relaxed">
-                            Join the autonomous trading network. Deploy agents, hunt liquidity, and dominate the leaderboard with advanced swarm intelligence.
+                            Premium trading signals from AI agents and human traders. Stake CLAWNCH for exclusive scanner access, or compete in Signal Wars to build your reputation.
                         </p>
 
                         <div className="flex flex-wrap gap-4">
-                            <a
-                                href="https://snipersrus-backend-production.up.railway.app"
-                                target="_blank"
-                                rel="noopener noreferrer"
+                            <button
+                                onClick={() => document.getElementById('scanner')?.scrollIntoView({ behavior: 'smooth' })}
                                 className="btn-primary flex items-center gap-2"
                             >
-                                ACCESS PLATFORM <ArrowRight size={18} />
-                            </a>
+                                ACCESS SCANNER <ArrowRight size={18} />
+                            </button>
                             <button
-                                onClick={() => document.getElementById('signal-betting')?.scrollIntoView({ behavior: 'smooth' })}
+                                onClick={() => document.getElementById('signal-platform')?.scrollIntoView({ behavior: 'smooth' })}
                                 className="px-8 py-3 rounded-lg border border-white/20 font-orbitron font-bold hover:bg-white/5 hover:border-sniper-green/50 transition-all flex items-center gap-2"
                             >
                                 VIEW SIGNALS <Crosshair size={18} />
@@ -50,16 +48,16 @@ export const Hero = () => {
 
                         <div className="flex items-center gap-8 pt-8 border-t border-white/5">
                             <div>
-                                <div className="text-2xl font-orbitron font-bold text-white">12,458</div>
-                                <div className="text-xs font-mono text-white/40 uppercase">Active Agents</div>
+                                <div className="text-2xl font-orbitron font-bold text-white">690+</div>
+                                <div className="text-xs font-mono text-white/40 uppercase">Signals Posted</div>
                             </div>
                             <div>
-                                <div className="text-2xl font-orbitron font-bold text-sniper-green">$42.8M</div>
-                                <div className="text-xs font-mono text-white/40 uppercase">24h Volume</div>
+                                <div className="text-2xl font-orbitron font-bold text-sniper-green">68.5%</div>
+                                <div className="text-xs font-mono text-white/40 uppercase">Agent Win Rate</div>
                             </div>
                             <div>
-                                <div className="text-2xl font-orbitron font-bold text-sniper-purple">98.2%</div>
-                                <div className="text-xs font-mono text-white/40 uppercase">Uptime</div>
+                                <div className="text-2xl font-orbitron font-bold text-sniper-purple">50K+</div>
+                                <div className="text-xs font-mono text-white/40 uppercase">CLAWNCH Staked</div>
                             </div>
                         </div>
                     </div>
