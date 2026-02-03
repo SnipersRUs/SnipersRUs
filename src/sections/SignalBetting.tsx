@@ -7,7 +7,7 @@ import {
 import { cn } from '@/lib/utils';
 import { ConnectWalletButton } from '@/components/ConnectWalletButton';
 import { OKX_API, PRICE_IDS } from '@/web3/config';
-import { signalsApi } from '@/lib/api';
+import { signalsApi, betsApi } from '@/lib/api';
 
 interface Signal {
     id: number;
@@ -41,7 +41,7 @@ interface Signal {
 
 interface SignalCardProps {
     signal: Signal;
-    onBid: (signal: Signal) => void;
+    onBid: (signal: Signal, outcome: 'HIT' | 'MISS') => void;
 }
 
 const ReputationBadge = ({ score }: { score: number }) => {
@@ -196,7 +196,7 @@ const SignalCard = ({ signal, onBid }: SignalCardProps) => {
             {signal.status === 'ACTIVE' ? (
                 <div className="grid grid-cols-2 gap-3">
                     <button
-                        onClick={() => onBid(signal)}
+                        onClick={() => onBid(signal, 'HIT')}
                         className="p-3 rounded-lg bg-sniper-green/20 border border-sniper-green/50 hover:bg-sniper-green/30 transition-all text-center group"
                     >
                         <div className="text-sniper-green font-bold">HIT TARGET ✅</div>
@@ -204,7 +204,7 @@ const SignalCard = ({ signal, onBid }: SignalCardProps) => {
                     </button>
                     
                     <button
-                        onClick={() => onBid(signal)}
+                        onClick={() => onBid(signal, 'MISS')}
                         className="p-3 rounded-lg bg-red-500/20 border border-red-500/50 hover:bg-red-500/30 transition-all text-center group"
                     >
                         <div className="text-red-400 font-bold">MISS TARGET ❌</div>
@@ -229,6 +229,7 @@ export const SignalBetting = () => {
     const [activeTab, setActiveTab] = useState<'ACTIVE' | 'SETTLED'>('ACTIVE');
     const [showBidModal, setShowBidModal] = useState(false);
     const [selectedSignal, setSelectedSignal] = useState<Signal | null>(null);
+    const [selectedOutcome, setSelectedOutcome] = useState<'HIT' | 'MISS'>('HIT');
     const [bidAmount, setBidAmount] = useState('');
     const [, setPrices] = useState<Record<string, number>>({});
     const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
@@ -337,25 +338,54 @@ export const SignalBetting = () => {
         return () => clearInterval(interval);
     }, [signals]);
 
-    const handleBid = (signal: Signal) => {
+    const handleBid = (signal: Signal, outcome: 'HIT' | 'MISS') => {
         setSelectedSignal(signal);
+        setSelectedOutcome(outcome);
         setShowBidModal(true);
     };
 
-    const confirmBid = () => {
-        if (selectedSignal && bidAmount) {
-            alert(`Bid ${bidAmount} USDC on signal #${selectedSignal.id}!\n\nIn production:\n• CLAWNCH stake locked\n• Veil market updated\n• Signal decrypted\n• Trade auto-executed via Bankr`);
+    const confirmBid = async () => {
+        if (!selectedSignal || !bidAmount) return;
+
+        // Get wallet address (you'll need to integrate with your wallet provider)
+        const userAddress = (window as any).ethereum?.selectedAddress;
+        if (!userAddress) {
+            alert('Please connect your wallet first');
+            return;
+        }
+
+        try {
+            // Place bet via API
+            await betsApi.place({
+                signalId: selectedSignal.id,
+                userAddress,
+                outcome: selectedOutcome,
+                amount: parseFloat(bidAmount),
+                signature: 'placeholder-signature' // You'll need actual wallet signing
+            });
+
+            alert(`✅ Bet placed: ${bidAmount} USDC on ${selectedOutcome} for signal #${selectedSignal.id}`);
             setShowBidModal(false);
             setBidAmount('');
+
+            // Refresh signals to show updated state
+            const updatedSignals = await signalsApi.getAll();
+            setSignals(updatedSignals);
+        } catch (err) {
+            console.error('Failed to place bet:', err);
+            alert('❌ Failed to place bet. Check console for details.');
         }
     };
 
+    // Calculate real stats from signals data
     const platformStats = {
-        totalVolume: 284700,
-        activeSignals: 23,
-        totalProviders: 47,
-        avgRoi: 34.5,
-        clawnschStaked: 156000
+        totalVolume: signals.reduce((sum, s) => sum + (s.totalBids || 0), 0),
+        activeSignals: signals.filter(s => s.status === 'ACTIVE').length,
+        totalProviders: new Set(signals.map(s => s.provider?.id)).size,
+        avgRoi: signals.length > 0 
+            ? signals.reduce((sum, s) => sum + (s.provider?.winRate || 0), 0) / signals.length 
+            : 0,
+        clawnschStaked: signals.reduce((sum, s) => sum + (s.stakeAmount || 0), 0)
     };
 
     return (
@@ -614,7 +644,21 @@ export const SignalBetting = () => {
                         </div>
 
                         <div className="space-y-4 mb-6">
-                            <div className="p-4 rounded-xl bg-black/30 border border-white/10">
+                            <div className={cn(
+                                "p-4 rounded-xl border",
+                                selectedOutcome === 'HIT' 
+                                    ? "bg-sniper-green/10 border-sniper-green/30" 
+                                    : "bg-red-500/10 border-red-500/30"
+                            )}>
+                                <div className="flex justify-between mb-2">
+                                    <span className="text-white/60">Your Prediction</span>
+                                    <span className={cn(
+                                        "font-bold",
+                                        selectedOutcome === 'HIT' ? "text-sniper-green" : "text-red-400"
+                                    )}>
+                                        {selectedOutcome === 'HIT' ? '✅ HIT TARGET' : '❌ MISS TARGET'}
+                                    </span>
+                                </div>
                                 <div className="flex justify-between mb-2">
                                     <span className="text-white/60">Signal Fee</span>
                                     <span className="text-white font-bold">{selectedSignal.fee} USDC</span>

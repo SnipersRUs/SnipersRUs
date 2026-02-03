@@ -144,8 +144,28 @@ export const useTrading = () => {
         }));
     };
 
-    const executeTrade = useCallback((asset: string, qty: number, side: 'LONG' | 'SHORT') => {
-        const entryPrice = asset === 'BTC' ? 98450 : asset === 'ETH' ? 2850 : 198; // Mock prices
+    // Fetch real-time price from OKX
+    const fetchEntryPrice = async (asset: string): Promise<number> => {
+        try {
+            const instId = `${asset}-USDT-SWAP`;
+            const response = await fetch(`https://www.okx.com/api/v5/market/ticker?instId=${instId}`);
+            const data = await response.json();
+            if (data.code === '0' && data.data && data.data[0]) {
+                return parseFloat(data.data[0].last);
+            }
+        } catch (err) {
+            console.error('Failed to fetch price:', err);
+        }
+        return 0;
+    };
+
+    const executeTrade = useCallback(async (asset: string, qty: number, side: 'LONG' | 'SHORT') => {
+        const entryPrice = await fetchEntryPrice(asset);
+        if (entryPrice === 0) {
+            alert('Failed to fetch market price. Please try again.');
+            return;
+        }
+        
         const newPos = {
             id: `pos_${Date.now()}`,
             asset,
@@ -194,18 +214,42 @@ export const useTrading = () => {
         return Math.round((wins / tradeHistory.length) * 100);
     }, [tradeHistory]);
 
-    // Simulate Position PnL
+    // Update PnL with real-time prices from OKX
     useEffect(() => {
-        const interval = setInterval(() => {
-            setPositions(prev => prev.map(pos => {
-                // Volatility based on asset
-                const vol = pos.asset === 'BTC' ? 50 : pos.asset === 'ETH' ? 5 : 0.5;
-                const change = (Math.random() - 0.5) * vol * pos.qty;
-                return { ...pos, livePnl: pos.livePnl + change };
-            }));
-        }, 1000);
+        const updatePnL = async () => {
+            if (positions.length === 0) return;
+            
+            const updatedPositions = await Promise.all(
+                positions.map(async (pos) => {
+                    try {
+                        const instId = `${pos.asset}-USDT-SWAP`;
+                        const response = await fetch(`https://www.okx.com/api/v5/market/ticker?instId=${instId}`);
+                        const data = await response.json();
+                        
+                        if (data.code === '0' && data.data && data.data[0]) {
+                            const currentPrice = parseFloat(data.data[0].last);
+                            const priceDiff = currentPrice - pos.entryPrice;
+                            const pnl = pos.side === 'LONG' 
+                                ? priceDiff * pos.qty 
+                                : -priceDiff * pos.qty;
+                            return { ...pos, livePnl: pnl };
+                        }
+                    } catch (err) {
+                        console.error('Failed to update PnL:', err);
+                    }
+                    return pos;
+                })
+            );
+            
+            setPositions(updatedPositions);
+        };
+
+        // Update every 5 seconds
+        const interval = setInterval(updatePnL, 5000);
+        updatePnL(); // Initial update
+        
         return () => clearInterval(interval);
-    }, []);
+    }, [positions.length]);
 
     return {
         signals,
