@@ -1,39 +1,19 @@
 [
   {
-    "id": 1770083518,
+    "id": 1770090803,
     "pair": "HYPEUSDT",
     "type": "SHORT",
-    "entry": "35.15",
-    "target": "34.10",
-    "stop": "35.50",
-    "confidence": 85,
-    "time": "20:51",
-    "timestamp": 1770083490.581003,
+    "entry": "37.88",
+    "target": "36.74",
+    "stop": "38.25",
+    "confidence": 70,
+    "time": "22:51",
+    "timestamp": 1770090686.539137,
     "status": "ACTIVE",
     "source": "Short Hunter",
     "reasons": [
-      "Price at GPS Resistance Zone (33.27)",
-      "Deviation +3 Sigma Zone (Overextended)",
-      "15m Abnormal Volume Spike (Potential Reversal)"
-    ]
-  },
-  {
-    "id": 1770084369,
-    "pair": "LITUSDT",
-    "type": "SHORT",
-    "entry": "1.63",
-    "target": "1.58",
-    "stop": "1.65",
-    "confidence": 80,
-    "time": "20:51",
-    "timestamp": 1770083490.581003,
-    "status": "ACTIVE",
-    "source": "Short Hunter",
-    "reasons": [
-      "Price at GPS Resistance Zone (1.60)",
-      "Deviation +2 Sigma Zone",
-      "Bearish Divergence (Price Up, RSI Exhausted)",
-      "Buyer Exhaustion Detected"
+      "Price at GPS Resistance Zone (35.16)",
+      "Deviation +3 Sigma Zone (Overextended)"
     ]
   }
 ]
