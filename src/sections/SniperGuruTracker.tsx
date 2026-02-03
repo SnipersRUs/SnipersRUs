@@ -16,57 +16,18 @@ interface Trade {
     takeProfit: string;
 }
 
-const SNIPER_TRADES: Trade[] = [
-    {
-        id: 1,
-        pair: "BTC/USDT",
-        type: "LONG",
-        entry: "89,450",
-        current: "90,120",
-        pnl: "+670",
-        pnlPercent: 0.75,
-        status: "ACTIVE",
-        time: "2 min ago",
-        stopLoss: "88,800",
-        takeProfit: "91,200"
-    },
-    {
-        id: 2,
-        pair: "SOL/USDT",
-        type: "SHORT",
-        entry: "125.50",
-        current: "124.20",
-        pnl: "+1.30",
-        pnlPercent: 1.04,
-        status: "ACTIVE",
-        time: "15 min ago",
-        stopLoss: "128.00",
-        takeProfit: "118.00"
-    },
-    {
-        id: 3,
-        pair: "ETH/USDT",
-        type: "LONG",
-        entry: "2,450",
-        current: "2,520",
-        pnl: "+70",
-        pnlPercent: 2.86,
-        status: "CLOSED_TP",
-        time: "1 hour ago",
-        stopLoss: "2,420",
-        takeProfit: "2,520"
-    }
-];
+// Real trades from backend - initially empty until data loads
+const SNIPER_TRADES: Trade[] = [];
 
 const SNIPER_STATS = {
-    totalTrades: 2847,
-    winRate: 73.4,
-    totalPnl: 342.5,
-    currentStreak: 8,
-    bestTrade: 47.2,
-    avgTradeTime: "4.2h",
-    activeNow: 2,
-    lastTrade: "2 min ago"
+    totalTrades: 0,
+    winRate: 0,
+    totalPnl: 0,
+    currentStreak: 0,
+    bestTrade: 0,
+    avgTradeTime: "--",
+    activeNow: 0,
+    lastTrade: "--"
 };
 
 const TradeCard = ({ trade }: { trade: Trade }) => {
