@@ -5,11 +5,11 @@ import { cn } from '@/lib/utils';
 export const ZOIDToken = () => {
     const [copied, setCopied] = useState(false);
     
-    // These will be updated after token launch
-    const TOKEN_ADDRESS = "0x..."; // Update after launch
-    const CLANKER_URL = "https://clanker.world"; // Update after launch
-    const UNISWAP_URL = "https://app.uniswap.org"; // Update after launch
-    const DEXSCREENER_URL = "https://dexscreener.com/base"; // Update after launch
+    // Live ZOID token details
+    const TOKEN_ADDRESS = "0x5cd3fc996de7eef558ed1e8df5ab261dec361c5a";
+    const FLAUNCH_URL = "https://flaunch.gg/base/coin/0x5cd3fc996de7eef558ed1e8df5ab261dec361c5a";
+    const UNISWAP_URL = "https://app.uniswap.org/#/swap?chain=base&outputCurrency=0x5cd3fc996de7eef558ed1e8df5ab261dec361c5a";
+    const BASESCAN_URL = "https://basescan.org/token/0x5cd3fc996de7eef558ed1e8df5ab261dec361c5a";
     
     const handleCopy = (text: string) => {
         navigator.clipboard.writeText(text);
@@ -19,9 +19,9 @@ export const ZOIDToken = () => {
 
     const buyLinks = [
         {
-            name: "Clanker",
-            desc: "Launch Platform",
-            url: CLANKER_URL,
+            name: "Flaunch",
+            desc: "Trade on Base (Easiest)",
+            url: FLAUNCH_URL,
             icon: Coins,
             color: "bg-purple-500/20 text-purple-400"
         },
@@ -33,11 +33,11 @@ export const ZOIDToken = () => {
             color: "bg-pink-500/20 text-pink-400"
         },
         {
-            name: "DexScreener",
-            desc: "Chart & Analytics",
-            url: DEXSCREENER_URL,
+            name: "BaseScan",
+            desc: "View Contract",
+            url: BASESCAN_URL,
             icon: ShoppingCart,
-            color: "bg-green-500/20 text-green-400"
+            color: "bg-blue-500/20 text-blue-400"
         }
     ];
 
