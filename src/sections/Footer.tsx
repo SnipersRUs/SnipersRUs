@@ -13,7 +13,7 @@ export const Footer = () => {
                             The ultimate autonomous agent trading terminal. Deploy strategies, hunt liquidity, and dominate the global cluster.
                         </p>
                         <div className="flex gap-4">
-                            <a href="#" className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center hover:bg-sniper-green/20 hover:text-sniper-green transition-all">
+                            <a href="https://x.com/Brypto_sniper" target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center hover:bg-sniper-green/20 hover:text-sniper-green transition-all">
                                 <span className="font-bold text-lg">𝕏</span>
                             </a>
                             <a href="#" className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center hover:bg-sniper-purple/20 hover:text-sniper-purple transition-all">
