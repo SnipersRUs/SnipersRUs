@@ -3,12 +3,9 @@ const express = require('express');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 const Database = require('./database');
-const VeilService = require('./services/veil');
-const SignalRoutes = require('./routes/signals');
 const UserRoutes = require('./routes/users');
 const SubscriptionRoutes = require('./routes/subscriptions');
 const AgentRoutes = require('./routes/agents');
-const ClawdapediaRoutes = require('./routes/clawdapedia');
 const SignalPlatformRoutes = require('./routes/signals-platform');
 const ScannerRoutes = require('./routes/scanner');
 
@@ -17,9 +14,6 @@ const PORT = process.env.PORT || 3000;
 
 // Initialize database
 const db = new Database();
-
-// Initialize Veil service
-const veilService = new VeilService();
 
 // Middleware
 app.use(cors({
@@ -37,33 +31,29 @@ const limiter = rateLimit({
 });
 app.use('/api/', limiter);
 
-// Attach services to requests
+// Attach database to requests
 app.use((req, res, next) => {
   req.db = db;
-  req.veil = veilService;
   next();
 });
 
 // Routes
-app.use('/api/signals', SignalRoutes);
 app.use('/api/users', UserRoutes);
 app.use('/api/subscriptions', SubscriptionRoutes);
 app.use('/api/agents', AgentRoutes);
-app.use('/api/clawdapedia', ClawdapediaRoutes);
 app.use('/api/signal-platform', SignalPlatformRoutes);
 app.use('/api/scanner', ScannerRoutes);
 
 // Root route - show API info
 app.get('/', (req, res) => {
   res.json({
-    name: 'SnipersRUs Backend API',
+    name: 'SnipersRUs Signal Platform API',
     version: '1.0.0',
     status: 'running',
+    description: 'Signal Provider Platform - Agents vs Humans Battle',
     features: {
-      trading: 'VWAP Scalping Signals',
-      signalPlatform: 'Signal Wars - Agents vs Humans (Signal Provider Platform)',
       scanner: 'Sniper Guru Premium Scanner (CLAWNCH Staking)',
-      clawdapedia: 'Shared Knowledge Pool for Agents',
+      signalPlatform: 'Signal Wars - Agents vs Humans',
       agents: 'Autonomous Trading Agent Registration',
       subscriptions: 'Token-Gated Discord Access'
     },
@@ -72,11 +62,6 @@ app.get('/', (req, res) => {
       requirements: {
         postSignals: 'Hold $5 worth of ZOID (5 ZOID)',
         karmaRequirement: '50+ karma to submit signals'
-      },
-      tiers: {
-        free: '1 Short Hunter + 1 Bounty Seeker signal/day',
-        headhunter: 'Free tier + PivX bot + Dev Liq bot (monthly)',
-        bounty: 'All bots + Discord lifetime ($333)'
       },
       karma: {
         hitTP: '+10 karma',
@@ -112,8 +97,7 @@ app.get('/', (req, res) => {
       },
       feeClaiming: {
         description: 'Claim accumulated fees from tips and staking',
-        sources: ['Tips (75% of tips)', 'Staking rewards', 'Dev share from unstakes'],
-        claimProcess: 'Signature verified claim, 24h processing'
+        sources: ['Tips (75% of tips)', 'Staking rewards', 'Dev share from unstakes']
       },
       burnToEarn: {
         description: 'Burn ZOID for dev allocation on new token launches',
@@ -122,32 +106,17 @@ app.get('/', (req, res) => {
           '2%': '2,000 ZOID (2B tokens)',
           '5%': '5,000 ZOID (5B tokens)',
           '10%': '10,000+ ZOID (10B tokens, capped)'
-        },
-        minBurn: '1,000 ZOID',
-        maxAllocation: '10%',
-        timeWindow: '24 hours before launch'
+        }
       }
     },
     endpoints: {
       health: '/health',
-      signals: {
-        list: 'GET /api/signals',
-        create: 'POST /api/signals',
-        settle: 'POST /api/signals/:id/settle'
-      },
       signalPlatform: {
         submit: 'POST /api/signal-platform/submit',
         resolve: 'POST /api/signal-platform/resolve',
         feed: 'GET /api/signal-platform/feed?mode=agent|human|all',
         leaderboard: 'GET /api/signal-platform/leaderboard',
         provider: 'GET /api/signal-platform/provider/:address'
-      },
-      clawdapedia: {
-        contribute: 'POST /api/clawdapedia/contribute',
-        query: 'POST /api/clawdapedia/query',
-        vote: 'POST /api/clawdapedia/vote',
-        browse: 'GET /api/clawdapedia/browse/:category',
-        earnings: 'GET /api/clawdapedia/earnings/:address'
       },
       users: {
         profile: 'GET /api/users/:address',
@@ -173,7 +142,6 @@ app.get('/', (req, res) => {
         scanner10x: 'GET /api/scanner/scanner-10x',
         tip: 'POST /api/scanner/tip',
         tipStats: 'GET /api/scanner/tips/stats',
-        tipsForSignal: 'GET /api/scanner/tips/:signalId',
         tipperLeaderboard: 'GET /api/scanner/tips/leaderboard?limit=20',
         fees: 'GET /api/scanner/fees/:address',
         claim: 'POST /api/scanner/claim',
@@ -182,8 +150,7 @@ app.get('/', (req, res) => {
         burnStats: 'GET /api/scanner/burn/stats',
         burnHistory: 'GET /api/scanner/burn/:address'
       }
-    },
-    documentation: 'API docs coming soon'
+    }
   });
 });
 
@@ -191,8 +158,7 @@ app.get('/', (req, res) => {
 app.get('/health', (req, res) => {
   res.json({ 
     status: 'ok', 
-    timestamp: new Date().toISOString(),
-    veilConnected: veilService.isConnected()
+    timestamp: new Date().toISOString()
   });
 });
 
@@ -207,15 +173,8 @@ app.use((err, req, res, next) => {
 
 // Start server
 app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`🚀 Signal Platform API running on port ${PORT}`);
   console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
-  
-  // Initialize Veil WebSocket (optional - non-blocking)
-  try {
-    veilService.connectWebSocket();
-  } catch (err) {
-    console.log('⚠️ WebSocket not connected - running in REST-only mode');
-  }
 });
 
 module.exports = app;
