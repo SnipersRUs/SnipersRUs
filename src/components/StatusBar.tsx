@@ -103,20 +103,13 @@ export const StatusBar = () => {
                         </div>
                     </div>
 
-                    {/* Right: Data Guarantee */}
-                    <div className="flex items-center gap-4">
-                        <span className="text-white/30 hidden sm:inline">
-                            GLOBAL SYNC • SAME DATA WORLDWIDE
-                        </span>
-                        
-                        {/* Close button */}
-                        <button 
-                            onClick={() => setIsVisible(false)}
-                            className="text-white/30 hover:text-white/60 transition-colors"
-                        >
-                            ×
-                        </button>
-                    </div>
+                    {/* Right: Close button */}
+                    <button 
+                        onClick={() => setIsVisible(false)}
+                        className="text-white/30 hover:text-white/60 transition-colors"
+                    >
+                        ×
+                    </button>
                 </div>
             </div>
         </div>
