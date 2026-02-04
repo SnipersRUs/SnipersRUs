@@ -19,7 +19,7 @@ export const StatusBar = () => {
         const checkStatus = async () => {
             const startTime = Date.now();
             try {
-                const response = await fetch('http://localhost:3000/health', {
+                const response = await fetch('https://snipersrus-backend-production.up.railway.app/health', {
                     method: 'GET',
                     cache: 'no-cache'
                 });

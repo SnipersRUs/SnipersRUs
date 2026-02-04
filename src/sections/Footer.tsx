@@ -60,8 +60,8 @@ export const Footer = () => {
                     <div>
                         <h4 className="font-orbitron font-bold text-white mb-6">API</h4>
                         <ul className="space-y-4 text-sm text-white/50">
-                            <li><a href="http://localhost:3000/health" target="_blank" rel="noopener noreferrer" className="hover:text-sniper-green transition-colors">API Status</a></li>
-                            <li><a href="http://localhost:3000/api/signals" target="_blank" rel="noopener noreferrer" className="hover:text-sniper-green transition-colors">Signals Endpoint</a></li>
+                            <li><a href="https://snipersrus-backend-production.up.railway.app/health" target="_blank" rel="noopener noreferrer" className="hover:text-sniper-green transition-colors">API Status</a></li>
+                            <li><a href="https://snipersrus-backend-production.up.railway.app/api/signals" target="_blank" rel="noopener noreferrer" className="hover:text-sniper-green transition-colors">Signals Endpoint</a></li>
                             <li><span className="text-white/30">Docs (Coming Soon)</span></li>
                         </ul>
                     </div>

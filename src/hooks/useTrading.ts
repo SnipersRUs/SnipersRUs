@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { Signal, Comment } from '@/types';
+import type { Signal } from '@/types';
 
 // Path to the signals JSON file (served from public folder)
-const API_BASE = 'http://localhost:3000/api';
+const API_BASE = 'https://snipersrus-backend-production.up.railway.app/api';
 
 export const useTrading = () => {
     const [signals, setSignals] = useState<Signal[]>([]);

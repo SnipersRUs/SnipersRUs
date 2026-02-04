@@ -22,9 +22,8 @@ export const useERC8004 = () => {
     }
 
     try {
-      const response = await fetch(
-        `http://localhost:3000/api/erc8004/reputation/${address}`
-      );
+      // ERC8004 route disabled - returning null
+      return null;
       
       if (!response.ok) {
         return null;

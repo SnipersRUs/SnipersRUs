@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { ChatMessage } from '@/types';
 
-const API_BASE = 'http://localhost:3000/api';
+const API_BASE = 'https://snipersrus-backend-production.up.railway.app/api';
 
 export const useChat = () => {
     const [messages, setMessages] = useState<ChatMessage[]>([]);

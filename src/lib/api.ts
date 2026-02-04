@@ -1,4 +1,4 @@
-const API_URL = 'http://localhost:3000';
+const API_URL = 'https://snipersrus-backend-production.up.railway.app';
 
 // Helper for API calls
 async function apiCall(endpoint: string, options?: RequestInit) {
