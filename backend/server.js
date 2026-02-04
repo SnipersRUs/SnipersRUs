@@ -1,9 +1,18 @@
 require('dotenv').config();
+console.log('🚀 Starting SnipersRUs Backend...');
+console.log('📁 Loading dependencies...');
+
 const express = require('express');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
+console.log('✅ Core modules loaded');
+
 const Database = require('./database');
+console.log('✅ Database module loaded');
+
 const DiscordService = require('./services/discord');
+console.log('✅ Discord service loaded');
+
 const UserRoutes = require('./routes/users');
 const SubscriptionRoutes = require('./routes/subscriptions');
 const AgentRoutes = require('./routes/agents');
@@ -11,6 +20,7 @@ const SignalPlatformRoutes = require('./routes/signals-platform');
 const ScannerRoutes = require('./routes/scanner-simple');
 // const ERC8004Routes = require('./routes/erc8004'); // Disabled - not needed for srus.life
 const ChatRoutes = require('./routes/chat');
+console.log('✅ All route modules loaded');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
