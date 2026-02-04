@@ -8,18 +8,38 @@ const express = require('express');
 const router = express.Router();
 const ERC8004Service = require('../services/erc8004');
 
-const erc8004 = new ERC8004Service();
+// Lazy initialization - only create service when needed
+let erc8004 = null;
+function getService() {
+  if (!erc8004) {
+    try {
+      erc8004 = new ERC8004Service();
+    } catch (err) {
+      console.error('ERC8004 service initialization failed:', err.message);
+      erc8004 = null;
+    }
+  }
+  return erc8004;
+}
 
 /**
  * GET /api/erc8004/health
  * Check if ERC-8004 service is available
  */
 router.get('/health', async (req, res) => {
+  const service = getService();
+  if (!service) {
+    return res.status(503).json({
+      status: 'unavailable',
+      service: 'erc8004',
+      message: 'Contract not configured'
+    });
+  }
   res.json({
     status: 'ok',
     service: 'erc8004',
-    network: erc8004.isMainnet ? 'base-mainnet' : 'base-sepolia',
-    contractAddress: erc8004.contractAddress
+    network: service.isMainnet ? 'base-mainnet' : 'base-sepolia',
+    contractAddress: service.contractAddress
   });
 });
 
@@ -29,13 +49,18 @@ router.get('/health', async (req, res) => {
  */
 router.get('/reputation/:address', async (req, res) => {
   try {
+    const service = getService();
+    if (!service) {
+      return res.status(503).json({ error: 'ERC8004 service unavailable' });
+    }
+    
     const { address } = req.params;
     
     if (!address || !/^0x[a-fA-F0-9]{40}$/.test(address)) {
       return res.status(400).json({ error: 'Invalid address' });
     }
     
-    const reputation = await erc8004.getAgentReputation(address);
+    const reputation = await service.getAgentReputation(address);
     
     if (!reputation) {
       return res.status(404).json({ 
@@ -47,7 +72,7 @@ router.get('/reputation/:address', async (req, res) => {
     
     res.json({
       success: true,
-      data: erc8004.formatAgentResponse(reputation)
+      data: reputation
     });
   } catch (error) {
     console.error('Error fetching reputation:', error);
@@ -61,21 +86,24 @@ router.get('/reputation/:address', async (req, res) => {
  */
 router.get('/verify/:address', async (req, res) => {
   try {
+    const service = getService();
+    if (!service) {
+      return res.status(503).json({ error: 'ERC8004 service unavailable' });
+    }
+    
     const { address } = req.params;
     
     if (!address || !/^0x[a-fA-F0-9]{40}$/.test(address)) {
       return res.status(400).json({ error: 'Invalid address' });
     }
     
-    const isRegistered = await erc8004.isRegistered(address);
+    const isRegistered = await service.isRegistered(address);
     
     res.json({
       success: true,
       address,
       isRegistered,
-      network: erc8004.isMainnet ? 'base' : 'base-sepolia',
-      basescanUrl: erc8004.getBaseScanUrl('address', address),
-      contractUrl: erc8004.getBaseScanUrl('contract')
+      network: service.isMainnet ? 'base' : 'base-sepolia'
     });
   } catch (error) {
     console.error('Error verifying address:', error);
@@ -89,15 +117,20 @@ router.get('/verify/:address', async (req, res) => {
  */
 router.get('/leaderboard', async (req, res) => {
   try {
+    const service = getService();
+    if (!service) {
+      return res.status(503).json({ error: 'ERC8004 service unavailable' });
+    }
+    
     const limit = Math.min(parseInt(req.query.limit) || 20, 100);
     
-    const leaderboard = await erc8004.getLeaderboard(limit);
+    const leaderboard = await service.getLeaderboard(limit);
     
     res.json({
       success: true,
-      data: leaderboard.map(agent => erc8004.formatAgentResponse(agent)),
+      data: leaderboard,
       count: leaderboard.length,
-      network: erc8004.isMainnet ? 'base' : 'base-sepolia'
+      network: service.isMainnet ? 'base' : 'base-sepolia'
     });
   } catch (error) {
     console.error('Error fetching leaderboard:', error);
@@ -113,6 +146,11 @@ router.get('/leaderboard', async (req, res) => {
  */
 router.post('/sync-karma', async (req, res) => {
   try {
+    const service = getService();
+    if (!service) {
+      return res.status(503).json({ error: 'ERC8004 service unavailable' });
+    }
+    
     const { address, karma } = req.body;
     
     if (!address || !/^0x[a-fA-F0-9]{40}$/.test(address)) {
@@ -126,7 +164,7 @@ router.post('/sync-karma', async (req, res) => {
     // TODO: Add admin authentication
     // if (!req.isAdmin) return res.status(403).json({ error: 'Unauthorized' });
     
-    const result = await erc8004.syncKarma(address, karma);
+    const result = await service.syncKarma(address, karma);
     
     res.json({
       success: result.success,
@@ -146,6 +184,11 @@ router.post('/sync-karma', async (req, res) => {
  */
 router.post('/batch-sync', async (req, res) => {
   try {
+    const service = getService();
+    if (!service) {
+      return res.status(503).json({ error: 'ERC8004 service unavailable' });
+    }
+    
     const { agents } = req.body;
     
     if (!Array.isArray(agents)) {
@@ -154,7 +197,7 @@ router.post('/batch-sync', async (req, res) => {
     
     // TODO: Add admin authentication
     
-    const results = await erc8004.batchSyncKarma(agents);
+    const results = await service.batchSyncKarma(agents);
     
     res.json({
       success: true,
@@ -173,16 +216,31 @@ router.post('/batch-sync', async (req, res) => {
  * Get ERC-8004 integration info
  */
 router.get('/info', (req, res) => {
+  const service = getService();
+  if (!service) {
+    return res.json({
+      standard: 'ERC-8004',
+      description: 'On-chain agent identity and reputation registry',
+      status: 'unavailable',
+      message: 'Contract not configured',
+      features: [
+        'On-chain agent registration',
+        'Portable karma/reputation',
+        'Immutable signal history',
+        'Trustless verification'
+      ]
+    });
+  }
+  
   res.json({
     standard: 'ERC-8004',
     description: 'On-chain agent identity and reputation registry',
     network: {
-      name: erc8004.isMainnet ? 'Base Mainnet' : 'Base Sepolia',
-      chainId: erc8004.isMainnet ? 8453 : 84532
+      name: service.isMainnet ? 'Base Mainnet' : 'Base Sepolia',
+      chainId: service.isMainnet ? 8453 : 84532
     },
     contract: {
-      address: erc8004.contractAddress,
-      basescanUrl: erc8004.getBaseScanUrl('contract')
+      address: service.contractAddress
     },
     features: [
       'On-chain agent registration',
