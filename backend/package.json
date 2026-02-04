@@ -4,7 +4,7 @@
   "description": "Veil prediction market integration for SnipersRUs",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
+    "start": "node minimal.js",
     "dev": "nodemon server.js",
     "test": "jest"
   },
