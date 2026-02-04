@@ -9,7 +9,7 @@ const SubscriptionRoutes = require('./routes/subscriptions');
 const AgentRoutes = require('./routes/agents');
 const SignalPlatformRoutes = require('./routes/signals-platform');
 const ScannerRoutes = require('./routes/scanner-simple');
-const ERC8004Routes = require('./routes/erc8004');
+// const ERC8004Routes = require('./routes/erc8004'); // Disabled - not needed for srus.life
 const ChatRoutes = require('./routes/chat');
 
 const app = express();
@@ -56,7 +56,7 @@ app.use('/api/subscriptions', SubscriptionRoutes);
 app.use('/api/agents', AgentRoutes);
 app.use('/api/signal-platform', SignalPlatformRoutes);
 app.use('/api/scanner', ScannerRoutes);
-app.use('/api/erc8004', ERC8004Routes);
+// app.use('/api/erc8004', ERC8004Routes); // Disabled - not needed for srus.life
 app.use('/api/chat', ChatRoutes);
 
 // Root route - show API info
