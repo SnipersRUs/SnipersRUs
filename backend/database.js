@@ -373,6 +373,30 @@ class Database {
         FOREIGN KEY (signal_id) REFERENCES signals(id)
       )
     `);
+
+    // Chat Messages table
+    this.db.run(`
+      CREATE TABLE IF NOT EXISTS messages (
+        id TEXT PRIMARY KEY,
+        user_name TEXT NOT NULL,
+        text TEXT NOT NULL,
+        avatar TEXT,
+        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Signal Comments table
+    this.db.run(`
+      CREATE TABLE IF NOT EXISTS signal_comments (
+        id TEXT PRIMARY KEY,
+        signal_id TEXT NOT NULL,
+        author_name TEXT NOT NULL,
+        author_avatar TEXT,
+        body TEXT NOT NULL,
+        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (signal_id) REFERENCES sniper_guru_signals(id)
+      )
+    `);
   }
 
   // Signal methods
@@ -383,7 +407,7 @@ class Database {
         `INSERT INTO signals (id, provider_address, provider_name, provider_reputation, asset, type, entry, target, stop_loss, timeframe, deadline, veil_market_id)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [id, signal.provider.address, signal.provider.name, signal.provider.reputation, signal.asset, signal.type, signal.entry, signal.target, signal.stopLoss, signal.timeframe, signal.deadline, signal.veilMarketId],
-        function(err) {
+        function (err) {
           if (err) reject(err);
           else resolve({ id, ...signal });
         }
@@ -395,14 +419,14 @@ class Database {
     return new Promise((resolve, reject) => {
       let query = 'SELECT * FROM signals';
       const params = [];
-      
+
       if (status) {
         query += ' WHERE status = ?';
         params.push(status);
       }
-      
+
       query += ' ORDER BY created_at DESC';
-      
+
       this.db.all(query, params, (err, rows) => {
         if (err) reject(err);
         else resolve(rows);
@@ -424,7 +448,7 @@ class Database {
       this.db.run(
         'UPDATE signals SET status = ?, outcome = ? WHERE id = ?',
         [status, outcome, id],
-        function(err) {
+        function (err) {
           if (err) reject(err);
           else resolve({ id, status, outcome });
         }
@@ -440,7 +464,7 @@ class Database {
         `INSERT INTO bets (id, signal_id, user_address, outcome, amount, veil_order_id)
          VALUES (?, ?, ?, ?, ?, ?)`,
         [id, bet.signalId, bet.userAddress, bet.outcome, bet.amount, bet.veilOrderId],
-        function(err) {
+        function (err) {
           if (err) reject(err);
           else resolve({ id, ...bet });
         }
@@ -466,7 +490,7 @@ class Database {
       this.db.run(
         'UPDATE bets SET status = ?, payout = ?, settled_at = ? WHERE id = ?',
         [status, payout, new Date().toISOString(), id],
-        function(err) {
+        function (err) {
           if (err) reject(err);
           else resolve({ id, status, payout });
         }
@@ -489,7 +513,7 @@ class Database {
       this.db.run(
         'INSERT INTO users (address, karma) VALUES (?, ?)',
         [address, 0],
-        function(err) {
+        function (err) {
           if (err) reject(err);
           else resolve({ address, karma: 0 });
         }
@@ -502,7 +526,7 @@ class Database {
       this.db.run(
         'UPDATE users SET karma = karma + ? WHERE address = ?',
         [karmaDelta, address],
-        function(err) {
+        function (err) {
           if (err) reject(err);
           else resolve({ address, karmaDelta });
         }
@@ -515,7 +539,7 @@ class Database {
       this.db.run(
         'UPDATE users SET veil_api_key = ?, veil_api_key_expires = ? WHERE address = ?',
         [apiKey, expiresAt, address],
-        function(err) {
+        function (err) {
           if (err) reject(err);
           else resolve({ address, apiKey });
         }
@@ -545,7 +569,7 @@ class Database {
          end_time = excluded.end_time,
          verified_at = excluded.verified_at`,
         [subscription.address, subscription.tier, subscription.txHash, subscription.startTime, subscription.endTime, subscription.verifiedAt],
-        function(err) {
+        function (err) {
           if (err) reject(err);
           else resolve(subscription);
         }
@@ -558,7 +582,7 @@ class Database {
       this.db.run(
         'INSERT INTO subscriptions (address, tier, tx_hash, start_time, end_time, verified_at) VALUES (?, ?, ?, ?, ?, ?)',
         [subscription.address, subscription.tier, subscription.txHash, subscription.startTime, subscription.endTime, subscription.verifiedAt],
-        function(err) {
+        function (err) {
           if (err) reject(err);
           else resolve(subscription);
         }
@@ -573,7 +597,7 @@ class Database {
         `INSERT INTO agents (id, address, name, description, capabilities, erc8004_id, reputation, total_signals, win_rate, total_profit, verified, status, reputation_history, created_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [agent.id, agent.address, agent.name, agent.description, JSON.stringify(agent.capabilities), agent.erc8004Id, agent.reputation, agent.totalSignals, agent.winRate, agent.totalProfit, agent.verified, agent.status, JSON.stringify([]), agent.createdAt],
-        function(err) {
+        function (err) {
           if (err) reject(err);
           else resolve(agent);
         }
@@ -664,7 +688,7 @@ class Database {
       this.db.run(
         `UPDATE agents SET ${fields.join(', ')} WHERE id = ?`,
         values,
-        function(err) {
+        function (err) {
           if (err) reject(err);
           else resolve({ id, ...updates });
         }
@@ -679,7 +703,7 @@ class Database {
         `INSERT INTO knowledge (id, contributor, title, content, category, tags, sources, quality_score, query_count, earnings, status, created_at, updated_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [entry.id, entry.contributor, entry.title, entry.content, entry.category, JSON.stringify(entry.tags), JSON.stringify(entry.sources), entry.qualityScore, entry.queryCount, entry.earnings, entry.status, entry.createdAt, entry.updatedAt],
-        function(err) {
+        function (err) {
           if (err) reject(err);
           else resolve(entry);
         }
@@ -743,7 +767,7 @@ class Database {
       this.db.run(
         'UPDATE knowledge SET quality_score = ?, updated_at = ? WHERE id = ?',
         [qualityScore, new Date().toISOString(), id],
-        function(err) {
+        function (err) {
           if (err) reject(err);
           else resolve({ id, qualityScore });
         }
@@ -756,7 +780,7 @@ class Database {
       this.db.run(
         'UPDATE knowledge SET status = ?, updated_at = ? WHERE id = ?',
         [status, new Date().toISOString(), id],
-        function(err) {
+        function (err) {
           if (err) reject(err);
           else resolve({ id, status });
         }
@@ -769,7 +793,7 @@ class Database {
       this.db.run(
         'UPDATE knowledge SET query_count = query_count + 1 WHERE id = ?',
         [id],
-        function(err) {
+        function (err) {
           if (err) reject(err);
           else resolve({ id });
         }
@@ -782,7 +806,7 @@ class Database {
       this.db.run(
         'UPDATE knowledge SET earnings = earnings + ? WHERE id = ?',
         [amount, id],
-        function(err) {
+        function (err) {
           if (err) reject(err);
           else resolve({ id, amount });
         }
@@ -795,7 +819,7 @@ class Database {
       this.db.run(
         'INSERT INTO knowledge_votes (entry_id, voter, vote) VALUES (?, ?, ?)',
         [entryId, voter, vote],
-        function(err) {
+        function (err) {
           if (err) reject(err);
           else resolve({ entryId, voter, vote });
         }
@@ -850,7 +874,7 @@ class Database {
       this.db.run(
         'INSERT INTO queries (requester, query_text, results_count, fee) VALUES (?, ?, ?, ?)',
         [requester, queryText, resultsCount, fee],
-        function(err) {
+        function (err) {
           if (err) reject(err);
           else resolve({ id: this.lastID });
         }
@@ -865,7 +889,7 @@ class Database {
         `INSERT INTO signals (id, provider, type, symbol, entry, stop_loss, take_profit, timeframe, reasoning, is_agent, status, karma_at_submit, created_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [signal.id, signal.provider, signal.type, signal.symbol, signal.entry, signal.stopLoss, signal.takeProfit, signal.timeframe, signal.reasoning, signal.isAgent, signal.status, signal.karmaAtSubmit, signal.createdAt],
-        function(err) {
+        function (err) {
           if (err) reject(err);
           else resolve(signal);
         }
@@ -908,7 +932,7 @@ class Database {
       this.db.run(
         'UPDATE signals SET result = ?, result_price = ?, result_time = ?, status = ? WHERE id = ?',
         [result.result, result.resultPrice, result.resultTime, result.status, id],
-        function(err) {
+        function (err) {
           if (err) reject(err);
           else resolve({ id, ...result });
         }
@@ -930,7 +954,7 @@ class Database {
       this.db.run(
         'UPDATE providers SET karma = karma + ? WHERE address = ?',
         [delta, address],
-        function(err) {
+        function (err) {
           if (err) reject(err);
           else resolve({ address, delta });
         }
@@ -952,7 +976,7 @@ class Database {
       this.db.run(
         `UPDATE providers SET ${fields.join(', ')} WHERE address = ?`,
         values,
-        function(err) {
+        function (err) {
           if (err) reject(err);
           else resolve({ address, ...updates });
         }
@@ -1016,7 +1040,7 @@ class Database {
       this.db.run(
         'INSERT INTO queries (requester, fee) VALUES (?, ?)',
         [requester, fee],
-        function(err) {
+        function (err) {
           if (err) reject(err);
           else resolve({ requester, fee });
         }
@@ -1033,7 +1057,7 @@ class Database {
          pending = pending + ?,
          updated_at = ?`,
         [address, amount, amount, amount, amount, new Date().toISOString()],
-        function(err) {
+        function (err) {
           if (err) reject(err);
           else resolve({ address, amount });
         }
@@ -1063,7 +1087,7 @@ class Database {
              updated_at = ?
          WHERE address = ?`,
         [new Date().toISOString(), address],
-        function(err) {
+        function (err) {
           if (err) reject(err);
           else resolve({ address });
         }
@@ -1119,7 +1143,7 @@ class Database {
         `INSERT INTO stakes (id, address, amount, staked_at, rewards_earned, last_claim, status)
          VALUES (?, ?, ?, ?, ?, ?, ?)`,
         [stake.id, stake.address, stake.amount, stake.stakedAt, stake.rewardsEarned, stake.lastClaim, stake.status],
-        function(err) {
+        function (err) {
           if (err) reject(err);
           else resolve(stake);
         }
@@ -1145,7 +1169,7 @@ class Database {
       this.db.run(
         'UPDATE stakes SET status = ? WHERE id = ?',
         [status, id],
-        function(err) {
+        function (err) {
           if (err) reject(err);
           else resolve({ id, status });
         }
@@ -1158,7 +1182,7 @@ class Database {
       this.db.run(
         'UPDATE stakes SET rewards_earned = rewards_earned + ?, last_claim = ? WHERE address = ? AND status = "ACTIVE"',
         [amount, new Date().toISOString(), address],
-        function(err) {
+        function (err) {
           if (err) reject(err);
           else resolve({ address, amount });
         }
@@ -1227,7 +1251,7 @@ class Database {
     return new Promise((resolve, reject) => {
       const cutoff = new Date();
       cutoff.setDate(cutoff.getDate() - days);
-      
+
       this.db.get(
         'SELECT COALESCE(SUM(fee), 0) as total FROM queries WHERE created_at > ?',
         [cutoff.toISOString()],
@@ -1244,7 +1268,7 @@ class Database {
       this.db.run(
         'INSERT INTO reward_distributions (address, amount, created_at) VALUES (?, ?, ?)',
         [address, amount, new Date().toISOString()],
-        function(err) {
+        function (err) {
           if (err) reject(err);
           else resolve({ address, amount });
         }
@@ -1276,7 +1300,7 @@ class Database {
         `INSERT INTO scanner_stakes (id, address, amount, staked_at, status, fees_paid)
          VALUES (?, ?, ?, ?, ?, ?)`,
         [stake.id, stake.address, stake.amount, stake.stakedAt, stake.status, stake.feesPaid],
-        function(err) {
+        function (err) {
           if (err) reject(err);
           else resolve(stake);
         }
@@ -1311,7 +1335,7 @@ class Database {
       this.db.run(
         `UPDATE scanner_stakes SET ${fields.join(', ')} WHERE id = ?`,
         values,
-        function(err) {
+        function (err) {
           if (err) reject(err);
           else resolve({ id, ...updates });
         }
@@ -1324,7 +1348,7 @@ class Database {
       this.db.run(
         'INSERT INTO dev_fees (amount, created_at) VALUES (?, ?)',
         [amount, new Date().toISOString()],
-        function(err) {
+        function (err) {
           if (err) reject(err);
           else resolve({ amount });
         }
@@ -1338,7 +1362,7 @@ class Database {
         `INSERT INTO sniper_guru_signals (id, provider, symbol, direction, style, entry, stop_loss, take_profit, confidence, analysis, timestamp, subscriber)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [signal.id, signal.provider, signal.symbol, signal.direction, signal.style, signal.entry, signal.stopLoss, signal.takeProfit, signal.confidence, JSON.stringify(signal.analysis), signal.timestamp, signal.subscriber],
-        function(err) {
+        function (err) {
           if (err) reject(err);
           else resolve(signal);
         }
@@ -1408,7 +1432,7 @@ class Database {
       this.db.run(
         'INSERT INTO signal_requests (address, symbol, created_at) VALUES (?, ?, ?)',
         [address, symbol, new Date().toISOString()],
-        function(err) {
+        function (err) {
           if (err) reject(err);
           else resolve({ address, symbol });
         }
@@ -1421,7 +1445,7 @@ class Database {
       this.db.run(
         'INSERT INTO scanner_usage (address, type, created_at) VALUES (?, ?, ?)',
         [address, type, new Date().toISOString()],
-        function(err) {
+        function (err) {
           if (err) reject(err);
           else resolve({ address, type });
         }
@@ -1436,7 +1460,7 @@ class Database {
         `INSERT INTO tips (id, signal_id, tipper, amount, burn_amount, guru_amount, message, timestamp, status)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [tip.id, tip.signalId, tip.tipper, tip.amount, tip.burnAmount, tip.guruAmount, tip.message, tip.timestamp, tip.status],
-        function(err) {
+        function (err) {
           if (err) reject(err);
           else resolve(tip);
         }
@@ -1449,7 +1473,7 @@ class Database {
       this.db.run(
         'UPDATE sniper_guru_signals SET tips_received = COALESCE(tips_received, 0) + ? WHERE id = ?',
         [amount, signalId],
-        function(err) {
+        function (err) {
           if (err) reject(err);
           else resolve({ signalId, amount });
         }
@@ -1467,7 +1491,7 @@ class Database {
          total_tipped_amount = total_tipped_amount + ?,
          total_burned = total_burned + ?`,
         [guruAmount, burnAmount, guruAmount, burnAmount],
-        function(err) {
+        function (err) {
           if (err) reject(err);
           else resolve({ guruAmount, burnAmount });
         }
@@ -1484,7 +1508,7 @@ class Database {
           if (err) reject(err);
           else {
             const stats = row || { total_tips: 0, total_tipped_amount: 0, total_burned: 0 };
-            
+
             // Get top tippers
             this.db.all(
               `SELECT tipper, SUM(amount) as total FROM tips 
@@ -1553,7 +1577,7 @@ class Database {
         `INSERT INTO signals (id, provider_address, asset, type, entry, target, stop_loss, timeframe, status, created_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [signal.id, signal.provider, signal.symbol, signal.type, signal.entry, signal.takeProfit, signal.stopLoss, signal.timeframe, signal.status, signal.createdAt.toISOString()],
-        function(err) {
+        function (err) {
           if (err) reject(err);
           else resolve(signal);
         }
@@ -1579,7 +1603,7 @@ class Database {
       this.db.run(
         'UPDATE signals SET outcome = ?, status = ? WHERE id = ?',
         [updates.result, updates.status, id],
-        function(err) {
+        function (err) {
           if (err) reject(err);
           else resolve({ id, ...updates });
         }
@@ -1626,7 +1650,7 @@ class Database {
         `INSERT INTO providers (address, name, is_agent, karma, win_rate, total_signals, wins, losses)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         [provider.address, provider.name, provider.isAgent ? 1 : 0, provider.karma || 100, provider.winRate || 0, provider.totalSignals || 0, provider.wins || 0, provider.losses || 0],
-        function(err) {
+        function (err) {
           if (err) reject(err);
           else resolve(provider);
         }
@@ -1648,7 +1672,7 @@ class Database {
       this.db.run(
         `UPDATE providers SET ${fields.join(', ')} WHERE address = ?`,
         values,
-        function(err) {
+        function (err) {
           if (err) reject(err);
           else resolve({ address, ...updates });
         }
@@ -1661,7 +1685,7 @@ class Database {
       this.db.run(
         'UPDATE providers SET karma = karma + ? WHERE address = ?',
         [delta, address],
-        function(err) {
+        function (err) {
           if (err) reject(err);
           else resolve({ address, delta });
         }
@@ -1759,7 +1783,7 @@ class Database {
          dev_share = 0,
          last_claim = ?`,
         [address, new Date().toISOString(), new Date().toISOString()],
-        function(err) {
+        function (err) {
           if (err) reject(err);
           else resolve({ address });
         }
@@ -1773,7 +1797,7 @@ class Database {
         `INSERT INTO fee_claims (id, address, amount, tip_fees, staking_fees, dev_share, timestamp, status)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         [claim.id, claim.address, claim.amount, claim.breakdown.tips, claim.breakdown.staking, claim.breakdown.devShare, claim.timestamp.toISOString(), claim.status],
-        function(err) {
+        function (err) {
           if (err) reject(err);
           else resolve(claim);
         }
@@ -1810,7 +1834,7 @@ class Database {
         `INSERT INTO burns (id, address, amount, allocation_percent, token_allocation, burn_tx_hash, timestamp, status, used_for_launch)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [burn.id, burn.address, burn.amount, burn.allocationPercent, burn.tokenAllocation, burn.burnTxHash, burn.timestamp.toISOString(), burn.status, burn.usedForLaunch ? 1 : 0],
-        function(err) {
+        function (err) {
           if (err) reject(err);
           else resolve(burn);
         }
@@ -1828,7 +1852,7 @@ class Database {
          total_allocations = total_allocations + 1,
          total_token_supply = total_token_supply + ?`,
         [amount, 1, tokenAllocation, amount, tokenAllocation],
-        function(err) {
+        function (err) {
           if (err) reject(err);
           else resolve({ amount, tokenAllocation });
         }
@@ -1869,7 +1893,7 @@ class Database {
         `INSERT INTO signal_purchases (id, buyer, package, price, burn_amount, dev_amount, tx_hash, signals_remaining, expires_at, timestamp, status)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [purchase.id, purchase.buyer, purchase.package, purchase.price, purchase.burnAmount, purchase.devAmount, purchase.txHash, purchase.signalsRemaining, purchase.expiresAt?.toISOString(), purchase.timestamp.toISOString(), purchase.status],
-        function(err) {
+        function (err) {
           if (err) reject(err);
           else resolve(purchase);
         }
@@ -1901,7 +1925,7 @@ class Database {
       this.db.run(
         `UPDATE signal_purchases SET signals_remaining = signals_remaining - 1 WHERE id = ?`,
         [purchaseId],
-        function(err) {
+        function (err) {
           if (err) reject(err);
           else resolve({ id: purchaseId });
         }
@@ -1915,7 +1939,7 @@ class Database {
         `INSERT INTO signal_deliveries (id, purchase_id, buyer, symbol, signal_id, timestamp)
          VALUES (?, ?, ?, ?, ?, ?)`,
         [delivery.id, delivery.purchaseId, delivery.buyer, delivery.symbol, delivery.signalId, delivery.timestamp.toISOString()],
-        function(err) {
+        function (err) {
           if (err) reject(err);
           else resolve(delivery);
         }
@@ -1942,7 +1966,7 @@ class Database {
       this.db.run(
         `INSERT INTO upvotes (id, signal_id, voter, timestamp) VALUES (?, ?, ?, ?)`,
         [upvote.id, upvote.signalId, upvote.voter, upvote.timestamp.toISOString()],
-        function(err) {
+        function (err) {
           if (err) reject(err);
           else resolve(upvote);
         }
@@ -1981,11 +2005,59 @@ class Database {
       this.db.run(
         `UPDATE signals SET upvotes = COALESCE(upvotes, 0) + 1 WHERE id = ?`,
         [signalId],
-        function(err) {
+        function (err) {
           if (err) reject(err);
           else resolve({ signalId });
         }
       );
+    });
+  }
+
+  // Message methods
+  async getMessages(limit = 50) {
+    return new Promise((resolve, reject) => {
+      this.db.all('SELECT * FROM messages ORDER BY timestamp ASC LIMIT ?', [limit], (err, rows) => {
+        if (err) reject(err);
+        else resolve(rows);
+      });
+    });
+  }
+
+  async createMessage(message) {
+    return new Promise((resolve, reject) => {
+      const id = `msg_${Date.now()}`;
+      this.db.run(
+        'INSERT INTO messages (id, user_name, text, avatar, timestamp) VALUES (?, ?, ?, ?, ?)',
+        [id, message.user, message.text, message.avatar, new Date().toISOString()],
+        function (err) {
+          if (err) reject(err);
+          else resolve({ id, ...message });
+        }
+      );
+    });
+  }
+
+  // Signal Comment methods
+  async createSignalComment(comment) {
+    return new Promise((resolve, reject) => {
+      const id = `sc_${Date.now()}`;
+      this.db.run(
+        'INSERT INTO signal_comments (id, signal_id, author_name, author_avatar, body, timestamp) VALUES (?, ?, ?, ?, ?, ?)',
+        [id, comment.signalId, comment.authorName, comment.authorAvatar, comment.body, new Date().toISOString()],
+        function (err) {
+          if (err) reject(err);
+          else resolve({ id, ...comment });
+        }
+      );
+    });
+  }
+
+  async getSignalComments(signalId) {
+    return new Promise((resolve, reject) => {
+      this.db.all('SELECT * FROM signal_comments WHERE signal_id = ? ORDER BY timestamp DESC', [signalId], (err, rows) => {
+        if (err) reject(err);
+        else resolve(rows);
+      });
     });
   }
 }

@@ -69,7 +69,7 @@ export const ScannerAccess = () => {
 
     const checkStatus = async (addr: string) => {
         try {
-            const response = await fetch(`https://snipersrus-backend-production.up.railway.app/api/scanner/status/${addr}`);
+            const response = await fetch(`http://localhost:3000/api/scanner/status/${addr}`);
             const data = await response.json();
             setStatus({ hasAccess: data.hasAccess, remaining: data.totalRemaining });
         } catch (err) {

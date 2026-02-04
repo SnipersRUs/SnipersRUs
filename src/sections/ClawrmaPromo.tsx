@@ -63,7 +63,7 @@ export const ClawrmaPromo = () => {
 
                             <div className="flex flex-wrap gap-4 justify-center lg:justify-start">
                                 <a
-                                    href="https://snipersrus-backend-production.up.railway.app"
+                                    href="http://localhost:3000"
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className={cn(

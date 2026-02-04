@@ -10,6 +10,7 @@ const AgentRoutes = require('./routes/agents');
 const SignalPlatformRoutes = require('./routes/signals-platform');
 const ScannerRoutes = require('./routes/scanner-simple');
 const ERC8004Routes = require('./routes/erc8004');
+const ChatRoutes = require('./routes/chat');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -56,6 +57,7 @@ app.use('/api/agents', AgentRoutes);
 app.use('/api/signal-platform', SignalPlatformRoutes);
 app.use('/api/scanner', ScannerRoutes);
 app.use('/api/erc8004', ERC8004Routes);
+app.use('/api/chat', ChatRoutes);
 
 // Root route - show API info
 app.get('/', (req, res) => {
@@ -169,8 +171,8 @@ app.get('/', (req, res) => {
 
 // Health check
 app.get('/health', (req, res) => {
-  res.json({ 
-    status: 'ok', 
+  res.json({
+    status: 'ok',
     timestamp: new Date().toISOString()
   });
 });
@@ -178,7 +180,7 @@ app.get('/health', (req, res) => {
 // Error handling
 app.use((err, req, res, next) => {
   console.error('Error:', err);
-  res.status(500).json({ 
+  res.status(500).json({
     error: 'Internal server error',
     message: process.env.NODE_ENV === 'development' ? err.message : undefined
   });

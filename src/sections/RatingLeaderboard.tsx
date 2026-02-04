@@ -22,7 +22,7 @@ export const RatingLeaderboard = () => {
         const fetchLeaderboard = async () => {
             try {
                 const response = await fetch(
-                    `https://snipersrus-backend-production.up.railway.app/api/signal-platform/leaderboard?type=${activeTab}&limit=20`
+                    `http://localhost:3000/api/signal-platform/leaderboard?type=${activeTab}&limit=20`
                 );
                 const data = await response.json();
                 setLeaders(data.leaders || []);

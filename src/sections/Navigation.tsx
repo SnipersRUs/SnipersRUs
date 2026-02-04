@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Menu, X, Terminal, Bot, Wallet, Coins, Radio, User, Target, Shield, Trophy } from 'lucide-react';
+import { Menu, X, Terminal, Bot, Wallet, Coins, Radio, User, Target, Shield, Trophy, TrendingUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTerminal } from '@/TerminalContext';
 
@@ -34,6 +34,7 @@ export const Navigation = () => {
         { id: 'sniper-guru', label: 'TRACKER', icon: User },
         { id: 'agent-console', label: 'DEPLOY', icon: Bot },
         { id: 'terminal', label: 'TERMINAL', icon: Terminal },
+        { id: 'ricky-trades', label: 'PnL', icon: TrendingUp },
     ];
 
     const externalLinks = [

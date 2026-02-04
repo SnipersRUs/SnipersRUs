@@ -30,12 +30,12 @@ export const SignalPlatform = () => {
         const fetchData = async () => {
             try {
                 // Fetch signals
-                const feedResponse = await fetch('https://snipersrus-backend-production.up.railway.app/api/signal-platform/feed');
+                const feedResponse = await fetch('http://localhost:3000/api/signal-platform/feed');
                 const feedData = await feedResponse.json();
                 setSignals(feedData.signals || []);
 
                 // Fetch leaderboard stats
-                const leaderboardResponse = await fetch('https://snipersrus-backend-production.up.railway.app/api/signal-platform/leaderboard');
+                const leaderboardResponse = await fetch('http://localhost:3000/api/signal-platform/leaderboard');
                 const leaderboardData = await leaderboardResponse.json();
                 
                 if (leaderboardData.teams) {

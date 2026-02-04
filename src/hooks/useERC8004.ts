@@ -23,7 +23,7 @@ export const useERC8004 = () => {
 
     try {
       const response = await fetch(
-        `https://snipersrus-backend-production.up.railway.app/api/erc8004/reputation/${address}`
+        `http://localhost:3000/api/erc8004/reputation/${address}`
       );
       
       if (!response.ok) {

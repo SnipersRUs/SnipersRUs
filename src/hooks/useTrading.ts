@@ -2,18 +2,17 @@ import { useState, useEffect, useCallback } from 'react';
 import type { Signal, Comment } from '@/types';
 
 // Path to the signals JSON file (served from public folder)
-const SIGNALS_JSON_PATH = '/signals.json';
+const API_BASE = 'http://localhost:3000/api';
 
 export const useTrading = () => {
     const [signals, setSignals] = useState<Signal[]>([]);
     const [lastUpdated, setLastUpdated] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
-    // Fetch signals from JSON file
+    // Fetch signals from backend
     const fetchSignals = useCallback(async () => {
         try {
-            // Add cache-busting query param to always get fresh data
-            const response = await fetch(`${SIGNALS_JSON_PATH}?t=${Date.now()}`);
+            const response = await fetch(`${API_BASE}/scanner/feed?t=${Date.now()}`);
 
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
@@ -22,25 +21,30 @@ export const useTrading = () => {
             const data = await response.json();
 
             if (data.signals && Array.isArray(data.signals)) {
-                setSignals(data.signals);
-                setLastUpdated(data.lastUpdated);
+                const mappedSignals: Signal[] = data.signals.map((s: any) => ({
+                    id: s.id,
+                    symbol: s.symbol,
+                    type: s.direction,
+                    entryPrice: parseFloat(s.entry),
+                    pnl: s.pnl || 0,
+                    prob: s.confidence || 70,
+                    status: s.result ? 'RESOLVED' : 'ACTIVE',
+                    createdAt: new Date(s.timestamp).getTime(),
+                    sentiment: s.sentiment || { bullish: 0, bearish: 0 },
+                    comments: s.comments || []
+                }));
+                setSignals(mappedSignals);
+                setLastUpdated(new Date().toISOString());
             }
         } catch (error) {
-            console.warn('Failed to fetch signals, using localStorage fallback:', error);
-
-            // Fallback to localStorage if JSON file not available
-            const stored = localStorage.getItem('sniper_signals_v2');
-            if (stored) {
-                try {
-                    const parsed = JSON.parse(stored);
-                    if (parsed.signals) {
-                        setSignals(parsed.signals);
-                    } else {
-                        setSignals(parsed);
-                    }
-                } catch (e) {
-                    console.error('Failed to parse stored signals:', e);
-                }
+            console.warn('Failed to fetch signals from backend:', error);
+            // Fallback to static file if backend fails
+            try {
+                const response = await fetch('/signals.json');
+                const data = await response.json();
+                setSignals(data);
+            } catch (e) {
+                console.error('Fallback fetch failed:', e);
             }
         } finally {
             setIsLoading(false);
@@ -51,72 +55,103 @@ export const useTrading = () => {
     useEffect(() => {
         fetchSignals();
 
-        // Refresh signals every 30 seconds
-        const interval = setInterval(fetchSignals, 30000);
+        // Refresh signals every 10 seconds (faster for "real-time" feel)
+        const interval = setInterval(fetchSignals, 10000);
 
         return () => clearInterval(interval);
     }, [fetchSignals]);
 
-    // Simulate live price updates for active signals
+    // Update PnL for active signals using real market data
     useEffect(() => {
-        const interval = setInterval(() => {
-            setSignals(prev => prev.map(sig => {
+        const updateSignalPnL = async () => {
+            if (signals.length === 0) return;
+
+            const activeSignals = signals.filter(s => s.status === 'ACTIVE');
+            if (activeSignals.length === 0) return;
+
+            const updatedSignals = await Promise.all(signals.map(async (sig) => {
                 if (sig.status !== 'ACTIVE') return sig;
 
-                // Small random fluctuation to simulate live market
-                const change = (Math.random() - 0.5) * 0.1;
+                try {
+                    // Extract base asset from symbol (e.g., BTC/USDT -> BTC)
+                    const asset = sig.symbol.split('/')[0].split('USDT')[0];
+                    const instId = `${asset}-USDT-SWAP`;
+                    const response = await fetch(`https://www.okx.com/api/v5/market/ticker?instId=${instId}`);
+                    const data = await response.json();
 
-                return {
-                    ...sig,
-                    pnl: (sig.pnl || 0) + change
-                };
+                    if (data.code === '0' && data.data && data.data[0]) {
+                        const currentPrice = parseFloat(data.data[0].last);
+                        const priceDiff = currentPrice - sig.entryPrice;
+                        const pnlPercent = (priceDiff / sig.entryPrice) * 100 * (sig.type === 'LONG' ? 1 : -1);
+                        return { ...sig, pnl: pnlPercent };
+                    }
+                } catch (err) {
+                    // Silently fail and keep current pnl
+                }
+                return sig;
             }));
-        }, 3000);
 
-        return () => clearInterval(interval);
-    }, []);
-
-    const addCommentToSignal = useCallback((signalId: string, body: string, author: { id: string, name: string, avatar: string }) => {
-        const newComment: Comment = {
-            id: `c_${Date.now()}`,
-            body,
-            authorId: author.id,
-            authorName: author.name,
-            authorAvatar: author.avatar,
-            upvotes: 0,
-            downvotes: 0,
-            createdAt: Date.now(),
-            replies: []
+            setSignals(updatedSignals);
         };
 
-        setSignals(prev => prev.map(sig => {
-            if (sig.id === signalId) {
-                return { ...sig, comments: [newComment, ...sig.comments] };
-            }
-            return sig;
-        }));
+        const interval = setInterval(updateSignalPnL, 10000); // Update every 10s
+        updateSignalPnL();
 
-        // Save to localStorage for persistence
-        localStorage.setItem('sniper_signals_v2', JSON.stringify({ signals, lastUpdated }));
-    }, [signals, lastUpdated]);
+        return () => clearInterval(interval);
+    }, [signals.some(s => s.status === 'ACTIVE')]);
 
-    const voteSignal = useCallback((signalId: string, type: 'bullish' | 'bearish') => {
-        setSignals(prev => prev.map(sig => {
-            if (sig.id === signalId) {
-                return {
-                    ...sig,
-                    sentiment: {
-                        ...sig.sentiment,
-                        [type]: sig.sentiment[type] + 1
+    const addCommentToSignal = useCallback(async (signalId: string, body: string, author: { id: string, name: string, avatar: string }) => {
+        try {
+            const response = await fetch(`${API_BASE}/scanner/comment/${signalId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    authorName: author.name,
+                    authorAvatar: author.avatar,
+                    body
+                }),
+            });
+
+            if (response.ok) {
+                const newComment = await response.json();
+                setSignals(prev => prev.map(sig => {
+                    if (sig.id === signalId) {
+                        return { ...sig, comments: [newComment, ...(sig.comments || [])] };
                     }
-                };
+                    return sig;
+                }));
             }
-            return sig;
-        }));
+        } catch (err) {
+            console.error('Failed to add comment:', err);
+        }
+    }, [API_BASE]);
 
-        // Save to localStorage for persistence
-        localStorage.setItem('sniper_signals_v2', JSON.stringify({ signals, lastUpdated }));
-    }, [signals, lastUpdated]);
+    const voteSignal = useCallback(async (signalId: string, type: 'bullish' | 'bearish') => {
+        try {
+            const response = await fetch(`${API_BASE}/scanner/vote/${signalId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ type }),
+            });
+
+            if (response.ok) {
+                setSignals(prev => prev.map(sig => {
+                    if (sig.id === signalId) {
+                        return {
+                            ...sig,
+                            sentiment: {
+                                ...sig.sentiment,
+                                [type]: (sig.sentiment[type] || 0) + 1
+                            }
+                        };
+                    }
+                    return sig;
+                }));
+            }
+        } catch (err) {
+            console.error('Failed to vote:', err);
+        }
+    }, [API_BASE]);
 
     // Paper Trading State
     const [balance, setBalance] = useState(10000);
@@ -165,7 +200,7 @@ export const useTrading = () => {
             alert('Failed to fetch market price. Please try again.');
             return;
         }
-        
+
         const newPos = {
             id: `pos_${Date.now()}`,
             asset,
@@ -218,19 +253,19 @@ export const useTrading = () => {
     useEffect(() => {
         const updatePnL = async () => {
             if (positions.length === 0) return;
-            
+
             const updatedPositions = await Promise.all(
                 positions.map(async (pos) => {
                     try {
                         const instId = `${pos.asset}-USDT-SWAP`;
                         const response = await fetch(`https://www.okx.com/api/v5/market/ticker?instId=${instId}`);
                         const data = await response.json();
-                        
+
                         if (data.code === '0' && data.data && data.data[0]) {
                             const currentPrice = parseFloat(data.data[0].last);
                             const priceDiff = currentPrice - pos.entryPrice;
-                            const pnl = pos.side === 'LONG' 
-                                ? priceDiff * pos.qty 
+                            const pnl = pos.side === 'LONG'
+                                ? priceDiff * pos.qty
                                 : -priceDiff * pos.qty;
                             return { ...pos, livePnl: pnl };
                         }
@@ -240,14 +275,14 @@ export const useTrading = () => {
                     return pos;
                 })
             );
-            
+
             setPositions(updatedPositions);
         };
 
         // Update every 5 seconds
         const interval = setInterval(updatePnL, 5000);
         updatePnL(); // Initial update
-        
+
         return () => clearInterval(interval);
     }, [positions.length]);
 

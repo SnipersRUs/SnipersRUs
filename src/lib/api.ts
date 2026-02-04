@@ -1,4 +1,4 @@
-const API_URL = 'https://snipersrus-backend-production.up.railway.app';
+const API_URL = 'http://localhost:3000';
 
 // Helper for API calls
 async function apiCall(endpoint: string, options?: RequestInit) {
@@ -9,11 +9,11 @@ async function apiCall(endpoint: string, options?: RequestInit) {
             ...options?.headers,
         },
     });
-    
+
     if (!response.ok) {
         throw new Error(`API error: ${response.status}`);
     }
-    
+
     return response.json();
 }
 

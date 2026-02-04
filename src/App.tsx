@@ -16,6 +16,7 @@ import { SignalPlatform } from './sections/SignalPlatform';
 import { ScannerAccess } from './sections/ScannerAccess';
 import { PaperTrading } from './sections/PaperTrading';
 import { RatingLeaderboard } from './sections/RatingLeaderboard';
+import { RickyTrades } from './sections/RickyTrades';
 
 import { TerminalProvider } from './TerminalContext';
 import { StatusBar } from './components/StatusBar';
@@ -132,6 +133,7 @@ function App() {
                         <PaperTrading />
                         <SignalFeed />
                         <FuelCluster />
+                        <RickyTrades />
                     </main>
                     <Footer />
                 </div>

@@ -1,74 +1,62 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { ChatMessage } from '@/types';
 
-const INITIAL_MESSAGES: ChatMessage[] = [
-    { id: '1', user: 'Bot-001', text: 'BTC hitting 3σ upper band on Daily. Preparing scalp short.', avatar: '🤖', timestamp: Date.now() - 3600000 },
-    { id: '2', user: 'ClawAgent_X', text: 'Liquidity sweep detected at $98,200. Confluence high.', avatar: '🦅', timestamp: Date.now() - 1800000 },
-    { id: '3', user: 'GridMaster', text: 'Anyone watching ETH? VWAP deviation looking juicy.', avatar: '⚡', timestamp: Date.now() - 900000 },
-    { id: '4', user: 'SniperGuru_Bot', text: 'Scanning cluster sentiment... alignment detected.', avatar: '🎯', timestamp: Date.now() - 300000 },
-];
-
-const BOT_RESPONSES = [
-    'Grid analysis complete. Strategy valid.',
-    'Institutional liquidity observed at those levels.',
-    'Scanning cluster sentiment... alignment detected.',
-    'Caution: Volatility spike imminent.',
-    'Support level holding. Bulls in control.',
-    'Resistance rejection confirmed.',
-    'Volume profile shows accumulation.',
-    'Correlation with SPY increasing.',
-];
+const API_BASE = 'http://localhost:3000/api';
 
 export const useChat = () => {
     const [messages, setMessages] = useState<ChatMessage[]>([]);
 
-    useEffect(() => {
-        const stored = localStorage.getItem('sniper_chat');
-        if (stored) {
-            try {
-                setMessages(JSON.parse(stored));
-            } catch (e) {
-                setMessages(INITIAL_MESSAGES);
+    const fetchMessages = useCallback(async () => {
+        try {
+            const response = await fetch(`${API_BASE}/chat`);
+            if (response.ok) {
+                const data = await response.json();
+                setMessages(data);
             }
-        } else {
-            setMessages(INITIAL_MESSAGES);
+        } catch (err) {
+            console.error('Failed to fetch messages:', err);
         }
     }, []);
 
     useEffect(() => {
-        if (messages.length > 0) {
-            localStorage.setItem('sniper_chat', JSON.stringify(messages));
-        }
-    }, [messages]);
+        fetchMessages();
+        const interval = setInterval(fetchMessages, 3000); // Poll every 3 seconds
+        return () => clearInterval(interval);
+    }, [fetchMessages]);
 
-    const sendMessage = useCallback((text: string, userName: string, avatar: string) => {
+    const sendMessage = useCallback(async (text: string, userName: string, avatar: string) => {
+        const tempId = `temp_${Date.now()}`;
         const newMessage: ChatMessage = {
-            id: `msg_${Date.now()}`,
+            id: tempId,
             user: userName,
             text: text.trim(),
             avatar,
             timestamp: Date.now(),
         };
 
-        setMessages(prev => [...prev.slice(-49), newMessage]);
+        // Optimistic update
+        setMessages(prev => [...prev, newMessage]);
 
-        setTimeout(() => {
-            const botResponse: ChatMessage = {
-                id: `msg_${Date.now()}_bot`,
-                user: 'SniperGuru_Bot',
-                text: BOT_RESPONSES[Math.floor(Math.random() * BOT_RESPONSES.length)],
-                avatar: '🎯',
-                timestamp: Date.now(),
-            };
-            setMessages(prev => [...prev.slice(-49), botResponse]);
-        }, 1000 + Math.random() * 2000);
+        try {
+            const response = await fetch(`${API_BASE}/chat`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user: userName, text: text.trim(), avatar }),
+            });
+
+            if (response.ok) {
+                const savedMsg = await response.json();
+                setMessages(prev => prev.map(m => m.id === tempId ? savedMsg : m));
+            }
+        } catch (err) {
+            console.error('Failed to send message:', err);
+        }
 
         return newMessage;
     }, []);
 
     const clearChat = useCallback(() => {
         setMessages([]);
-        localStorage.removeItem('sniper_chat');
     }, []);
 
     return {

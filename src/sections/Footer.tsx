@@ -8,7 +8,7 @@ export const Footer = () => {
         // Get current count from localStorage
         const stored = localStorage.getItem('srus_visit_count');
         const currentCount = stored ? parseInt(stored, 10) : 0;
-        
+
         // Check if this is a new session (not just a refresh)
         const sessionId = sessionStorage.getItem('srus_session');
         if (!sessionId) {
@@ -60,8 +60,8 @@ export const Footer = () => {
                     <div>
                         <h4 className="font-orbitron font-bold text-white mb-6">API</h4>
                         <ul className="space-y-4 text-sm text-white/50">
-                            <li><a href="https://snipersrus-backend-production.up.railway.app/health" target="_blank" rel="noopener noreferrer" className="hover:text-sniper-green transition-colors">API Status</a></li>
-                            <li><a href="https://snipersrus-backend-production.up.railway.app/api/signals" target="_blank" rel="noopener noreferrer" className="hover:text-sniper-green transition-colors">Signals Endpoint</a></li>
+                            <li><a href="http://localhost:3000/health" target="_blank" rel="noopener noreferrer" className="hover:text-sniper-green transition-colors">API Status</a></li>
+                            <li><a href="http://localhost:3000/api/signals" target="_blank" rel="noopener noreferrer" className="hover:text-sniper-green transition-colors">Signals Endpoint</a></li>
                             <li><span className="text-white/30">Docs (Coming Soon)</span></li>
                         </ul>
                     </div>
@@ -80,7 +80,7 @@ export const Footer = () => {
                     <div className="text-xs font-mono text-white/30">
                         © 2026 SNIPERS-R-US. ALL RIGHTS RESERVED.
                     </div>
-                    
+
                     {/* View Counter - Illuminated Number */}
                     <div className="flex items-center gap-3">
                         <div className="relative">
@@ -91,7 +91,7 @@ export const Footer = () => {
                             <div className="absolute inset-0 blur-md bg-sniper-green/20 -z-10"></div>
                         </div>
                     </div>
-                    
+
                     <div className="flex items-center gap-2 text-xs font-mono text-white/30">
                         <span className="w-2 h-2 rounded-full bg-sniper-green animate-pulse"></span>
                         SYSTEM ONLINE
