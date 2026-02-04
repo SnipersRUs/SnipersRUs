@@ -1,7 +1,0 @@
-[build]
-cmd = "cd backend && npm install"
-
-[deploy]
-startCommand = "cd backend && npm start"
-restartPolicyType = "on_failure"
-restartPolicyMaxRetries = 3
