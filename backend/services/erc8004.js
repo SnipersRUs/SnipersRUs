@@ -42,6 +42,14 @@ class ERC8004Service {
     this.isMainnet = process.env.NODE_ENV === 'production';
     this.contractAddress = this.isMainnet ? CONTRACTS.mainnet : CONTRACTS.sepolia;
     
+    // Skip initialization if no contract address is set
+    if (!this.contractAddress || this.contractAddress === '0x0000000000000000000000000000000000000000') {
+      console.log('⚠️ ERC8004: No contract address configured, service disabled');
+      this.contract = null;
+      this.writeContract = null;
+      return;
+    }
+    
     // Set up provider
     const rpcUrl = this.isMainnet 
       ? 'https://mainnet.base.org' 
@@ -67,6 +75,7 @@ class ERC8004Service {
    * Check if an address is registered as an agent on-chain
    */
   async isRegistered(address) {
+    if (!this.contract) return false;
     try {
       const result = await this.contract.isRegistered(address);
       return result;
@@ -80,6 +89,7 @@ class ERC8004Service {
    * Get agent's on-chain reputation data
    */
   async getAgentReputation(address) {
+    if (!this.contract) return null;
     try {
       const agent = await this.contract.agents(address);
       
