@@ -36,6 +36,10 @@ export const Navigation = () => {
         { id: 'terminal', label: 'TERMINAL', icon: Terminal },
     ];
 
+    const externalLinks = [
+        { href: '/sniper-guru-scanner.html', label: 'BUY SCANNER', icon: Target },
+    ];
+
     return (
         <nav className={cn(
             "fixed top-0 w-full z-50 transition-all duration-300 border-b border-transparent",
@@ -59,6 +63,16 @@ export const Navigation = () => {
                                 <item.icon size={14} />
                                 {item.label}
                             </button>
+                        ))}
+                        {externalLinks.map((item) => (
+                            <a
+                                key={item.href}
+                                href={item.href}
+                                className="px-3 py-2 text-[10px] font-mono font-bold text-sniper-green hover:text-white hover:bg-sniper-green/20 rounded transition-all uppercase tracking-wider flex items-center gap-1.5 border border-sniper-green/30"
+                            >
+                                <item.icon size={14} />
+                                {item.label}
+                            </a>
                         ))}
                     </div>
 
@@ -95,6 +109,16 @@ export const Navigation = () => {
                                 <item.icon size={18} />
                                 {item.label}
                             </button>
+                        ))}
+                        {externalLinks.map((item) => (
+                            <a
+                                key={item.href}
+                                href={item.href}
+                                className="block w-full text-left px-3 py-4 text-sm font-mono font-bold text-sniper-green hover:text-white hover:bg-sniper-green/20 rounded-lg transition-all flex items-center gap-3 border border-sniper-green/30"
+                            >
+                                <item.icon size={18} />
+                                {item.label}
+                            </a>
                         ))}
                     </div>
                 </div>

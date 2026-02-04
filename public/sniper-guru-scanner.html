@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Official Sniper Guru Scanner v2.0 | sorus.life</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bg-primary: #0a0a0f;
+            --bg-secondary: #12121a;
+            --bg-card: #16161f;
+            --text-primary: #ffffff;
+            --text-secondary: #a0a0b0;
+            --accent-primary: #8b5cf6;
+            --accent-secondary: #ec4899;
+            --accent-green: #10b981;
+            --accent-yellow: #f59e0b;
+            --accent-red: #ef4444;
+            --gradient-primary: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            --border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+
+        /* Header */
+        .header {
+            background: rgba(10, 10, 15, 0.95);
+            border-bottom: 1px solid var(--border-color);
+            padding: 20px 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 800;
+            background: var(--gradient-primary);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .nav-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            margin-left: 32px;
+            font-weight: 500;
+            transition: color 0.3s;
+        }
+
+        .nav-links a:hover {
+            color: var(--text-primary);
+        }
+
+        /* Hero */
+        .hero {
+            padding: 100px 0 80px;
+            text-align: center;
+            background: radial-gradient(ellipse at center, rgba(139, 92, 246, 0.15) 0%, transparent 70%);
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 20px;
+            background: rgba(139, 92, 246, 0.1);
+            border: 1px solid rgba(139, 92, 246, 0.3);
+            border-radius: 100px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--accent-primary);
+            margin-bottom: 24px;
+        }
+
+        .hero-badge i {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .hero h1 {
+            font-size: 3.5rem;
+            font-weight: 800;
+            line-height: 1.1;
+            margin-bottom: 24px;
+        }
+
+        .hero h1 span {
+            background: var(--gradient-primary);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero-subtitle {
+            font-size: 1.25rem;
+            color: var(--text-secondary);
+            max-width: 600px;
+            margin: 0 auto 40px;
+        }
+
+        .hero-stats {
+            display: flex;
+            justify-content: center;
+            gap: 48px;
+            margin-bottom: 48px;
+        }
+
+        .stat {
+            text-align: center;
+        }
+
+        .stat-value {
+            display: block;
+            font-size: 2.5rem;
+            font-weight: 800;
+            background: var(--gradient-primary);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .stat-label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .cta-button {
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            padding: 20px 48px;
+            background: var(--gradient-primary);
+            color: white;
+            font-size: 1.25rem;
+            font-weight: 700;
+            text-decoration: none;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(139, 92, 246, 0.3);
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .cta-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 48px rgba(139, 92, 246, 0.4);
+        }
+
+        .price-tag {
+            margin-top: 24px;
+            font-size: 1.5rem;
+            color: var(--text-secondary);
+        }
+
+        .price-tag strong {
+            color: var(--accent-green);
+            font-size: 2rem;
+        }
+
+        /* Features */
+        .features {
+            padding: 100px 0;
+            background: var(--bg-secondary);
+        }
+
+        .section-header {
+            text-align: center;
+            margin-bottom: 64px;
+        }
+
+        .section-header h2 {
+            font-size: 2.5rem;
+            margin-bottom: 16px;
+        }
+
+        .section-header p {
+            color: var(--text-secondary);
+            font-size: 1.125rem;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 24px;
+        }
+
+        .feature-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 32px;
+            transition: all 0.3s;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-4px);
+            border-color: rgba(139, 92, 246, 0.3);
+        }
+
+        .feature-icon {
+            width: 56px;
+            height: 56px;
+            background: var(--gradient-primary);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            color: white;
+            margin-bottom: 20px;
+        }
+
+        .feature-card h3 {
+            font-size: 1.25rem;
+            margin-bottom: 12px;
+        }
+
+        .feature-card p {
+            color: var(--text-secondary);
+            font-size: 0.9375rem;
+        }
+
+        /* Signal Example */
+        .signal-example {
+            padding: 100px 0;
+        }
+
+        .signal-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 32px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .signal-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .signal-badge {
+            background: var(--accent-green);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 100px;
+            font-size: 0.75rem;
+            font-weight: 700;
+        }
+
+        .signal-badge.short {
+            background: var(--accent-red);
+        }
+
+        .signal-pair {
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .signal-confidence {
+            margin-left: auto;
+            color: var(--text-muted);
+        }
+
+        .signal-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .signal-item {
+            text-align: center;
+        }
+
+        .signal-item label {
+            display: block;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .signal-item value {
+            display: block;
+            font-size: 1.125rem;
+            font-weight: 600;
+        }
+
+        .signal-analysis {
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            padding: 16px;
+        }
+
+        .signal-analysis h4 {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+        }
+
+        .signal-analysis ul {
+            list-style: none;
+        }
+
+        .signal-analysis li {
+            padding: 6px 0;
+            font-size: 0.9375rem;
+        }
+
+        /* Pricing */
+        .pricing {
+            padding: 100px 0;
+            background: var(--bg-secondary);
+        }
+
+        .pricing-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 24px;
+            padding: 48px;
+            max-width: 500px;
+            margin: 0 auto;
+            text-align: center;
+        }
+
+        .pricing-card h3 {
+            font-size: 1.5rem;
+            margin-bottom: 8px;
+        }
+
+        .pricing-card .subtitle {
+            color: var(--text-secondary);
+            margin-bottom: 32px;
+        }
+
+        .price {
+            font-size: 4rem;
+            font-weight: 800;
+            background: var(--gradient-primary);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 8px;
+        }
+
+        .price-note {
+            color: var(--text-muted);
+            margin-bottom: 32px;
+        }
+
+        .features-list {
+            text-align: left;
+            margin-bottom: 32px;
+        }
+
+        .features-list li {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .features-list li:last-child {
+            border-bottom: none;
+        }
+
+        .features-list i {
+            color: var(--accent-green);
+        }
+
+        /* FAQ */
+        .faq {
+            padding: 100px 0;
+        }
+
+        .faq-item {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            margin-bottom: 16px;
+            overflow: hidden;
+        }
+
+        .faq-question {
+            padding: 24px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 600;
+        }
+
+        .faq-answer {
+            padding: 0 24px 24px;
+            color: var(--text-secondary);
+        }
+
+        /* Footer */
+        .footer {
+            padding: 60px 0;
+            border-top: 1px solid var(--border-color);
+            text-align: center;
+        }
+
+        .footer p {
+            color: var(--text-muted);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .hero h1 {
+                font-size: 2.5rem;
+            }
+
+            .hero-stats {
+                flex-direction: column;
+                gap: 24px;
+            }
+
+            .features-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .signal-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="container">
+            <div class="header-content">
+                <div class="logo">sorus.life</div>
+                <nav class="nav-links">
+                    <a href="#features">Features</a>
+                    <a href="#pricing">Pricing</a>
+                    <a href="#faq">FAQ</a>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <!-- Hero -->
+    <section class="hero">
+        <div class="container">
+            <div class="hero-badge">
+                <i class="fas fa-bolt"></i>
+                Version 2.0 Now Available
+            </div>
+            <h1>
+                Official Sniper Guru<br>
+                <span>Scanner v2.0</span>
+            </h1>
+            <p class="hero-subtitle">
+                Professional OKX trading bot that scans 200+ perpetual futures for 
+                high-probability LONG and SHORT signals at support/resistance levels.
+            </p>
+            <div class="hero-stats">
+                <div class="stat">
+                    <span class="stat-value">70%</span>
+                    <span class="stat-label">Win Rate</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-value">200+</span>
+                    <span class="stat-label">Pairs Scanned</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-value">1:2.5</span>
+                    <span class="stat-label">Avg R:R</span>
+                </div>
+            </div>
+            <a href="#pricing" class="cta-button">
+                <i class="fas fa-download"></i>
+                Get Instant Access
+            </a>
+            <p class="price-tag">
+                <strong>500 ZOID</strong> one-time payment
+            </p>
+        </div>
+    </section>
+
+    <!-- Features -->
+    <section class="features" id="features">
+        <div class="container">
+            <div class="section-header">
+                <h2>Why Sniper Guru Scanner?</h2>
+                <p>Professional-grade features for serious traders</p>
+            </div>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-bullseye"></i>
+                    </div>
+                    <h3>Support/Resistance Detection</h3>
+                    <p>Advanced pivot point algorithm identifies key levels with multi-touch clustering for maximum accuracy.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-arrows-alt-h"></i>
+                    </div>
+                    <h3>Long & Short Signals</h3>
+                    <p>Not just one direction. Get both LONG signals at support AND SHORT signals at resistance.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                    <h3>Confidence Scoring</h3>
+                    <p>0-100 scoring system weights proximity, RSI, VWAP deviation, and volume for quality signals only.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fab fa-discord"></i>
+                    </div>
+                    <h3>Discord + Telegram</h3>
+                    <p>Instant alerts to your preferred platform with entry zones, stops, and take profits included.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-code"></i>
+                    </div>
+                    <h3>Full Source Code</h3>
+                    <p>1,215+ lines of documented Python. Customize everything - timeframes, thresholds, indicators.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-infinity"></i>
+                    </div>
+                    <h3>Lifetime Updates</h3>
+                    <p>One purchase, forever. All future updates and improvements included at no extra cost.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Signal Example -->
+    <section class="signal-example">
+        <div class="container">
+            <div class="section-header">
+                <h2>Example Signal</h2>
+                <p>This is what you'll receive every time a high-probability setup is detected</p>
+            </div>
+            <div class="signal-card">
+                <div class="signal-header">
+                    <span class="signal-badge">LONG</span>
+                    <span class="signal-pair">BTCUSDT</span>
+                    <span class="signal-confidence">Confidence: HIGH</span>
+                </div>
+                <div class="signal-grid">
+                    <div class="signal-item">
+                        <label>Entry Zone</label>
+                        <value>$43,250 - $43,500</value>
+                    </div>
+                    <div class="signal-item">
+                        <label>Stop Loss</label>
+                        <value style="color: var(--accent-red)">$42,800</value>
+                    </div>
+                    <div class="signal-item">
+                        <label>Take Profit</label>
+                        <value style="color: var(--accent-green)">$45,200</value>
+                    </div>
+                </div>
+                <div class="signal-analysis">
+                    <h4>📊 Analysis (Score: 75/100)</h4>
+                    <ul>
+                        <li>🎯 AT SUPPORT: Price 0.45% above $43,000</li>
+                        <li>💪 Strong Support (4 touches)</li>
+                        <li>🌡️ RSI Oversold: 28.5</li>
+                        <li>📊 Below VWAP: -1.8σ</li>
+                        <li>🔊 Extreme Volume - Potential reversal</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Pricing -->
+    <section class="pricing" id="pricing">
+        <div class="container">
+            <div class="section-header">
+                <h2>Simple Pricing</h2>
+                <p>One payment. Lifetime access. No subscriptions.</p>
+            </div>
+            <div class="pricing-card">
+                <h3>Complete Package</h3>
+                <p class="subtitle">Everything you need to start sniping trades</p>
+                <div class="price">500 ZOID</div>
+                <p class="price-note">One-time payment • Lifetime updates</p>
+                <ul class="features-list">
+                    <li><i class="fas fa-check-circle"></i> Complete bot source code (818 lines)</li>
+                    <li><i class="fas fa-check-circle"></i> Setup documentation (185 lines)</li>
+                    <li><i class="fas fa-check-circle"></i> Strategy guide (212 lines)</li>
+                    <li><i class="fas fa-check-circle"></i> Discord + Telegram integration</li>
+                    <li><i class="fas fa-check-circle"></i> Commercial license (single user)</li>
+                    <li><i class="fas fa-check-circle"></i> All future updates</li>
+                </ul>
+                <a href="mailto:clawrenew@gmail.com?subject=Purchase Sniper Guru Scanner - 500 ZOID" class="cta-button">
+                    <i class="fas fa-shopping-cart"></i>
+                    Purchase Now
+                </a>
+                <p style="margin-top: 16px; font-size: 0.875rem; color: var(--text-muted);">
+                    Contact: clawrenew@gmail.com
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- FAQ -->
+    <section class="faq" id="faq">
+        <div class="container">
+            <div class="section-header">
+                <h2>Frequently Asked Questions</h2>
+            </div>
+            <div class="faq-item">
+                <div class="faq-question">
+                    What exchanges does it support?
+                    <i class="fas fa-chevron-down"></i>
+                </div>
+                <div class="faq-answer">
+                    Currently OKX perpetual futures only. This gives us access to 200+ trading pairs with deep liquidity.
+                </div>
+            </div>
+            <div class="faq-item">
+                <div class="faq-question">
+                    How many signals per day?
+                    <i class="fas fa-chevron-down"></i>
+                </div>
+                <div class="faq-answer">
+                    Typically 3-10 signals per day depending on market volatility. The bot filters for quality over quantity using the 0-100 scoring system.
+                </div>
+            </div>
+            <div class="faq-item">
+                <div class="faq-question">
+                    Can I customize the strategy?
+                    <i class="fas fa-chevron-down"></i>
+                </div>
+                <div class="faq-answer">
+                    Absolutely. You get full source code. Modify timeframes, thresholds, indicators, or add your own filters. It's designed to be a customizable blueprint.
+                </div>
+            </div>
+            <div class="faq-item">
+                <div class="faq-question">
+                    What technical knowledge do I need?
+                    <i class="fas fa-chevron-down"></i>
+                </div>
+                <div class="faq-answer">
+                    Basic Python knowledge helps, but the setup guide walks you through everything step-by-step. If you can copy/paste a Discord webhook URL, you can run this bot.
+                </div>
+            </div>
+            <div class="faq-item">
+                <div class="faq-question">
+                    Is there a refund policy?
+                    <i class="fas fa-chevron-down"></i>
+                </div>
+                <div class="faq-answer">
+                    Due to the nature of digital products and source code, all sales are final. However, I'm committed to your success - reach out if you need help with setup.
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <p>© 2026 Official Sniper Guru Scanner. Built for serious traders.</p>
+            <p style="margin-top: 8px; font-size: 0.875rem;">Powered by ZOID • sorus.life</p>
+        </div>
+    </footer>
+
+    <script>
+        // FAQ Toggle
+        document.querySelectorAll('.faq-question').forEach(q => {
+            q.addEventListener('click', () => {
+                const item = q.parentElement;
+                const answer = q.nextElementSibling;
+                const icon = q.querySelector('i');
+                
+                if (answer.style.display === 'block') {
+                    answer.style.display = 'none';
+                    icon.style.transform = 'rotate(0deg)';
+                } else {
+                    answer.style.display = 'block';
+                    icon.style.transform = 'rotate(180deg)';
+                }
+            });
+        });
+    </script>
+</body>
+</html>
